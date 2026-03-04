@@ -121,3 +121,22 @@ vllm serve <model> --omni --cpu-offload-gb 10
 - For FLUX model details, see [references/flux-models.md](references/flux-models.md)
 - For Qwen-Image family, see [references/qwen-image.md](references/qwen-image.md)
 - For image editing workflows, see [references/image-edit.md](references/image-edit.md)
+
+## Recent Updates (Auto-generated)
+
+**Source**: [PR #1644](https://github.com/vllm-project/vllm-omni/pull/1644) - [Model] Add edit preprocessor for HunyuanImage3
+
+### Changes
+- New feature: Add image editing support for HunyuanImage3
+
+### New Features
+- HunyuanImage3 image editing
+- Conditional image preprocessing
+- IPC serialization fix for numpy scalars
+
+### Technical Details
+- Model: HunyuanImage-3.0
+- Capability: Image editing (text-guided modification)
+- Implementation: VAE + ViT joint preprocessing pipeline
+
+*Updated: 2026-03-04*

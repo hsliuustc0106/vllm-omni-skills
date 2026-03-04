@@ -52,7 +52,7 @@
 **Added**:
 - <!-- markdownlint-disable -->
 - PLEASE FILL IN THE PR DESCRIPTION HERE ENSURING ALL CHECKLIST ITEMS (AT THE BOTTOM) HAVE BEEN CONSIDERED.
-- Quik fix test failure:
+- Quick fix test failure:
 
 **Updated in skill**:
 - ✅ (自动标记)

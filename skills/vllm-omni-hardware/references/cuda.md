@@ -9,7 +9,7 @@
 ## Installation
 
 ```bash
-uv pip install vllm==0.16.0 --torch-backend=auto
+uv pip install vllm==$VLLM_VERSION --torch-backend=auto
 git clone https://github.com/vllm-project/vllm-omni.git && cd vllm-omni
 uv pip install -e .
 ```

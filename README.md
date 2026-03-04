@@ -86,11 +86,17 @@ vllm-omni-skills/
         └── scripts/         # Utility scripts (some skills)
 ```
 
-## Compatible With
+## Version Variables
 
-- vLLM-Omni v0.16.0
-- vLLM v0.16.0
-- Python 3.12
+Skills use shell-style variables for version-dependent values. Set these before following any skill instructions:
+
+```bash
+export VLLM_VERSION="0.16.0"           # vLLM pip package version
+export VLLM_OMNI_VERSION="v0.16.0"     # vLLM-Omni release / Docker tag
+export PYTHON_VERSION="3.12"           # Python version
+```
+
+Check the [vllm-omni quickstart](https://github.com/vllm-project/vllm-omni#getting-started) for currently recommended versions.
 
 ## License
 

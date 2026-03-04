@@ -13,8 +13,8 @@ vLLM-Omni supports four hardware backends: NVIDIA CUDA (default), AMD ROCm, Huaw
 
 | Backend | Accelerators | Install Method | Maturity |
 |---------|-------------|----------------|----------|
-| CUDA | NVIDIA A100/H100/L40/RTX | `uv pip install vllm==0.16.0` | Production |
-| ROCm | AMD MI300X/MI250X | `uv pip install vllm==0.16.0 --extra-index-url ...` | Production |
+| CUDA | NVIDIA A100/H100/L40/RTX | `uv pip install vllm==$VLLM_VERSION` | Production |
+| ROCm | AMD MI300X/MI250X | `uv pip install vllm==$VLLM_VERSION --extra-index-url ...` | Production |
 | NPU | Huawei Ascend 910B | Source build with CANN | Supported |
 | XPU | Intel Data Center GPU Max | Source build with oneAPI | Experimental |
 
@@ -40,12 +40,12 @@ xpu-smi discovery
 
 **CUDA (NVIDIA):**
 ```bash
-uv pip install vllm==0.16.0 --torch-backend=auto
+uv pip install vllm==$VLLM_VERSION --torch-backend=auto
 ```
 
 **ROCm (AMD):**
 ```bash
-uv pip install vllm==0.16.0 --extra-index-url https://wheels.vllm.ai/rocm/0.16.0/rocm700
+uv pip install vllm==$VLLM_VERSION --extra-index-url https://wheels.vllm.ai/rocm/$VLLM_VERSION/rocm700
 ```
 
 **NPU (Huawei):**

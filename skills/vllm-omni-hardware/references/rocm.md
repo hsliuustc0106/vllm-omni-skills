@@ -9,10 +9,10 @@
 ## Installation
 
 ```bash
-uv venv --python 3.12 --seed
+uv venv --python $PYTHON_VERSION --seed
 source .venv/bin/activate
 
-uv pip install vllm==0.16.0 --extra-index-url https://wheels.vllm.ai/rocm/0.16.0/rocm700
+uv pip install vllm==$VLLM_VERSION --extra-index-url https://wheels.vllm.ai/rocm/$VLLM_VERSION/rocm700
 
 git clone https://github.com/vllm-project/vllm-omni.git
 cd vllm-omni

@@ -70,7 +70,7 @@ For serving multiple models:
 # docker-compose.yml
 services:
   image-gen:
-    image: vllm/vllm-omni:v0.16.0
+    image: vllm/vllm-omni:${VLLM_OMNI_VERSION}
     command: vllm serve Tongyi-MAI/Z-Image-Turbo --omni --port 8091 --host 0.0.0.0
     ports:
       - "8091:8091"
@@ -83,7 +83,7 @@ services:
               capabilities: [gpu]
 
   omni:
-    image: vllm/vllm-omni:v0.16.0
+    image: vllm/vllm-omni:${VLLM_OMNI_VERSION}
     command: vllm serve Qwen/Qwen2.5-Omni-7B --omni --port 8092 --host 0.0.0.0
     ports:
       - "8092:8092"
@@ -96,7 +96,7 @@ services:
               capabilities: [gpu]
 
   tts:
-    image: vllm/vllm-omni:v0.16.0
+    image: vllm/vllm-omni:${VLLM_OMNI_VERSION}
     command: vllm serve Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice --omni --port 8093 --host 0.0.0.0
     ports:
       - "8093:8093"

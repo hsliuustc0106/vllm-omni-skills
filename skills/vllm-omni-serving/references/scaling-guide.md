@@ -90,7 +90,7 @@ spec:
     spec:
       containers:
         - name: vllm-omni
-          image: vllm/vllm-omni:v0.16.0
+          image: vllm/vllm-omni:${VLLM_OMNI_VERSION}
           command: ["vllm", "serve", "Tongyi-MAI/Z-Image-Turbo", "--omni", "--port", "8091", "--host", "0.0.0.0"]
           ports:
             - containerPort: 8091

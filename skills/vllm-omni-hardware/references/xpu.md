@@ -13,7 +13,7 @@
 # Source oneAPI environment
 source /opt/intel/oneapi/setvars.sh
 
-uv venv --python 3.12 --seed
+uv venv --python $PYTHON_VERSION --seed
 source .venv/bin/activate
 
 # Install PyTorch with XPU support

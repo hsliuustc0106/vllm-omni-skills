@@ -13,7 +13,7 @@
 # Ensure CANN toolkit is installed and sourced
 source /usr/local/Ascend/ascend-toolkit/set_env.sh
 
-uv venv --python 3.12 --seed
+uv venv --python $PYTHON_VERSION --seed
 source .venv/bin/activate
 
 # Install PyTorch with NPU support

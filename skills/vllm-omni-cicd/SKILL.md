@@ -14,7 +14,7 @@ This skill covers CI/CD patterns for deploying and updating vLLM-Omni model serv
 ### Production Dockerfile
 
 ```dockerfile
-FROM vllm/vllm-omni:v0.16.0
+FROM vllm/vllm-omni:$VLLM_OMNI_VERSION
 
 ARG MODEL_NAME
 ENV MODEL_NAME=${MODEL_NAME}
@@ -40,7 +40,7 @@ docker push my-registry/vllm-omni-z-image:latest
 For faster container startup, bake model weights into the image:
 
 ```dockerfile
-FROM vllm/vllm-omni:v0.16.0
+FROM vllm/vllm-omni:$VLLM_OMNI_VERSION
 
 RUN python -c "from huggingface_hub import snapshot_download; \
     snapshot_download('Tongyi-MAI/Z-Image-Turbo', local_dir='/models/z-image')"
@@ -114,7 +114,7 @@ jobs:
       - run: |
           docker run --gpus all --rm \
             -v $(pwd):/workspace \
-            vllm/vllm-omni:v0.16.0 \
+            vllm/vllm-omni:$VLLM_OMNI_VERSION \
             pytest /workspace/tests/gpu/ -v
 ```
 

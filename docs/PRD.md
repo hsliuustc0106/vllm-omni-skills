@@ -49,7 +49,7 @@ This skills collection provides contextual, step-by-step guidance that an AI cod
 
 ## Dependencies
 
-- vLLM-Omni v0.16.0 (latest stable release)
-- vLLM v0.16.0 (upstream dependency)
-- Python 3.12
+- vLLM-Omni (latest stable release -- version referenced as `$VLLM_OMNI_VERSION`)
+- vLLM (upstream dependency -- version referenced as `$VLLM_VERSION`)
+- Python (version referenced as `$PYTHON_VERSION`)
 - Supported hardware: NVIDIA GPU (CUDA), AMD GPU (ROCm), Huawei NPU, Intel XPU

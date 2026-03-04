@@ -21,9 +21,9 @@ cd vllm-omni
 ### Step 2: Install in Development Mode
 
 ```bash
-uv venv --python 3.12 --seed
+uv venv --python $PYTHON_VERSION --seed
 source .venv/bin/activate
-uv pip install vllm==0.16.0 --torch-backend=auto
+uv pip install vllm==$VLLM_VERSION --torch-backend=auto
 uv pip install -e ".[dev]"
 ```
 

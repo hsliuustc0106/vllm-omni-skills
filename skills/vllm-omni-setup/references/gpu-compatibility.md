@@ -23,7 +23,7 @@
 
 **Install with**:
 ```bash
-uv pip install vllm==0.16.0 --extra-index-url https://wheels.vllm.ai/rocm/0.16.0/rocm700
+uv pip install vllm==$VLLM_VERSION --extra-index-url https://wheels.vllm.ai/rocm/$VLLM_VERSION/rocm700
 ```
 
 ## Huawei NPU (Ascend)

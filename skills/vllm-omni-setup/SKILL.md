@@ -9,10 +9,20 @@ description: Install and configure vLLM-Omni for omni-modality model inference. 
 
 vLLM-Omni extends vLLM to support omni-modality model inference (text, image, video, audio) with both autoregressive and diffusion architectures. This skill covers installation from source and environment configuration.
 
+## Version Variables
+
+Set these before running any commands. Check the [vllm-omni quickstart](https://github.com/vllm-project/vllm-omni#getting-started) for currently recommended versions.
+
+```bash
+export VLLM_VERSION="0.16.0"           # vLLM pip package version
+export VLLM_OMNI_VERSION="v0.16.0"     # vLLM-Omni release / Docker tag
+export PYTHON_VERSION="3.12"           # Python version
+```
+
 ## Prerequisites
 
 - Linux OS (Ubuntu 20.04+ recommended)
-- Python 3.12
+- Python $PYTHON_VERSION
 - GPU with appropriate drivers (NVIDIA CUDA, AMD ROCm, Huawei NPU, or Intel XPU)
 - `uv` package manager (recommended) or `pip`
 - Git
@@ -22,7 +32,7 @@ vLLM-Omni extends vLLM to support omni-modality model inference (text, image, vi
 ### Step 1: Create Python Environment
 
 ```bash
-uv venv --python 3.12 --seed
+uv venv --python $PYTHON_VERSION --seed
 source .venv/bin/activate
 ```
 
@@ -32,12 +42,12 @@ Select the command matching your hardware:
 
 **NVIDIA GPU (CUDA):**
 ```bash
-uv pip install vllm==0.16.0 --torch-backend=auto
+uv pip install vllm==$VLLM_VERSION --torch-backend=auto
 ```
 
 **AMD GPU (ROCm):**
 ```bash
-uv pip install vllm==0.16.0 --extra-index-url https://wheels.vllm.ai/rocm/0.16.0/rocm700
+uv pip install vllm==$VLLM_VERSION --extra-index-url https://wheels.vllm.ai/rocm/$VLLM_VERSION/rocm700
 ```
 
 ### Step 3: Install vLLM-Omni
@@ -73,8 +83,8 @@ print("Setup verified - test.png generated")
 For containerized deployment:
 
 ```bash
-docker pull vllm/vllm-omni:v0.16.0
-docker run --gpus all -p 8091:8091 vllm/vllm-omni:v0.16.0 \
+docker pull vllm/vllm-omni:$VLLM_OMNI_VERSION
+docker run --gpus all -p 8091:8091 vllm/vllm-omni:$VLLM_OMNI_VERSION \
   vllm serve Tongyi-MAI/Z-Image-Turbo --omni --port 8091
 ```
 

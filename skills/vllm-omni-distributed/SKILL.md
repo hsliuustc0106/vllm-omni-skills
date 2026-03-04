@@ -147,3 +147,69 @@ vllm serve <model> --omni --tensor-parallel-size 8
 
 - For disaggregation architecture details, see [references/disaggregation.md](references/disaggregation.md)
 - For Ray execution setup, see [references/ray-execution.md](references/ray-execution.md)
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[BugFix] Fix load_weights error when loading HunyuanImage3.0](https://github.com/vllm-project/vllm-omni/pull/1598)
+
+### Changes
+- Bug fix: [BugFix] Fix load_weights error when loading HunyuanImage3.0
+
+*Updated: 2026-03-04*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[BugFix] Fix unexpected crash when init OmniDiffusion](https://github.com/vllm-project/vllm-omni/pull/1562)
+
+### Changes
+- Bug fix: [BugFix] Fix unexpected crash when init OmniDiffusion
+
+*Updated: 2026-03-04*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [Fix no embed text spk tokens](https://github.com/vllm-project/vllm-omni/pull/1540)
+
+### Changes
+- Bug fix: Fix no embed text spk tokens
+
+*Updated: 2026-03-04*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[Debug] Enable curl retry aligned with openai](https://github.com/vllm-project/vllm-omni/pull/1539)
+
+
+*Updated: 2026-03-04*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[BugFix] Restore talker's config](https://github.com/vllm-project/vllm-omni/pull/1524)
+
+### Changes
+- Bug fix: [BugFix] Restore talker's config
+
+*Updated: 2026-03-04*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[Bugfix] fix offline text_to_image error from #1009](https://github.com/vllm-project/vllm-omni/pull/1515)
+
+### Changes
+- Bug fix: [Bugfix] fix offline text_to_image error from #1009
+
+*Updated: 2026-03-04*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[Doc] Update installation instructions for vllm 0.16.0](https://github.com/vllm-project/vllm-omni/pull/1505)
+
+
+*Updated: 2026-03-04*

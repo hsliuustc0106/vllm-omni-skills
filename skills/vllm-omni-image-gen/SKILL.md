@@ -121,3 +121,79 @@ vllm serve <model> --omni --cpu-offload-gb 10
 - For FLUX model details, see [references/flux-models.md](references/flux-models.md)
 - For Qwen-Image family, see [references/qwen-image.md](references/qwen-image.md)
 - For image editing workflows, see [references/image-edit.md](references/image-edit.md)
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[Bugfix] Fix filepath resolution for model with subdir and GLM-Image generation](https://github.com/vllm-project/vllm-omni/pull/1609)
+
+### Changes
+- Bug fix: [Bugfix] Fix filepath resolution for model with subdir and GLM-Image generation
+
+### New Features
+- GLM-Image
+- GLM-Image
+- GLM-Image
+- GLM-Image
+- GLM-Image
+- GLM-Image
+- GLM-Image
+- GLM-Image
+
+*Updated: 2026-03-04*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[BugFix] Fix load_weights error when loading HunyuanImage3.0](https://github.com/vllm-project/vllm-omni/pull/1598)
+
+### Changes
+- Bug fix: [BugFix] Fix load_weights error when loading HunyuanImage3.0
+
+### New Features
+- HunyuanImage3
+- HunyuanImage3Pipeline
+- HunyuanImage3
+- HunyuanImage-3
+- HunyuanImage-3
+- HunyuanImage-3
+- HunyuanImage3Pipeline
+- HunyuanImage3Pipeline
+- HunyuanImage3Pipeline
+- HunyuanImage3Pipeline
+- HunyuanImage3Pipeline
+- HunyuanImage3Pipeline
+- HunyuanImage3Pipeline
+- HunyuanImage3Pipeline
+- HunyuanImage-3
+
+*Updated: 2026-03-04*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[CI][skip ci]Update H100 image link based on #1518](https://github.com/vllm-project/vllm-omni/pull/1538)
+
+
+*Updated: 2026-03-04*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[Bugfix] fix offline text_to_image error from #1009](https://github.com/vllm-project/vllm-omni/pull/1515)
+
+### Changes
+- Bug fix: [Bugfix] fix offline text_to_image error from #1009
+
+### New Features
+- num-images-per-prompt
+
+*Updated: 2026-03-04*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[CI] Update Dockerfile for vllm-omni CI image and remove obsolete dep…](https://github.com/vllm-project/vllm-omni/pull/1491)
+
+
+*Updated: 2026-03-04*

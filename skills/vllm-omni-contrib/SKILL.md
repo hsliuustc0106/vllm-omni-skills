@@ -177,3 +177,65 @@ pytest tests/ --cov=vllm_omni --cov-report=html
 ## References
 
 - For detailed model integration patterns, see [references/model-integration.md](references/model-integration.md)
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[Doc] Fix links in the configuration doc](https://github.com/vllm-project/vllm-omni/pull/1615)
+
+### Changes
+- Bug fix: [Doc] Fix links in the configuration doc
+
+*Updated: 2026-03-04*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [0.16.0 release](https://github.com/vllm-project/vllm-omni/pull/1576)
+
+
+*Updated: 2026-03-04*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[NPU][Bugfix] Align GPU side and recover qwen3-tts](https://github.com/vllm-project/vllm-omni/pull/1564)
+
+### Changes
+- Bug fix: [NPU][Bugfix] Align GPU side and recover qwen3-tts
+
+*Updated: 2026-03-04*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[Docs] update async chunk docs diagram [skip ci]](https://github.com/vllm-project/vllm-omni/pull/1530)
+
+
+*Updated: 2026-03-04*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[Doc] Update installation instructions for vllm 0.16.0](https://github.com/vllm-project/vllm-omni/pull/1505)
+
+
+*Updated: 2026-03-04*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[ROCm] [CI] [Docker] Point to use the latest vLLM v0.16.0 stable version](https://github.com/vllm-project/vllm-omni/pull/1500)
+
+
+*Updated: 2026-03-04*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[Qwen3TTS][Feat] Streaming output](https://github.com/vllm-project/vllm-omni/pull/1438)
+
+### Changes
+- New feature: [Qwen3TTS][Feat] Streaming output
+
+*Updated: 2026-03-04*

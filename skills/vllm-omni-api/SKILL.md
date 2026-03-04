@@ -141,3 +141,81 @@ assert resp.status_code == 200
 ## References
 
 - For full endpoint specifications and parameters, see [references/endpoints.md](references/endpoints.md)
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[Bugfix] Fix filepath resolution for model with subdir and GLM-Image generation](https://github.com/vllm-project/vllm-omni/pull/1609)
+
+### Changes
+- Bug fix: [Bugfix] Fix filepath resolution for model with subdir and GLM-Image generation
+
+*Updated: 2026-03-04*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[Bugfix] Import InputPreprocessor into Renderer](https://github.com/vllm-project/vllm-omni/pull/1566)
+
+### Changes
+- Bug fix: [Bugfix] Import InputPreprocessor into Renderer
+
+*Updated: 2026-03-04*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[BugFix] Fix unexpected crash when init OmniDiffusion](https://github.com/vllm-project/vllm-omni/pull/1562)
+
+### Changes
+- Bug fix: [BugFix] Fix unexpected crash when init OmniDiffusion
+
+*Updated: 2026-03-04*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [fix(qwen3-tts): fix Base ICL voice clone producing corrupted audio](https://github.com/vllm-project/vllm-omni/pull/1554)
+
+### Changes
+- Bug fix: fix(qwen3-tts): fix Base ICL voice clone producing corrupted audio
+
+*Updated: 2026-03-04*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[Bugfix] Use uds for zmq address if not set --stage-id](https://github.com/vllm-project/vllm-omni/pull/1522)
+
+### Changes
+- New feature: [Bugfix] Use uds for zmq address if not set --stage-id
+
+*Updated: 2026-03-04*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[Chore] remove unused logger in omni_diffusion (#531)](https://github.com/vllm-project/vllm-omni/pull/1509)
+
+
+*Updated: 2026-03-04*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[Feature][Wan2.2] Speed up diffusion model startup by multi-thread weight loading](https://github.com/vllm-project/vllm-omni/pull/1504)
+
+### Changes
+- New feature: [Feature][Wan2.2] Speed up diffusion model startup by multi-thread weight loading
+
+*Updated: 2026-03-04*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[Qwen3TTS][Feat] Streaming output](https://github.com/vllm-project/vllm-omni/pull/1438)
+
+### Changes
+- New feature: [Qwen3TTS][Feat] Streaming output
+
+*Updated: 2026-03-04*

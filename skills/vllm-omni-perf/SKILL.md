@@ -145,3 +145,135 @@ curl http://localhost:8091/metrics
 
 - For TeaCache configuration details, see [references/teacache.md](references/teacache.md)
 - For quantization methods and compatibility, see [references/quantization.md](references/quantization.md)
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[Bugfix] Fix Qwen3-TTS code predictor crash due to missing vLLM config context](https://github.com/vllm-project/vllm-omni/pull/1619)
+
+### Changes
+- Bug fix: [Bugfix] Fix Qwen3-TTS code predictor crash due to missing vLLM config context
+
+*Updated: 2026-03-04*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[Bugfix] Fix filepath resolution for model with subdir and GLM-Image generation](https://github.com/vllm-project/vllm-omni/pull/1609)
+
+### Changes
+- Bug fix: [Bugfix] Fix filepath resolution for model with subdir and GLM-Image generation
+
+*Updated: 2026-03-04*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[BugFix] Fix load_weights error when loading HunyuanImage3.0](https://github.com/vllm-project/vllm-omni/pull/1598)
+
+### Changes
+- Bug fix: [BugFix] Fix load_weights error when loading HunyuanImage3.0
+
+*Updated: 2026-03-04*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[BugFix]: fix a lot of bug](https://github.com/vllm-project/vllm-omni/pull/1565)
+
+### Changes
+- Bug fix: [BugFix]: fix a lot of bug
+
+*Updated: 2026-03-04*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[BugFix] Fix unexpected crash when init OmniDiffusion](https://github.com/vllm-project/vllm-omni/pull/1562)
+
+### Changes
+- Bug fix: [BugFix] Fix unexpected crash when init OmniDiffusion
+
+*Updated: 2026-03-04*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [Fix no embed text spk tokens](https://github.com/vllm-project/vllm-omni/pull/1540)
+
+### Changes
+- Bug fix: Fix no embed text spk tokens
+
+*Updated: 2026-03-04*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[Debug] Enable curl retry aligned with openai](https://github.com/vllm-project/vllm-omni/pull/1539)
+
+
+*Updated: 2026-03-04*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[Bugfix] Fix transformers 5.x compat issues in online TTS serving](https://github.com/vllm-project/vllm-omni/pull/1536)
+
+### Changes
+- Bug fix: [Bugfix] Fix transformers 5.x compat issues in online TTS serving
+
+*Updated: 2026-03-04*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [Revert gpu_1 job to use regular image](https://github.com/vllm-project/vllm-omni/pull/1521)
+
+
+*Updated: 2026-03-04*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [Use pull through cache image for H100 pool](https://github.com/vllm-project/vllm-omni/pull/1518)
+
+
+*Updated: 2026-03-04*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[Bugfix] fix offline text_to_image error from #1009](https://github.com/vllm-project/vllm-omni/pull/1515)
+
+### Changes
+- Bug fix: [Bugfix] fix offline text_to_image error from #1009
+
+*Updated: 2026-03-04*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[Doc] Update installation instructions for vllm 0.16.0](https://github.com/vllm-project/vllm-omni/pull/1505)
+
+
+*Updated: 2026-03-04*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[Feature][Wan2.2] Speed up diffusion model startup by multi-thread weight loading](https://github.com/vllm-project/vllm-omni/pull/1504)
+
+### Changes
+- New feature: [Feature][Wan2.2] Speed up diffusion model startup by multi-thread weight loading
+
+*Updated: 2026-03-04*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[BugFix] process request.num_cached_tokens if it equals to the initial value ](https://github.com/vllm-project/vllm-omni/pull/1468)
+
+### Changes
+- Bug fix: [BugFix] process request.num_cached_tokens if it equals to the initial value 
+
+*Updated: 2026-03-04*

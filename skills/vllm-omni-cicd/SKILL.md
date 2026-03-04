@@ -211,3 +211,83 @@ docker compose up -d
 ## References
 
 - For deployment pipeline templates, see [references/pipeline-templates.md](references/pipeline-templates.md)
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[CI] Modify some CI test cases to run on L4 environment to reduce H100 resource usage.](https://github.com/vllm-project/vllm-omni/pull/1543)
+
+
+*Updated: 2026-03-04*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[Debug] Merge vllm pull 35368](https://github.com/vllm-project/vllm-omni/pull/1534)
+
+
+*Updated: 2026-03-04*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[Feature][Wan2.2] Speed up diffusion model startup by multi-thread weight loading](https://github.com/vllm-project/vllm-omni/pull/1504)
+
+### Changes
+- New feature: [Feature][Wan2.2] Speed up diffusion model startup by multi-thread weight loading
+
+*Updated: 2026-03-04*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[Platform] Enable layerwise offload on all hardware](https://github.com/vllm-project/vllm-omni/pull/1492)
+
+
+*Updated: 2026-03-04*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[XPU][NPU][ROCM] enable cpu_offloading flag for non_cuda](https://github.com/vllm-project/vllm-omni/pull/1488)
+
+
+*Updated: 2026-03-04*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[Test] Reduce Perf test case and fix modify stage config](https://github.com/vllm-project/vllm-omni/pull/1449)
+
+### Changes
+- Bug fix: [Test] Reduce Perf test case and fix modify stage config
+
+*Updated: 2026-03-04*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[Bugfix] Race condition in MultiprocExecutor when concurent access to Scheduler](https://github.com/vllm-project/vllm-omni/pull/1448)
+
+### Changes
+- Bug fix: [Bugfix] Race condition in MultiprocExecutor when concurent access to Scheduler
+
+*Updated: 2026-03-04*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[Qwen3TTS][Feat] Streaming output](https://github.com/vllm-project/vllm-omni/pull/1438)
+
+### Changes
+- New feature: [Qwen3TTS][Feat] Streaming output
+
+*Updated: 2026-03-04*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[Doc][Test][Misc] ComfyUI test, more screenshot, and code cleaning](https://github.com/vllm-project/vllm-omni/pull/1435)
+
+
+*Updated: 2026-03-04*

@@ -109,3 +109,21 @@ Video generation is significantly more compute-intensive than image generation:
 ## References
 
 - For Wan2.2 model details and advanced config, see [references/wan-models.md](references/wan-models.md)
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[Feature][Wan2.2] Speed up diffusion model startup by multi-thread weight loading](https://github.com/vllm-project/vllm-omni/pull/1504)
+
+### Changes
+- New feature: [Feature][Wan2.2] Speed up diffusion model startup by multi-thread weight loading
+
+*Updated: 2026-03-04*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[Debug] Multi-Request for Qwen 3 Omni use_audio_in_video](https://github.com/vllm-project/vllm-omni/pull/1433)
+
+
+*Updated: 2026-03-04*

@@ -136,3 +136,61 @@ response = client.chat.completions.create(
 
 - For Qwen3-TTS details and voice options, see [references/qwen-tts.md](references/qwen-tts.md)
 - For MiMo-Audio capabilities, see [references/mimo-audio.md](references/mimo-audio.md)
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[bugfix] Fix unexpected argument 'is_finished' in function llm2code2wav_async_chunk of mimo-audio](https://github.com/vllm-project/vllm-omni/pull/1570)
+
+### Changes
+- Bug fix: [bugfix] Fix unexpected argument 'is_finished' in function llm2code2wav_async_chunk of mimo-audio
+
+*Updated: 2026-03-04*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[NPU][Bugfix] Align GPU side and recover qwen3-tts](https://github.com/vllm-project/vllm-omni/pull/1564)
+
+### Changes
+- Bug fix: [NPU][Bugfix] Align GPU side and recover qwen3-tts
+
+*Updated: 2026-03-04*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[Fix][Chore] Qwen3-TTS Modeling Minor Code Sanity Improvements](https://github.com/vllm-project/vllm-omni/pull/1482)
+
+### Changes
+- Bug fix: [Fix][Chore] Qwen3-TTS Modeling Minor Code Sanity Improvements
+
+*Updated: 2026-03-04*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[Bugfix] Fix case-sensitive task_type matching in Qwen3TTSModelForGeneration](https://github.com/vllm-project/vllm-omni/pull/1455)
+
+### Changes
+- Bug fix: [Bugfix] Fix case-sensitive task_type matching in Qwen3TTSModelForGeneration
+
+*Updated: 2026-03-04*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[Qwen3TTS][Feat] Streaming output](https://github.com/vllm-project/vllm-omni/pull/1438)
+
+### Changes
+- New feature: [Qwen3TTS][Feat] Streaming output
+
+*Updated: 2026-03-04*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[Debug] Multi-Request for Qwen 3 Omni use_audio_in_video](https://github.com/vllm-project/vllm-omni/pull/1433)
+
+
+*Updated: 2026-03-04*

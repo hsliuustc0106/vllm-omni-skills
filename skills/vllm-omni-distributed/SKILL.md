@@ -147,3 +147,67 @@ vllm serve <model> --omni --tensor-parallel-size 8
 
 - For disaggregation architecture details, see [references/disaggregation.md](references/disaggregation.md)
 - For Ray execution setup, see [references/ray-execution.md](references/ray-execution.md)
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[MiMo-Audio] Bugfix tp lg than 1](https://github.com/vllm-project/vllm-omni/pull/1688)
+
+### Changes
+- Bug fix: [MiMo-Audio] Bugfix tp lg than 1
+
+*Updated: 2026-03-08*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[BugFix] Return proper HTTP status for ErrorResponse in create_speech](https://github.com/vllm-project/vllm-omni/pull/1687)
+
+### Changes
+- Bug fix: [BugFix] Return proper HTTP status for ErrorResponse in create_speech
+
+*Updated: 2026-03-08*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[Optimize][Qwen3-Omni] Reduce inter-packet latency in async chunk ](https://github.com/vllm-project/vllm-omni/pull/1656)
+
+
+*Updated: 2026-03-08*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [docs: Announce vllm-omni-skills community project](https://github.com/vllm-project/vllm-omni/pull/1651)
+
+
+*Updated: 2026-03-08*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[BugFix] Fix load_weights error when loading HunyuanImage3.0](https://github.com/vllm-project/vllm-omni/pull/1598)
+
+### Changes
+- Bug fix: [BugFix] Fix load_weights error when loading HunyuanImage3.0
+
+*Updated: 2026-03-08*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[Feature][Bagel] Add CFG parallel mode](https://github.com/vllm-project/vllm-omni/pull/1578)
+
+### Changes
+- New feature: [Feature][Bagel] Add CFG parallel mode
+
+*Updated: 2026-03-08*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[Debug] Enable curl retry aligned with openai](https://github.com/vllm-project/vllm-omni/pull/1539)
+
+
+*Updated: 2026-03-08*

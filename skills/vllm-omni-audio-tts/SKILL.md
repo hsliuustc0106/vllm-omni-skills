@@ -136,3 +136,63 @@ response = client.chat.completions.create(
 
 - For Qwen3-TTS details and voice options, see [references/qwen-tts.md](references/qwen-tts.md)
 - For MiMo-Audio capabilities, see [references/mimo-audio.md](references/mimo-audio.md)
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[MiMo-Audio] Bugfix tp lg than 1](https://github.com/vllm-project/vllm-omni/pull/1688)
+
+### Changes
+- Bug fix: [MiMo-Audio] Bugfix tp lg than 1
+
+*Updated: 2026-03-08*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [Add non-async chunk support for Qwen3-TTS](https://github.com/vllm-project/vllm-omni/pull/1678)
+
+### Changes
+- New feature: Add non-async chunk support for Qwen3-TTS
+
+*Updated: 2026-03-08*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[Bugfix] Fix all-silence TTS output: use float32 for speech tokenizer decoder](https://github.com/vllm-project/vllm-omni/pull/1664)
+
+### Changes
+- Bug fix: [Bugfix] Fix all-silence TTS output: use float32 for speech tokenizer decoder
+
+*Updated: 2026-03-08*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [perf: replace per-element .item() GPU syncs with batch .tolist() in TTS code predictor](https://github.com/vllm-project/vllm-omni/pull/1614)
+
+### Changes
+- Performance improvement: perf: replace per-element .item() GPU syncs with batch .tolist() in TTS code predictor
+
+*Updated: 2026-03-08*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[Feat][Qwen3TTS] reduce TTFA with flexible initial phase](https://github.com/vllm-project/vllm-omni/pull/1583)
+
+### Changes
+- New feature: [Feat][Qwen3TTS] reduce TTFA with flexible initial phase
+
+*Updated: 2026-03-08*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[bugfix] Fix unexpected argument 'is_finished' in function llm2code2wav_async_chunk of mimo-audio](https://github.com/vllm-project/vllm-omni/pull/1570)
+
+### Changes
+- Bug fix: [bugfix] Fix unexpected argument 'is_finished' in function llm2code2wav_async_chunk of mimo-audio
+
+*Updated: 2026-03-08*

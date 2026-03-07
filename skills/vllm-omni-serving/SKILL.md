@@ -143,3 +143,39 @@ Use a reverse proxy to route by path or model name.
 
 - For model-specific configurations, see [references/model-configs.md](references/model-configs.md)
 - For scaling and load balancing, see [references/scaling-guide.md](references/scaling-guide.md)
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[Misc] remove logits_processor_pattern this field, because vllm have …](https://github.com/vllm-project/vllm-omni/pull/1675)
+
+
+*Updated: 2026-03-08*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[Bugfix] fix kernel error for qwen3-omni](https://github.com/vllm-project/vllm-omni/pull/1602)
+
+### Changes
+- Bug fix: [Bugfix] fix kernel error for qwen3-omni
+
+*Updated: 2026-03-08*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[1/N][Refactor] Clean up dead code in output processor](https://github.com/vllm-project/vllm-omni/pull/1579)
+
+
+*Updated: 2026-03-08*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[Bugfix] Fix transformers 5.x compat issues in online TTS serving](https://github.com/vllm-project/vllm-omni/pull/1536)
+
+### Changes
+- Bug fix: [Bugfix] Fix transformers 5.x compat issues in online TTS serving
+
+*Updated: 2026-03-08*

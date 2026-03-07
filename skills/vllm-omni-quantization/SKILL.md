@@ -174,3 +174,62 @@ Values are weight-only estimates. Add ~20-30% for KV cache, activations, and fra
 
 - For detailed method comparisons and calibration options, see [references/methods.md](references/methods.md)
 - For per-modality quantization compatibility, see [references/modality-compat.md](references/modality-compat.md)
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[BugFix] Return proper HTTP status for ErrorResponse in create_speech](https://github.com/vllm-project/vllm-omni/pull/1687)
+
+### Changes
+- Bug fix: [BugFix] Return proper HTTP status for ErrorResponse in create_speech
+
+*Updated: 2026-03-08*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[UX] Add progress bar for diffusion models](https://github.com/vllm-project/vllm-omni/pull/1652)
+
+### Changes
+- New feature: [UX] Add progress bar for diffusion models
+
+*Updated: 2026-03-08*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [docs: Announce vllm-omni-skills community project](https://github.com/vllm-project/vllm-omni/pull/1651)
+
+
+*Updated: 2026-03-08*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[FP8 Quantization] Add FP8 quantization support for Flux transformer](https://github.com/vllm-project/vllm-omni/pull/1640)
+
+### Changes
+- New feature: [FP8 Quantization] Add FP8 quantization support for Flux transformer
+
+### New Features
+- FP8 support or improvements
+
+*Updated: 2026-03-08*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[BugFix] Fix load_weights error when loading HunyuanImage3.0](https://github.com/vllm-project/vllm-omni/pull/1598)
+
+### Changes
+- Bug fix: [BugFix] Fix load_weights error when loading HunyuanImage3.0
+
+*Updated: 2026-03-08*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[Debug] Enable curl retry aligned with openai](https://github.com/vllm-project/vllm-omni/pull/1539)
+
+
+*Updated: 2026-03-08*

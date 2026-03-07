@@ -211,3 +211,87 @@ docker compose up -d
 ## References
 
 - For deployment pipeline templates, see [references/pipeline-templates.md](references/pipeline-templates.md)
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[CI] Remove high concurrency tests before issue #1374 fixed.](https://github.com/vllm-project/vllm-omni/pull/1683)
+
+### Changes
+- Bug fix: [CI] Remove high concurrency tests before issue #1374 fixed.
+
+*Updated: 2026-03-08*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [Add non-async chunk support for Qwen3-TTS](https://github.com/vllm-project/vllm-omni/pull/1678)
+
+### Changes
+- New feature: Add non-async chunk support for Qwen3-TTS
+
+*Updated: 2026-03-08*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [Replace hard-coded cuda generator with current_omni_platform.device_type](https://github.com/vllm-project/vllm-omni/pull/1677)
+
+
+*Updated: 2026-03-08*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[Cleanup] Move cosyvoice3 tests to model subdirectory](https://github.com/vllm-project/vllm-omni/pull/1666)
+
+
+*Updated: 2026-03-08*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[Bugfix] Fix all-silence TTS output: use float32 for speech tokenizer decoder](https://github.com/vllm-project/vllm-omni/pull/1664)
+
+### Changes
+- Bug fix: [Bugfix] Fix all-silence TTS output: use float32 for speech tokenizer decoder
+
+*Updated: 2026-03-08*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[Bugfix] Add TTS request validation to prevent engine crashes](https://github.com/vllm-project/vllm-omni/pull/1641)
+
+### Changes
+- New feature: [Bugfix] Add TTS request validation to prevent engine crashes
+
+*Updated: 2026-03-08*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[Test][Qwen3-Omni]Modify Qwen3-Omni benchmark test cases](https://github.com/vllm-project/vllm-omni/pull/1628)
+
+
+*Updated: 2026-03-08*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[Feat][Qwen3TTS] reduce TTFA with flexible initial phase](https://github.com/vllm-project/vllm-omni/pull/1583)
+
+### Changes
+- New feature: [Feat][Qwen3TTS] reduce TTFA with flexible initial phase
+
+*Updated: 2026-03-08*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[Feature][Bagel] Add CFG parallel mode](https://github.com/vllm-project/vllm-omni/pull/1578)
+
+### Changes
+- New feature: [Feature][Bagel] Add CFG parallel mode
+
+*Updated: 2026-03-08*

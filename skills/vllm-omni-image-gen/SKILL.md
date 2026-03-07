@@ -121,3 +121,84 @@ vllm serve <model> --omni --cpu-offload-gb 10
 - For FLUX model details, see [references/flux-models.md](references/flux-models.md)
 - For Qwen-Image family, see [references/qwen-image.md](references/qwen-image.md)
 - For image editing workflows, see [references/image-edit.md](references/image-edit.md)
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[FP8 Quantization] Add FP8 quantization support for Flux transformer](https://github.com/vllm-project/vllm-omni/pull/1640)
+
+### Changes
+- New feature: [FP8 Quantization] Add FP8 quantization support for Flux transformer
+
+### New Features
+- text-to-image
+- Text-to-Image
+- Flux
+
+*Updated: 2026-03-08*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[Bugfix] Fix filepath resolution for model with subdir and GLM-Image generation](https://github.com/vllm-project/vllm-omni/pull/1609)
+
+### Changes
+- Bug fix: [Bugfix] Fix filepath resolution for model with subdir and GLM-Image generation
+
+### New Features
+- GLM-Image
+- GLM-Image
+- GLM-Image
+- GLM-Image
+- GLM-Image
+- GLM-Image
+- GLM-Image
+- GLM-Image
+
+*Updated: 2026-03-08*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[BugFix] Fix load_weights error when loading HunyuanImage3.0](https://github.com/vllm-project/vllm-omni/pull/1598)
+
+### Changes
+- Bug fix: [BugFix] Fix load_weights error when loading HunyuanImage3.0
+
+### New Features
+- HunyuanImage3
+- HunyuanImage3Pipeline
+- HunyuanImage3
+- HunyuanImage-3
+- HunyuanImage-3
+- HunyuanImage-3
+- HunyuanImage3Pipeline
+- HunyuanImage3Pipeline
+- HunyuanImage3Pipeline
+- HunyuanImage3Pipeline
+- HunyuanImage3Pipeline
+- HunyuanImage3Pipeline
+- HunyuanImage3Pipeline
+- HunyuanImage3Pipeline
+- HunyuanImage-3
+
+*Updated: 2026-03-08*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[NPU] [Features] [Bugfix] Support mindiesd adaln](https://github.com/vllm-project/vllm-omni/pull/1537)
+
+### Changes
+- New feature: [NPU] [Features] [Bugfix] Support mindiesd adaln
+
+### New Features
+- mindiesd
+- mindiesd
+- Qwen-Image-Edit-2509
+- mindiesd
+- mindiesd
+- mindiesd
+- mindiesd
+
+*Updated: 2026-03-08*

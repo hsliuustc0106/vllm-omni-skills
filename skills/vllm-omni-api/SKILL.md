@@ -141,3 +141,84 @@ assert resp.status_code == 200
 ## References
 
 - For full endpoint specifications and parameters, see [references/endpoints.md](references/endpoints.md)
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [Revert "[Profile] Adding metrics for Diffusion/DiT Single diffusion Pipeline (#668)"](https://github.com/vllm-project/vllm-omni/pull/1724)
+
+### Changes
+- New feature: Revert "[Profile] Adding metrics for Diffusion/DiT Single diffusion Pipeline (#668)"
+
+*Updated: 2026-03-08*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[Feature]:  Add vae-patch-parallel CLI argument in online serving](https://github.com/vllm-project/vllm-omni/pull/1716)
+
+### Changes
+- New feature: [Feature]:  Add vae-patch-parallel CLI argument in online serving
+
+*Updated: 2026-03-08*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[BugFix] Return proper HTTP status for ErrorResponse in create_speech](https://github.com/vllm-project/vllm-omni/pull/1687)
+
+### Changes
+- Bug fix: [BugFix] Return proper HTTP status for ErrorResponse in create_speech
+
+### New Features
+- `/v1/audio/speech`
+
+*Updated: 2026-03-08*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[Bugfix] Add TTS request validation to prevent engine crashes](https://github.com/vllm-project/vllm-omni/pull/1641)
+
+### Changes
+- New feature: [Bugfix] Add TTS request validation to prevent engine crashes
+
+*Updated: 2026-03-08*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[Bugfix] Fix filepath resolution for model with subdir and GLM-Image generation](https://github.com/vllm-project/vllm-omni/pull/1609)
+
+### Changes
+- Bug fix: [Bugfix] Fix filepath resolution for model with subdir and GLM-Image generation
+
+*Updated: 2026-03-08*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[Feat][Qwen3TTS] reduce TTFA with flexible initial phase](https://github.com/vllm-project/vllm-omni/pull/1583)
+
+### Changes
+- New feature: [Feat][Qwen3TTS] reduce TTFA with flexible initial phase
+
+*Updated: 2026-03-08*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[1/N][Refactor] Clean up dead code in output processor](https://github.com/vllm-project/vllm-omni/pull/1579)
+
+
+*Updated: 2026-03-08*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[Bugfix] Import InputPreprocessor into Renderer](https://github.com/vllm-project/vllm-omni/pull/1566)
+
+### Changes
+- Bug fix: [Bugfix] Import InputPreprocessor into Renderer
+
+*Updated: 2026-03-08*

@@ -177,3 +177,105 @@ pytest tests/ --cov=vllm_omni --cov-report=html
 ## References
 
 - For detailed model integration patterns, see [references/model-integration.md](references/model-integration.md)
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [Revert "[Profile] Adding metrics for Diffusion/DiT Single diffusion Pipeline (#668)"](https://github.com/vllm-project/vllm-omni/pull/1724)
+
+### Changes
+- New feature: Revert "[Profile] Adding metrics for Diffusion/DiT Single diffusion Pipeline (#668)"
+
+*Updated: 2026-03-08*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[Feature]:  Add vae-patch-parallel CLI argument in online serving](https://github.com/vllm-project/vllm-omni/pull/1716)
+
+### Changes
+- New feature: [Feature]:  Add vae-patch-parallel CLI argument in online serving
+
+*Updated: 2026-03-08*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[skip CI][Docs] Add TTS model developer guide](https://github.com/vllm-project/vllm-omni/pull/1693)
+
+### Changes
+- New feature: [skip CI][Docs] Add TTS model developer guide
+
+*Updated: 2026-03-08*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[Optimize][Qwen3-Omni] Reduce inter-packet latency in async chunk ](https://github.com/vllm-project/vllm-omni/pull/1656)
+
+
+*Updated: 2026-03-08*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[Misc] update wechat](https://github.com/vllm-project/vllm-omni/pull/1649)
+
+
+*Updated: 2026-03-08*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[FP8 Quantization] Add FP8 quantization support for Flux transformer](https://github.com/vllm-project/vllm-omni/pull/1640)
+
+### Changes
+- New feature: [FP8 Quantization] Add FP8 quantization support for Flux transformer
+
+*Updated: 2026-03-08*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[BugFix] Fix LongCat Sequence Parallelism / Small Cleanup](https://github.com/vllm-project/vllm-omni/pull/1631)
+
+### Changes
+- Bug fix: [BugFix] Fix LongCat Sequence Parallelism / Small Cleanup
+
+*Updated: 2026-03-08*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[Doc] Fix links in the configuration doc](https://github.com/vllm-project/vllm-omni/pull/1615)
+
+### Changes
+- Bug fix: [Doc] Fix links in the configuration doc
+
+*Updated: 2026-03-08*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[Model]: support Helios  from ByteDance](https://github.com/vllm-project/vllm-omni/pull/1604)
+
+
+*Updated: 2026-03-08*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[Feat][Qwen3TTS] reduce TTFA with flexible initial phase](https://github.com/vllm-project/vllm-omni/pull/1583)
+
+### Changes
+- New feature: [Feat][Qwen3TTS] reduce TTFA with flexible initial phase
+
+*Updated: 2026-03-08*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [0.16.0 release](https://github.com/vllm-project/vllm-omni/pull/1576)
+
+
+*Updated: 2026-03-08*

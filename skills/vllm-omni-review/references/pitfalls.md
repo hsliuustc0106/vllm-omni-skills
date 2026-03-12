@@ -220,3 +220,63 @@ This hides the MRO bug described above.
 - Compare mock inheritance to production
 - Check if mocks skip critical base classes
 - Verify mock behavior matches production
+
+---
+
+## Refactor Regressions Without API Changes
+
+**Problem:**
+`[Refactor]` PRs often keep the same function names and signatures while changing behavior through ordering, fallback, or state-lifetime changes.
+
+```python
+# Before
+def init_stage(self, config):
+    validate(config)
+    self._connector = build_connector(config)
+    return self._connector
+
+# After refactor
+def init_stage(self, config):
+    self._connector = build_connector(config)
+    validate(config)  # Connector can now be created with invalid config
+    return self._connector
+```
+
+**What gets missed:**
+- Validation now happens too late
+- Exceptions change from "fail fast" to partial initialization
+- Logging or metric emission order changes, hiding failures
+- Cleanup happens on the happy path only
+
+**Review Action:**
+- Treat "no behavior change" as a claim that must be proved
+- Compare ordering, exception types, return shapes, and side effects
+- Ask for a regression test that pins the preserved behavior, not just successful execution
+
+---
+
+## Happy-Path Tests That Miss Real Failures
+
+**Problem:**
+Tests that assert only "returns something" or "does not crash" look reassuring but fail to lock down the actual bug-prone behavior.
+
+```python
+def test_generate():
+    outputs = omni.generate("hello")
+    assert outputs is not None
+```
+
+This will pass even if stage ordering, fallback behavior, cleanup, or validation regresses.
+
+**Stronger test shape:**
+```python
+def test_generate_releases_connector_on_stage_failure():
+    with pytest.raises(StageError):
+        omni.generate("bad input")
+    assert connector.is_released()
+```
+
+**Review Action:**
+- Check whether the test asserts the contract that changed, not just the happy path
+- Look for missing assertions on ordering, cleanup, error type, and distributed behavior
+- Flag tests that would still pass if the original bug were reintroduced

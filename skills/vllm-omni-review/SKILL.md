@@ -1,6 +1,6 @@
 ---
 name: vllm-omni-review
-description: Use when reviewing PRs on vllm-project/vllm-omni. Triggers domain-specific skills based on PR type for context-aware reviews focused on tests, evidence, and critical issues.
+description: Use when reviewing PRs on vllm-project/vllm-omni. Produces finding-driven reviews by combining domain skills with explicit checks for regressions, weak tests, and unsupported claims.
 ---
 
 # vLLM-Omni PR Review
@@ -8,6 +8,14 @@ description: Use when reviewing PRs on vllm-project/vllm-omni. Triggers domain-s
 ## Overview
 
 Review pull requests for [vLLM-Omni](https://github.com/vllm-project/vllm-omni) by leveraging domain-specific skills. Focus on critical issues: missing tests, unvalidated claims, security, design flaws, and breaking changes.
+
+## Review Posture
+
+- Assume the diff hides at least one regression until the code, tests, and context disprove it.
+- Spend **zero** review budget on praise, summaries, or intent restatement.
+- Prefer one concrete blocker over five vague suggestions.
+- If you cannot name the failure mode, missing evidence, or missing test, the comment is probably not ready.
+- Approval means "no actionable findings found," not "the implementation is excellent."
 
 ## Review Layers
 
@@ -30,12 +38,23 @@ This skill orchestrates multiple review capabilities:
 | Comment length | 2-4 sentences each |
 | Small doc fix | 0 comments expected |
 | Large feature | 3-5 comments on critical gaps |
+| Praise budget | 0 lines |
 
 ### Banned Phrases (Generic Praise)
 
 - "solid", "generally", "looks good", "well done", "nice work", "great job"
 - "comprehensive", "well structured", "good implementation"
 - Any phrase without specific code location reference
+
+### Finding Bar
+
+Only post a comment when it includes all of the following:
+
+1. A concrete defect, risk, or evidence gap tied to a specific file, line, or behavior change
+2. Why it matters: crash, hang, silent corruption, wrong output, compatibility break, or unverifiable claim
+3. A concrete ask: fix, regression test, benchmark, or validation change
+
+Reject comments that only paraphrase the diff, say "add tests" without naming the missing scenario, speculate without a trigger condition, or soften the finding with praise.
 
 ## Review Workflow
 
@@ -113,6 +132,20 @@ gh search prs --repo vllm-project/vllm-omni "<file_path>" --merged --limit 5 --j
 
 **Limits:** 2-3 linked issues max, 5 related PRs per file max
 
+### Step 1.8: Generate Failure Hypotheses
+
+Before invoking skills or agents, write down **3 likely failure modes** for this PR. If you cannot produce 3, the review is still too shallow.
+
+| Change Shape | Failure Hypothesis to Test |
+|--------------|----------------------------|
+| New default, config, or optional arg | Existing callers now get different behavior |
+| Reordered async, stage, or connector code | Race, deadlock, cancellation leak, or cleanup drift |
+| Added cache, memoization, or mutable state | Cross-request contamination or stale data |
+| Validation or parsing changes | Invalid requests now reach the engine, or valid requests are rejected |
+| `[Refactor]` with "no behavior change" claim | Exception type, return shape, logging, or side-effect order changed |
+
+Use these hypotheses to decide where to fetch context and which references to consult.
+
 ### Step 2: Identify PR Type & Trigger Skill
 
 Check PR title prefix against the table below. If domain-specific context is needed, invoke the corresponding skill.
@@ -188,11 +221,23 @@ gh pr diff <pr_number> --repo vllm-project/vllm-omni | grep -E 'is_npu|is_cuda|t
 
 **Required for ALL PRs:**
 
+- [ ] What invariant could this diff violate?
+- [ ] Which error, cancellation, or cleanup path changed?
+- [ ] Which caller, config, or test relies on the previous behavior?
 - [ ] New API without tests?
 - [ ] New model without tests?
 - [ ] Performance claims without benchmarks?
 - [ ] Mixin after `nn.Module` with `__init__` setting attributes?
 - [ ] API changes without documentation?
+
+### PR-Type Escalation Rules
+
+| PR Type | What to be skeptical about |
+|---------|-----------------------------|
+| `[Refactor]` | Treat "no behavior change" as unproven. Look for reordered side effects, changed exception flow, lazy/eager init shifts, and altered defaults. |
+| `[Bugfix]` | Verify the regression test would fail on the old code and covers the adjacent edge case, not just the happy path. |
+| `[Feature]` | Check invalid input, docs/API contract, interaction with existing models, and whether existing configs keep working. |
+| `[Performance]` | Require before/after numbers and look for hidden regressions in memory, cold start, async throughput, or distributed execution. |
 
 ### Step 3.5: Delegate to Specialized Agents
 
@@ -281,6 +326,13 @@ gh api repos/vllm-project/vllm-omni/pulls/<pr_number>/reviews --input - <<EOF
 EOF
 ```
 
+**Review event selection:**
+- `REQUEST_CHANGES` for high-confidence correctness, safety, regression, or contract issues
+- `COMMENT` for missing evidence or non-blocking concerns that still need action
+- `APPROVE` only when no actionable findings remain after the failure-mode sweep
+
+If approving, keep the body factual and short. Example: `No blocking issues found after reviewing tests, invariants, and error paths.`
+
 ## Comment Phrasing Guidelines
 
 | PR State | Style |
@@ -288,6 +340,12 @@ EOF
 | **Draft** | Ask questions, suggest alternatives: "Consider X for Y because..." |
 | **Ready** | Request changes: "Please address..." "This needs..." |
 | **Approved/In Progress** | Only comment if blocking: "Note: found issue at..." |
+
+**Phrasing rules:**
+- Lead with the defect, not the author's intent
+- Name the trigger condition: "This breaks when..." "This changes the contract for..."
+- Ask for the missing proof explicitly: test name, benchmark, validation path
+- Delete any sentence that only adds politeness without technical content
 
 ## Comment Budget Allocation
 
@@ -335,12 +393,22 @@ Where are the memory measurements? The PR claims "50% reduction" but provides no
 
 **Good (Missing Tests):**
 ```
-Missing regression test for this bug fix. Add a test that reproduces the original issue and verifies this fix prevents it.
+Missing regression test for the pre-existing failure mode. Add a test that reproduces the old behavior first; otherwise this change only proves the happy path still works.
 ```
 
 **Good (MRO Issue):**
 ```
 This mixin is listed after nn.Module but has an __init__ that sets attributes. When nn.Module.__init__ is called, the mixin's __init__ won't run. Use lazy initialization with @property instead.
+```
+
+**Good (Refactor Regression):**
+```
+This refactor changes the fallback path from "raise" to "return None", which means callers now silently skip failed stage initialization instead of surfacing the error. Please preserve the previous exception contract or add coverage for the new behavior if the change is intentional.
+```
+
+**Good (Shallow Test):**
+```
+The new test only asserts that `generate()` returns a value, but the bug was about stage ordering after connector reuse. Add an assertion on the stage sequence or shared-memory cleanup so the regression is actually pinned down.
 ```
 
 **Bad (Generic):**

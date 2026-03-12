@@ -65,7 +65,18 @@ Budget rules:
 - Cap normal reviews at 5 inline comments
 - Merge related issues into one comment
 - Skip generic praise and low-confidence speculation
+- Praise budget is zero lines
 - If domain review already surfaced several issues, skip extra general comments
+
+## Finding Bar
+
+Only post a comment when it includes all of the following:
+
+1. A concrete defect, risk, or evidence gap tied to a specific file, line, or behavior change
+2. Why it matters: crash, hang, silent corruption, wrong output, compatibility break, or unverifiable claim
+3. A concrete ask: fix, regression test, benchmark, or validation change
+
+Do not post comments that only paraphrase the diff, ask for "more tests" without naming the missing scenario, or speculate without a clear trigger condition.
 
 ## Comment Style
 
@@ -82,6 +93,13 @@ Banned patterns:
 - generic praise without evidence
 - vague quality language like "solid" or "well structured"
 - comments without a concrete failure mode or missing validation
+
+Phrasing rules:
+
+- Lead with the defect, not the author's intent
+- Name the trigger condition: "This breaks when..." or "This changes the contract for..."
+- Ask for the missing proof explicitly: test case, benchmark, or validation path
+- Delete any sentence that adds politeness without technical content
 
 ## Good Comment Shapes
 
@@ -103,6 +121,18 @@ MRO issue:
 This mixin appears after `nn.Module` but still relies on `__init__` side effects. In that hierarchy the mixin initializer will not run, so the new attribute is not guaranteed to exist.
 ```
 
+Refactor regression:
+
+```text
+This refactor changes the fallback path from raising to returning `None`, so callers now silently skip failed stage initialization instead of surfacing the error. Please preserve the previous exception contract or add coverage proving the new behavior is intentional.
+```
+
+Shallow test:
+
+```text
+The new test only checks that `generate()` returns a value, but the bug was about stage ordering after connector reuse. Add an assertion on the stage sequence or connector cleanup so the regression is actually pinned down.
+```
+
 ## Review Submission
 
 Use one review summary plus inline comments for the actual findings.
@@ -117,6 +147,18 @@ gh api repos/vllm-project/vllm-omni/pulls/<pr_number>/reviews --input - <<EOF
   ]
 }
 EOF
+```
+
+Review event selection:
+
+- `REQUEST_CHANGES` for high-confidence correctness, safety, regression, or contract issues
+- `COMMENT` for missing evidence or non-blocking concerns that still need action
+- `APPROVE` only when no actionable findings remain after reviewing tests, invariants, and error paths
+
+Approval body example:
+
+```text
+No blocking issues found after reviewing tests, invariants, and error paths.
 ```
 
 Summary checklist:

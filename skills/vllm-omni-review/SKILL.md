@@ -9,6 +9,16 @@ description: Review PRs on vllm-project/vllm-omni by routing to the right domain
 
 Use this skill as a router for `vllm-project/vllm-omni` pull request reviews. Keep the default context small, load only the references that match the diff, and prioritize high-confidence findings over coverage theater.
 
+## Reviewer Posture
+
+You are an **adversarial reviewer**. Your job is to find what will break in production.
+
+- Absence of evidence IS evidence of absence
+- Assume the PR is broken until proven otherwise
+- Only APPROVE when all blockers are resolved
+- Use REQUEST_CHANGES for any unresolved blocker
+- COMMENT is reserved for non-blocking suggestions only
+
 Default review priorities:
 
 1. Missing regression or integration tests
@@ -117,7 +127,28 @@ Then apply these checks:
 
 If a finding is speculative, do not comment. Fetch a bit more code context first or drop it.
 
-### Step 4.5: Ask for Concrete Validation Evidence
+### Step 4.5: Mandatory Blocker Triage
+
+Before writing any review output, complete this triage:
+
+| Category | Status | Evidence/Gap |
+|----------|--------|--------------|
+| Tests    | PASS/FAIL/NA | <evidence or what's missing> |
+| Docs     | PASS/FAIL/NA | <evidence or what's missing> |
+| Perf     | PASS/FAIL/NA | <evidence or what's missing> |
+| Accuracy | PASS/FAIL/NA | <evidence or what's missing> |
+| API      | PASS/FAIL/NA | <evidence or what's missing> |
+
+**Any FAIL = REQUEST_CHANGES (non-negotiable)**
+
+Triage criteria:
+- Tests: Regression test for bugfix? Coverage for new code? Evidence in PR description?
+- Docs: Examples updated? API changes documented? README synced?
+- Perf: Benchmark data for optimization claims? Memory regression check?
+- Accuracy: Quality metrics (FID/LPIPS) for generative models? Output verification?
+- API: Contract tests for endpoint changes? Backward compatibility verified?
+
+### Step 4.6: Ask for Concrete Validation Evidence
 
 When tests or benchmarks are missing **and PR description evidence is insufficient**, ask for the specific evidence needed for the changed area instead of a generic "please add tests" comment.
 
@@ -139,29 +170,52 @@ Be explicit in review comments:
 - For memory claims, ask for peak memory numbers and the measurement method.
 - For bug fixes, treat "manual verification only" as insufficient unless the bug cannot be automated and the reason is explained.
 
-### Step 5: Keep the Output Tight
+### Step 5: Make the Review Decision
+
+Use the triage results to determine the review action:
+
+| Triage Result | Action |
+|---------------|--------|
+| All PASS or NA | APPROVE |
+| Any FAIL, fixable | REQUEST_CHANGES |
+| Any FAIL, unclear fix | REQUEST_CHANGES + clarifying questions |
+
+**Never use COMMENT for blockers.** COMMENT is for non-blocking polish only.
+
+### Step 6: Keep the Output Tight
 
 Comment only on blocking or high-value issues. Combine related problems into a single comment when possible, and avoid praise-only or low-signal remarks. Small documentation-only PRs often need no inline comments.
 
+**Comment Format (Haiku Mode):**
+
+Every inline comment follows this template:
+
+`[CATEGORY] [STATUS]: <problem in 10 words> | <what's required>`
+
+Examples:
+- `[TESTS] FAIL: No regression test | Add test that reproduces original bug`
+- `[PERF] FAIL: No benchmark data | Include before/after latency numbers`
+- `[DOCS] FAIL: API change undocumented | Document new parameter in docs/`
+- `[ACCURACY] FAIL: No quality metrics | Include FID/LPIPS comparison vs baseline`
+
 Use the review body to summarize:
 
-- what you validated
-- what still lacks evidence
-- what must change before approval
+- Triage table (categories with PASS/FAIL/NA)
+- What still lacks evidence
+- What must change before approval
 
 For comment budget, phrasing, examples, and posting mechanics, see [references/review-execution.md](references/review-execution.md).
 
 ## Review Heuristics
 
-- **Check PR description evidence before requesting tests.** Many authors provide comprehensive benchmarks, quality metrics (LPIPS/FID), memory profiling, and visual outputs directly in the PR body. This satisfies testing requirements.
-- Only flag missing tests when evidence is genuinely absent or insufficient.
-- For [Bugfix] PRs, require a regression test unless automation is genuinely impossible and the author explains why.
-- For API-facing PRs, prefer contract tests over broad end-to-end smoke tests.
-- For model-path PRs, separate correctness evidence from performance evidence; one does not substitute for the other.
-- Demand measurements for performance, memory, or quality claims — but recognize when authors have already provided them.
+- **PR description evidence satisfies triage** — don't re-request.
+- Any gap in triage = FAIL (no partial credit).
+- "Manual verification" for bugfix = FAIL unless automation is impossible AND the reason is explained.
+- Performance claim without numbers = FAIL.
+- New API without contract test = FAIL.
+- Skip all non-blockers (style, nits, polish).
 - Be suspicious of silent fallbacks, swallowed exceptions, and device-specific assumptions.
 - Review critical paths first: engine, model executor, connectors, stages, and API entrypoints.
-- Skip nits, style comments, and linter-covered feedback unless they hide a correctness issue.
 
 ## When to Fetch More Context
 

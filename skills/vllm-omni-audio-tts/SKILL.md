@@ -166,3 +166,47 @@ For a step-by-step guide on integrating a new TTS model into vLLM-Omni, see the 
 - For Fish Speech S2 Pro details, see [references/fish-speech.md](references/fish-speech.md)
 - For CosyVoice3 details, see [references/cosyvoice3.md](references/cosyvoice3.md)
 - For MiMo-Audio capabilities, see [references/mimo-audio.md](references/mimo-audio.md)
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[BugFix][Qwen3TTS] CodePredictor CudaGraph Pool](https://github.com/vllm-project/vllm-omni/pull/2059)
+
+### Changes
+- Bug fix: [BugFix][Qwen3TTS] CodePredictor CudaGraph Pool
+
+*Updated: 2026-03-22*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[Perf] [Qwen3-TTS] Keep audio_codes and last_talker_hidden on GPU to eliminate per-step sync stalls](https://github.com/vllm-project/vllm-omni/pull/1985)
+
+### Changes
+- Performance improvement: [Perf] [Qwen3-TTS] Keep audio_codes and last_talker_hidden on GPU to eliminate per-step sync stalls
+
+*Updated: 2026-03-22*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[Bug][Qwen3TTS][Streaming] remove dynamic initial chunk and only compute on initial request](https://github.com/vllm-project/vllm-omni/pull/1930)
+
+
+*Updated: 2026-03-22*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[Misc] removed qwen3_tts.py as it is out-dated](https://github.com/vllm-project/vllm-omni/pull/1926)
+
+
+*Updated: 2026-03-22*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[Optim][Qwen3TTS][CodePredictor] support torch.compile with reduce-overhead and dynamic False](https://github.com/vllm-project/vllm-omni/pull/1913)
+
+
+*Updated: 2026-03-22*

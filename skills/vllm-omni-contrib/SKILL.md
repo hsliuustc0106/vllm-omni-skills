@@ -177,3 +177,91 @@ pytest tests/ --cov=vllm_omni --cov-report=html
 ## References
 
 - For detailed model integration patterns, see [references/model-integration.md](references/model-integration.md)
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[Voxtral] Improve example](https://github.com/vllm-project/vllm-omni/pull/2045)
+
+
+*Updated: 2026-03-22*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[Doc] Update docs and dockerfiles for rebase of vllm v0.18.0](https://github.com/vllm-project/vllm-omni/pull/2038)
+
+
+*Updated: 2026-03-22*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[Rebase] Rebase to vllm v0.18.0](https://github.com/vllm-project/vllm-omni/pull/2037)
+
+
+*Updated: 2026-03-22*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[skip ci][Docs] Update WeChat QR code (fix filename case)](https://github.com/vllm-project/vllm-omni/pull/1976)
+
+### Changes
+- Bug fix: [skip ci][Docs] Update WeChat QR code (fix filename case)
+
+*Updated: 2026-03-22*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[Docs] Update WeChat QR code for community support](https://github.com/vllm-project/vllm-omni/pull/1974)
+
+
+*Updated: 2026-03-22*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[Docs] Add Wan2.1-T2V as supported video generation models](https://github.com/vllm-project/vllm-omni/pull/1920)
+
+### Changes
+- New feature: [Docs] Add Wan2.1-T2V as supported video generation models
+
+*Updated: 2026-03-22*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[Entrypoint][Refactor] vLLM-Omni Entrypoint Refactoring](https://github.com/vllm-project/vllm-omni/pull/1908)
+
+
+*Updated: 2026-03-22*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[Feat] support HSDP for Flux family](https://github.com/vllm-project/vllm-omni/pull/1900)
+
+### Changes
+- New feature: [Feat] support HSDP for Flux family
+
+*Updated: 2026-03-22*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[NPU] Upgrade to v0.17.0](https://github.com/vllm-project/vllm-omni/pull/1890)
+
+
+*Updated: 2026-03-22*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [Add `Governance` section](https://github.com/vllm-project/vllm-omni/pull/1889)
+
+### Changes
+- New feature: Add `Governance` section
+
+*Updated: 2026-03-22*

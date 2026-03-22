@@ -54,3 +54,13 @@ Rule: if a new method is missing generic kernels, loader behavior, or config cla
 - AR and general methods: [references/methods.md](references/methods.md)
 - Model and modality support matrix: [references/modality-compat.md](references/modality-compat.md)
 - Diffusion `fp8`, `gguf`, and new-method workflow: [references/diffusion.md](references/diffusion.md)
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[Feature]: Remove some useless `hf_overrides` in yaml](https://github.com/vllm-project/vllm-omni/pull/1898)
+
+### Changes
+- New feature: [Feature]: Remove some useless `hf_overrides` in yaml
+
+*Updated: 2026-03-22*

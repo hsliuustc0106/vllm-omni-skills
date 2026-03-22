@@ -157,3 +157,23 @@ vllm serve <model> --omni --tensor-parallel-size 8
 - For disaggregation architecture details, see [references/disaggregation.md](references/disaggregation.md)
 - For OmniConnector backend contract, config wiring, and validation, see [references/connector-development.md](references/connector-development.md)
 - For Ray execution setup, see [references/ray-execution.md](references/ray-execution.md)
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[Feature]: Remove some useless `hf_overrides` in yaml](https://github.com/vllm-project/vllm-omni/pull/1898)
+
+### Changes
+- New feature: [Feature]: Remove some useless `hf_overrides` in yaml
+
+*Updated: 2026-03-22*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[Feat] Support T5 Tensor Parallelism](https://github.com/vllm-project/vllm-omni/pull/1881)
+
+### Changes
+- New feature: [Feat] Support T5 Tensor Parallelism
+
+*Updated: 2026-03-22*

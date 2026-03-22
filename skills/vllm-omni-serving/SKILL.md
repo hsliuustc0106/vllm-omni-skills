@@ -143,3 +143,69 @@ Use a reverse proxy to route by path or model name.
 
 - For model-specific configurations, see [references/model-configs.md](references/model-configs.md)
 - For scaling and load balancing, see [references/scaling-guide.md](references/scaling-guide.md)
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[Rebase] Rebase to vllm v0.18.0](https://github.com/vllm-project/vllm-omni/pull/2037)
+
+
+*Updated: 2026-03-22*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[Fixbug][Perf] Qwen3-omni: code predictor with re-prefill + SDPA and eliminate decode hot-path CPU round-trips](https://github.com/vllm-project/vllm-omni/pull/2012)
+
+### Changes
+- Bug fix: [Fixbug][Perf] Qwen3-omni: code predictor with re-prefill + SDPA and eliminate decode hot-path CPU round-trips
+
+*Updated: 2026-03-22*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[Bugfix] revert PR#1758 which introduced the accuracy problem of qwen3-omni](https://github.com/vllm-project/vllm-omni/pull/2009)
+
+### Changes
+- Bug fix: [Bugfix] revert PR#1758 which introduced the accuracy problem of qwen3-omni
+
+*Updated: 2026-03-22*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[Perf] [Qwen3-TTS] Keep audio_codes and last_talker_hidden on GPU to eliminate per-step sync stalls](https://github.com/vllm-project/vllm-omni/pull/1985)
+
+### Changes
+- Performance improvement: [Perf] [Qwen3-TTS] Keep audio_codes and last_talker_hidden on GPU to eliminate per-step sync stalls
+
+*Updated: 2026-03-22*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[CI] [ROCm] Bugfix device environment issue](https://github.com/vllm-project/vllm-omni/pull/1984)
+
+### Changes
+- Bug fix: [CI] [ROCm] Bugfix device environment issue
+
+*Updated: 2026-03-22*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[Fix] Fix slow hasattr in CUDAGraphWrapper.__getattr__](https://github.com/vllm-project/vllm-omni/pull/1982)
+
+### Changes
+- Bug fix: [Fix] Fix slow hasattr in CUDAGraphWrapper.__getattr__
+
+*Updated: 2026-03-22*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[Entrypoint][Refactor] vLLM-Omni Entrypoint Refactoring](https://github.com/vllm-project/vllm-omni/pull/1908)
+
+
+*Updated: 2026-03-22*

@@ -211,3 +211,119 @@ docker compose up -d
 ## References
 
 - For deployment pipeline templates, see [references/pipeline-templates.md](references/pipeline-templates.md)
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[Voxtral] Improve example](https://github.com/vllm-project/vllm-omni/pull/2045)
+
+
+*Updated: 2026-03-22*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[Rebase] Rebase to vllm v0.18.0](https://github.com/vllm-project/vllm-omni/pull/2037)
+
+
+*Updated: 2026-03-22*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[CI] Change Bagel online test environment variable `VLLM_TEST_CLEAN_GPU_MEMORY` to `0`](https://github.com/vllm-project/vllm-omni/pull/2032)
+
+
+*Updated: 2026-03-22*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[CI] Fix test.](https://github.com/vllm-project/vllm-omni/pull/2031)
+
+### Changes
+- Bug fix: [CI] Fix test.
+
+*Updated: 2026-03-22*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[CI] [ROCm] Setup `test-ready.yml` and `test-merge.yml`](https://github.com/vllm-project/vllm-omni/pull/2017)
+
+
+*Updated: 2026-03-22*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[Test] Implement mock HTTP request handling in benchmark CLI tests](https://github.com/vllm-project/vllm-omni/pull/2014)
+
+
+*Updated: 2026-03-22*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[CI] Split BAGEL tests into dummy/real weight tiers (L2/L3)](https://github.com/vllm-project/vllm-omni/pull/1998)
+
+
+*Updated: 2026-03-22*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[Fix] Fix slow hasattr in CUDAGraphWrapper.__getattr__](https://github.com/vllm-project/vllm-omni/pull/1982)
+
+### Changes
+- Bug fix: [Fix] Fix slow hasattr in CUDAGraphWrapper.__getattr__
+
+*Updated: 2026-03-22*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [Fix Base voice clone streaming quality and stop-token crash](https://github.com/vllm-project/vllm-omni/pull/1945)
+
+### Changes
+- Bug fix: Fix Base voice clone streaming quality and stop-token crash
+
+*Updated: 2026-03-22*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[Test] L4 complete diffusion feature test for Bagel models](https://github.com/vllm-project/vllm-omni/pull/1938)
+
+### Changes
+- New feature: [Test] L4 complete diffusion feature test for Bagel models
+
+*Updated: 2026-03-22*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[Entrypoint][Refactor] vLLM-Omni Entrypoint Refactoring](https://github.com/vllm-project/vllm-omni/pull/1908)
+
+
+*Updated: 2026-03-22*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[Feature]: Remove some useless `hf_overrides` in yaml](https://github.com/vllm-project/vllm-omni/pull/1898)
+
+### Changes
+- New feature: [Feature]: Remove some useless `hf_overrides` in yaml
+
+*Updated: 2026-03-22*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[Feat] Support T5 Tensor Parallelism](https://github.com/vllm-project/vllm-omni/pull/1881)
+
+### Changes
+- New feature: [Feat] Support T5 Tensor Parallelism
+
+*Updated: 2026-03-22*

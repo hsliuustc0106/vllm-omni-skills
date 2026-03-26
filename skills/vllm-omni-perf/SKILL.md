@@ -145,3 +145,125 @@ curl http://localhost:8091/metrics
 
 - For TeaCache configuration details, see [references/teacache.md](references/teacache.md)
 - For quantization methods and compatibility, see [references/quantization.md](references/quantization.md)
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[BugFix][Qwen3TTS] CodePredictor CudaGraph Pool](https://github.com/vllm-project/vllm-omni/pull/2059)
+
+### Changes
+- Bug fix: [BugFix][Qwen3TTS] CodePredictor CudaGraph Pool
+
+*Updated: 2026-03-22*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[bugfix] /chat/completion doesn't read extra_body for diffusion model](https://github.com/vllm-project/vllm-omni/pull/2042)
+
+### Changes
+- Bug fix: [bugfix] /chat/completion doesn't read extra_body for diffusion model
+
+*Updated: 2026-03-22*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[Test] Implement mock HTTP request handling in benchmark CLI tests](https://github.com/vllm-project/vllm-omni/pull/2014)
+
+
+*Updated: 2026-03-22*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[Fixbug][Perf] Qwen3-omni: code predictor with re-prefill + SDPA and eliminate decode hot-path CPU round-trips](https://github.com/vllm-project/vllm-omni/pull/2012)
+
+### Changes
+- Bug fix: [Fixbug][Perf] Qwen3-omni: code predictor with re-prefill + SDPA and eliminate decode hot-path CPU round-trips
+
+*Updated: 2026-03-22*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[Perf] [Qwen3-TTS] Keep audio_codes and last_talker_hidden on GPU to eliminate per-step sync stalls](https://github.com/vllm-project/vllm-omni/pull/1985)
+
+### Changes
+- Performance improvement: [Perf] [Qwen3-TTS] Keep audio_codes and last_talker_hidden on GPU to eliminate per-step sync stalls
+
+*Updated: 2026-03-22*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[Bugfix] Fix config misalignment between offline and online diffusion inference (Wan2.2, Qwen-Image series)](https://github.com/vllm-project/vllm-omni/pull/1979)
+
+### Changes
+- Bug fix: [Bugfix] Fix config misalignment between offline and online diffusion inference (Wan2.2, Qwen-Image series)
+
+*Updated: 2026-03-22*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[Test] L4 complete diffusion feature test for Bagel models](https://github.com/vllm-project/vllm-omni/pull/1938)
+
+### Changes
+- New feature: [Test] L4 complete diffusion feature test for Bagel models
+
+*Updated: 2026-03-22*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [Fix OmniGen2 transformer config loading for HF models](https://github.com/vllm-project/vllm-omni/pull/1934)
+
+### Changes
+- Bug fix: Fix OmniGen2 transformer config loading for HF models
+
+*Updated: 2026-03-22*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[Bug][Qwen3TTS][Streaming] remove dynamic initial chunk and only compute on initial request](https://github.com/vllm-project/vllm-omni/pull/1930)
+
+
+*Updated: 2026-03-22*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[Bugfix] fix helios video generate use cpu device](https://github.com/vllm-project/vllm-omni/pull/1915)
+
+### Changes
+- Bug fix: [Bugfix] fix helios video generate use cpu device
+
+*Updated: 2026-03-22*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[Optim][Qwen3TTS][CodePredictor] support torch.compile with reduce-overhead and dynamic False](https://github.com/vllm-project/vllm-omni/pull/1913)
+
+
+*Updated: 2026-03-22*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[Entrypoint][Refactor] vLLM-Omni Entrypoint Refactoring](https://github.com/vllm-project/vllm-omni/pull/1908)
+
+
+*Updated: 2026-03-22*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[Feature]: Remove some useless `hf_overrides` in yaml](https://github.com/vllm-project/vllm-omni/pull/1898)
+
+### Changes
+- New feature: [Feature]: Remove some useless `hf_overrides` in yaml
+
+*Updated: 2026-03-22*

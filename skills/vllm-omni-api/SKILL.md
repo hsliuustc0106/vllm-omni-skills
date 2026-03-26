@@ -144,3 +144,72 @@ assert resp.status_code == 200
 ## References
 
 - For full endpoint specifications and parameters, see [references/endpoints.md](references/endpoints.md)
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[Bugfix] Fix Fish Speech and CosyVoice3 online serving - missing is_comprehension and broken model detection](https://github.com/vllm-project/vllm-omni/pull/2058)
+
+### Changes
+- Bug fix: [Bugfix] Fix Fish Speech and CosyVoice3 online serving - missing is_comprehension and broken model detection
+
+*Updated: 2026-03-22*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[bugfix] /chat/completion doesn't read extra_body for diffusion model](https://github.com/vllm-project/vllm-omni/pull/2042)
+
+### Changes
+- Bug fix: [bugfix] /chat/completion doesn't read extra_body for diffusion model
+
+*Updated: 2026-03-22*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[Rebase] Rebase to vllm v0.18.0](https://github.com/vllm-project/vllm-omni/pull/2037)
+
+
+*Updated: 2026-03-22*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[Bugfix]Fix bug of online server can not return mutli images](https://github.com/vllm-project/vllm-omni/pull/2007)
+
+### Changes
+- Bug fix: [Bugfix]Fix bug of online server can not return mutli images
+
+*Updated: 2026-03-22*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[CI] [ROCm] Bugfix device environment issue](https://github.com/vllm-project/vllm-omni/pull/1984)
+
+### Changes
+- Bug fix: [CI] [ROCm] Bugfix device environment issue
+
+*Updated: 2026-03-22*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[Bugfix] Fix config misalignment between offline and online diffusion inference (Wan2.2, Qwen-Image series)](https://github.com/vllm-project/vllm-omni/pull/1979)
+
+### Changes
+- Bug fix: [Bugfix] Fix config misalignment between offline and online diffusion inference (Wan2.2, Qwen-Image series)
+
+### New Features
+- `/v1/chat/completions`
+
+*Updated: 2026-03-22*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[Entrypoint][Refactor] vLLM-Omni Entrypoint Refactoring](https://github.com/vllm-project/vllm-omni/pull/1908)
+
+
+*Updated: 2026-03-22*

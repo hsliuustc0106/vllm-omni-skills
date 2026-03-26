@@ -109,3 +109,13 @@ Video generation is significantly more compute-intensive than image generation:
 ## References
 
 - For Wan2.2 model details and advanced config, see [references/wan-models.md](references/wan-models.md)
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[Bugfix] fix helios video generate use cpu device](https://github.com/vllm-project/vllm-omni/pull/1915)
+
+### Changes
+- Bug fix: [Bugfix] fix helios video generate use cpu device
+
+*Updated: 2026-03-22*

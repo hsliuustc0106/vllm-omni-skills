@@ -125,3 +125,38 @@ vllm serve <model> --omni --cpu-offload-gb 10
 - For FLUX model details, see [references/flux-models.md](references/flux-models.md)
 - For Qwen-Image family, see [references/qwen-image.md](references/qwen-image.md)
 - For image editing workflows, see [references/image-edit.md](references/image-edit.md)
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[Fixbug][Perf] Qwen3-omni: code predictor with re-prefill + SDPA and eliminate decode hot-path CPU round-trips](https://github.com/vllm-project/vllm-omni/pull/2012)
+
+### Changes
+- Bug fix: [Fixbug][Perf] Qwen3-omni: code predictor with re-prefill + SDPA and eliminate decode hot-path CPU round-trips
+
+*Updated: 2026-03-22*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[Bugfix]Fix bug of online server can not return mutli images](https://github.com/vllm-project/vllm-omni/pull/2007)
+
+### Changes
+- Bug fix: [Bugfix]Fix bug of online server can not return mutli images
+
+### New Features
+- Qwen-Image-Layered
+- Qwen-Image-Layered
+- Qwen-Image-Layered
+
+*Updated: 2026-03-22*
+
+
+## Recent Updates (Auto-generated)
+
+**Source**: [[Feat] support HSDP for Flux family](https://github.com/vllm-project/vllm-omni/pull/1900)
+
+### Changes
+- New feature: [Feat] support HSDP for Flux family
+
+*Updated: 2026-03-22*

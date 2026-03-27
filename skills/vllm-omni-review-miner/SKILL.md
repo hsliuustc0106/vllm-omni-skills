@@ -1,6 +1,6 @@
 ---
 name: vllm-omni-review-miner
-description: Scan PRs of a specific type (e.g., new model support) from vLLM and vLLM-Omni repos, extract review patterns and suggestions, then generate a specialized review skill. Use when you want to learn from historical PR reviews to create domain-specific review expertise.
+description: "Scan pull requests of a specific type (e.g., new model support) from vLLM and vLLM-Omni repos, extract code review patterns and suggestions, then generate a specialized review automation skill. Use when learning from historical pull request reviews, building domain-specific code review expertise, or automating review pattern extraction."
 ---
 
 # vLLM Review Pattern Miner
@@ -22,19 +22,17 @@ Invoke this skill with a PR category. Examples:
 
 ### Step 1: Define Search Scope
 
-Based on the user-provided category, determine search queries for both repos:
+Map the user-provided category to search queries. Common mappings:
 
-| Category | Search Keywords / Labels | Title Patterns |
-|----------|------------------------|----------------|
-| new model | `label:new-model`, title contains `[Model]`, `add support for`, `new model` | `[Model]`, `[Feature]` adding model |
-| bugfix | `label:bug`, title contains `[Bugfix]`, `[Bug]`, `fix` | `[Bugfix]`, `[Bug]`, `[Fix]` |
-| performance | `label:performance`, title contains `[Performance]`, `[Perf]`, `optimize` | `[Performance]`, `[Perf]` |
-| diffusion | title contains `[Image]`, `[ImageGen]`, `[Video]`, `diffusion`, `DiT` | `[Image]`, `[ImageGen]`, `[Video]` |
-| tts/audio | title contains `[TTS]`, `[Audio]`, `speech`, `tts` | `[TTS]`, `[Audio]` |
-| quantization | title contains `[Quantization]`, `quant`, `awq`, `gptq`, `fp8` | `[Quantization]` |
-| distributed | title contains `[Distributed]`, `tensor parallel`, `pipeline parallel` | `[Distributed]` |
+- **new model**: `label:new-model` or title contains `[Model]`, `add support for`
+- **bugfix**: `label:bug` or title contains `[Bugfix]`, `fix`
+- **performance**: `label:performance` or title contains `[Perf]`, `optimize`
+- **diffusion**: title contains `[Image]`, `diffusion`, `DiT`
+- **tts/audio**: title contains `[TTS]`, `[Audio]`, `speech`
+- **quantization**: title contains `[Quantization]`, `quant`, `awq`, `gptq`, `fp8`
+- **distributed**: title contains `[Distributed]`, `tensor parallel`
 
-If the category doesn't match a predefined one, construct a best-effort search query from the user's keywords.
+For unrecognized categories, construct a best-effort search query from the user's keywords.
 
 ### Step 2: Fetch PRs from Both Repos
 
@@ -57,6 +55,8 @@ gh pr list --repo vllm-project/vllm-omni \
 ```
 
 Filter to keep only PRs with review comments (skip auto-merged or rubber-stamped PRs). Aim for **10-20 high-quality reviewed PRs** total across both repos.
+
+**Validation checkpoint**: Verify at least 5 PRs with review comments were found before proceeding. If fewer than 5, broaden the search query or warn the user that the generated skill may lack coverage.
 
 ### Step 3: Extract Review Comments
 
@@ -116,6 +116,8 @@ Extract technical knowledge unique to this PR category:
 - Required integration points
 - Common pitfalls
 - Performance expectations
+
+**Validation checkpoint**: Review extracted patterns with the user before generating the skill. Confirm the top 5 patterns are accurate and relevant to the category.
 
 ### Step 5: Generate the Specialized Review Skill
 

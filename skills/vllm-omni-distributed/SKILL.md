@@ -1,6 +1,6 @@
 ---
 name: vllm-omni-distributed
-description: Configure and extend distributed inference in vLLM-Omni using tensor parallelism, pipeline parallelism, OmniConnector disaggregation, connector backends, and Ray. Use when deploying models across multiple GPUs or nodes, setting up disaggregated execution, developing OmniConnector backends, or scaling inference horizontally.
+description: "Scale vLLM-Omni across multiple GPUs and nodes using tensor parallelism, pipeline parallelism, OmniConnector disaggregation, connector backends, and Ray. Use when setting up multi-GPU inference, distributing model execution across machines, deploying disaggregated execution, developing OmniConnector backends, or scaling inference horizontally."
 ---
 
 # vLLM-Omni Distributed Inference
@@ -78,6 +78,30 @@ Use this skill for connector implementation work as well as connector usage.
 - Validate connector changes from the smallest contract outward: basic `put/get`, config loading, stage flow, then KV cache flow
 - Support both metadata-driven and key-only retrieval paths when designing connector behavior
 
+### OmniConnector Validation Workflow
+
+```bash
+# 1. Verify basic put/get contract
+python -c "
+from vllm_omni.omni_connector import create_connector
+conn = create_connector('shared_memory', config={})
+conn.put('test_key', b'test_data')
+assert conn.get('test_key') == b'test_data', 'Basic put/get failed'
+print('OK: put/get contract passes')
+"
+
+# 2. Verify config loading from stage YAML
+python -c "
+import yaml
+with open('stage_config.yaml') as f:
+    cfg = yaml.safe_load(f)
+assert 'connector' in cfg, 'Missing connector config'
+print(f'OK: connector type = {cfg[\"connector\"][\"type\"]}')
+"
+
+# 3. Test stage flow end-to-end (start stages, send one request, verify output)
+```
+
 ## Multi-Node with Ray
 
 For models that exceed single-node GPU capacity:
@@ -92,22 +116,23 @@ ray start --head --port=6379
 ray start --address=<head-node-ip>:6379
 ```
 
-### Step 2: Launch Server
+### Step 2: Verify Cluster Before Launching
+
+```python
+import ray
+ray.init(address="auto")
+resources = ray.cluster_resources()
+num_gpus = resources.get("GPU", 0)
+assert num_gpus >= 8, f"Need 8 GPUs, found {num_gpus}"
+print(f"OK: cluster has {num_gpus} GPUs across {resources.get('node:__internal_head__', 0) + 1} nodes")
+```
+
+### Step 3: Launch Server
 
 ```bash
 vllm serve <model> --omni \
   --tensor-parallel-size 8 \
   --port 8091
-```
-
-Ray automatically distributes workers across the cluster.
-
-### Step 3: Verify Cluster
-
-```python
-import ray
-ray.init(address="auto")
-print(ray.cluster_resources())
 ```
 
 ## Sequence Parallelism for Diffusion

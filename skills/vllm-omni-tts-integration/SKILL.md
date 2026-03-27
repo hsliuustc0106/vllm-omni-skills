@@ -1,13 +1,11 @@
 ---
 name: vllm-omni-tts-integration
-description: Integrate a new TTS model into vLLM-Omni from HuggingFace reference implementation through production-ready serving with streaming and CUDA graph acceleration. Use when adding a new TTS model, wiring stage separation, enabling online speech serving, or debugging TTS integration behavior.
+description: "Integrate a new text-to-speech model into vLLM-Omni from HuggingFace reference implementation through production-ready serving with streaming and CUDA graph acceleration. Use when adding a new TTS model, wiring stage separation for speech synthesis, enabling online voice generation serving, debugging TTS integration behavior, or building audio output pipelines."
 ---
 
 # TTS Model Integration Workflow
 
 ## Overview
-
-Integrating a new TTS model into vLLM-Omni follows a phased approach. Each phase builds on the previous one, and the model becomes usable at each stage with increasing capabilities.
 
 ```
 HF Reference -> Stage Separation -> Online Serving -> Async Chunk -> CUDA Graph
@@ -114,13 +112,19 @@ When audio output is wrong, check in this order:
 
 ### Voice Cloning Pattern
 
-If the model supports voice cloning via reference audio encoding:
-
 ```python
-# In serving_speech.py:
-# 1. Resolve ref_audio (URL, base64, or file path) to audio bytes
-# 2. Encode on CPU using the model's codec (e.g., DAC for Fish Speech)
-# 3. Convert to token IDs and inject into the prompt as a system message
+import base64
+from pathlib import Path
+
+def build_voice_clone_prompt(ref_audio_path: str, text: str, codec) -> list:
+    """Build prompt with reference audio for voice cloning in serving_speech.py."""
+    audio_bytes = Path(ref_audio_path).read_bytes()
+    codes = codec.encode(audio_bytes)  # Encode on CPU using model's codec (e.g., DAC)
+    token_ids = [code + codec.vocab_offset for code in codes.flatten().tolist()]
+    return [
+        {"role": "system", "content": f"<|voice|>{''.join(chr(t) for t in token_ids)}"},
+        {"role": "user", "content": text},
+    ]
 ```
 
 ### Deliverables
@@ -198,18 +202,24 @@ Stage 0 (AR)                    Stage 1 (Decoder)
 ### Example: Code Predictor CUDA Graph (Qwen3-TTS)
 
 ```python
+import torch
+
 class CodePredictorGraph:
     """Captures the 16-step code predictor AR loop as a single CUDA graph."""
 
-    def setup_graph(self, device):
-        # Pre-allocate static KV caches [1, kv_heads, 16, head_dim]
-        # Pre-build causal masks and positions for each step
-        # Warm up -> capture -> store graph
+    def setup_graph(self, device: torch.device, kv_heads: int = 4, head_dim: int = 64):
+        self.num_steps = 16
+        self.kv_cache = torch.zeros(1, kv_heads, self.num_steps, head_dim, device=device)
+        self.positions = torch.arange(self.num_steps, device=device)
+        self.causal_mask = torch.tril(torch.ones(self.num_steps, self.num_steps, device=device))
+        self.input_buf = torch.zeros(1, 1, kv_heads * head_dim, device=device)
+        self.output_buf = torch.zeros(1, self.num_steps, device=device, dtype=torch.long)
+        # Warm up, then: self.graph = torch.cuda.CUDAGraph(); self.graph.capture(...)
 
-    def run_graph(self, initial_input):
-        # Copy input to static buffer
-        # Replay captured graph
-        # Read output from static buffer
+    def run_graph(self, initial_input: torch.Tensor) -> torch.Tensor:
+        self.input_buf.copy_(initial_input)
+        self.graph.replay()
+        return self.output_buf.clone()
 ```
 
 ### Performance Expectations

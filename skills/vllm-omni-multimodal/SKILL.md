@@ -1,6 +1,6 @@
 ---
 name: vllm-omni-multimodal
-description: Use end-to-end omni-modality models like Qwen2.5-Omni and Qwen3-Omni for combined text, image, audio, and video understanding and generation. Use when working with omni-modality models that handle multiple input and output types simultaneously.
+description: "Transcribe speech, generate images from prompts, analyze video content, and convert between modalities using multimodal omni-modality models like Qwen2.5-Omni and Qwen3-Omni. Use when working with multimodal models for speech recognition, image generation, video understanding, voice synthesis, or any task combining text, image, audio, and video inputs and outputs simultaneously."
 ---
 
 # vLLM-Omni Multimodal (Omni-Modality Models)
@@ -35,19 +35,39 @@ print(outputs[0].request_output[0].text)
 vllm serve Qwen/Qwen2.5-Omni-7B --omni --port 8091
 ```
 
-## Multi-Modal Input Patterns
+## Input Validation Workflow
 
-### Image Understanding
+Validate media inputs before sending to avoid OOM errors and processing failures:
 
 ```python
+import os
 import base64
 from openai import OpenAI
 
 client = OpenAI(base_url="http://localhost:8091/v1", api_key="unused")
 
-with open("photo.jpg", "rb") as f:
-    img_b64 = base64.b64encode(f.read()).decode()
+MAX_IMAGE_MB = 20
+MAX_AUDIO_MB = 50
+MAX_VIDEO_MB = 100
+SUPPORTED_IMAGE = {".jpg", ".jpeg", ".png", ".webp"}
+SUPPORTED_AUDIO = {".wav", ".mp3", ".flac"}
+SUPPORTED_VIDEO = {".mp4", ".webm"}
 
+def validate_and_encode(path: str, max_mb: float, supported_exts: set) -> str:
+    ext = os.path.splitext(path)[1].lower()
+    assert ext in supported_exts, f"Unsupported format: {ext}"
+    size_mb = os.path.getsize(path) / (1024 * 1024)
+    assert size_mb <= max_mb, f"File too large: {size_mb:.1f}MB > {max_mb}MB"
+    with open(path, "rb") as f:
+        return base64.b64encode(f.read()).decode()
+```
+
+## Multi-Modal Input Patterns
+
+### Image Understanding
+
+```python
+img_b64 = validate_and_encode("photo.jpg", MAX_IMAGE_MB, SUPPORTED_IMAGE)
 response = client.chat.completions.create(
     model="Qwen/Qwen2.5-Omni-7B",
     messages=[{
@@ -61,12 +81,10 @@ response = client.chat.completions.create(
 print(response.choices[0].message.content)
 ```
 
-### Audio Understanding
+### Audio Understanding (Speech-to-Text)
 
 ```python
-with open("recording.wav", "rb") as f:
-    audio_b64 = base64.b64encode(f.read()).decode()
-
+audio_b64 = validate_and_encode("recording.wav", MAX_AUDIO_MB, SUPPORTED_AUDIO)
 response = client.chat.completions.create(
     model="Qwen/Qwen2.5-Omni-7B",
     messages=[{
@@ -82,9 +100,7 @@ response = client.chat.completions.create(
 ### Video Understanding
 
 ```python
-with open("clip.mp4", "rb") as f:
-    video_b64 = base64.b64encode(f.read()).decode()
-
+video_b64 = validate_and_encode("clip.mp4", MAX_VIDEO_MB, SUPPORTED_VIDEO)
 response = client.chat.completions.create(
     model="Qwen/Qwen2.5-Omni-7B",
     messages=[{
@@ -98,8 +114,6 @@ response = client.chat.completions.create(
 ```
 
 ### Combined Inputs
-
-Send multiple modalities in a single request:
 
 ```python
 response = client.chat.completions.create(
@@ -115,9 +129,7 @@ response = client.chat.completions.create(
 )
 ```
 
-## Audio Output
-
-Omni models can generate audio responses alongside text:
+## Audio Output (Voice Synthesis)
 
 ```python
 response = client.chat.completions.create(
@@ -136,13 +148,11 @@ messages = [
         {"type": "text", "text": "What's in this image?"},
     ]},
 ]
-
 response = client.chat.completions.create(
     model="Qwen/Qwen2.5-Omni-7B", messages=messages
 )
 messages.append({"role": "assistant", "content": response.choices[0].message.content})
 messages.append({"role": "user", "content": "What colors are dominant?"})
-
 response = client.chat.completions.create(
     model="Qwen/Qwen2.5-Omni-7B", messages=messages
 )
@@ -163,7 +173,7 @@ vllm serve Qwen/Qwen3-Omni-30B-A3B-Instruct --omni \
 
 **Audio output garbled**: Ensure the client correctly handles the audio response format (base64 encoded WAV).
 
-**Out of memory with multi-modal input**: Large images/videos consume significant memory. Resize inputs before sending.
+**Out of memory with multi-modal input**: Large images/videos consume significant memory. Use the validation workflow above to check file sizes before sending.
 
 ## References
 

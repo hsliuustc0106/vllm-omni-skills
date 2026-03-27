@@ -39,6 +39,29 @@ Core principle: keep generic quantization infrastructure in upstream `vllm`. Kee
 
 Rule: if a new method is missing generic kernels, loader behavior, or config classes, fix upstream `vllm` first. Only add a thin diffusion wrapper in `vllm-omni`.
 
+## Example: Enable FP8 for a Diffusion Model
+
+```bash
+# 1. Start server with fp8 quantization
+vllm serve black-forest-labs/FLUX.1-dev --omni \
+  --quantization fp8 --tensor-parallel-size 2
+
+# 2. Verify quantized model loaded correctly
+curl -s http://localhost:8091/v1/models | python3 -c "
+import sys, json
+models = json.load(sys.stdin)['data']
+print(f'Loaded: {models[0][\"id\"]}') if models else print('ERROR: No models loaded')
+"
+
+# 3. Generate test image with fixed seed for quality comparison
+curl -s http://localhost:8091/v1/images/generations \
+  -H 'Content-Type: application/json' \
+  -d '{"prompt":"a cat","seed":42}' -o test_fp8.json
+
+# 4. Compare against BF16 baseline (run separately without --quantization)
+# If PSNR < 25 dB or visual artifacts appear, check references/diffusion.md
+```
+
 ## Common Mistakes
 
 | Symptom | Likely Cause | Fix |

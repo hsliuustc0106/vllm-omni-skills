@@ -5,6 +5,90 @@
 
 ---
 
+### 2026-03-27
+**[PR #2163](https://github.com/vllm-project/vllm-omni/pull/2163)** - support sp for hunyuan
+
+**Added**:
+- The Transformer logic in hunyuanimage is：
+- For first step: it run causal and full attention with
+- query [prompt, timestamp, outputimage, last token]
+
+**Updated in skill**:
+- ✅ (auto-marked)
+
+---
+
+
+### 2026-03-27
+**[PR #2180](https://github.com/vllm-project/vllm-omni/pull/2180)** - Fix tp and Quantization incompatible for Flux
+
+**Fixed**:
+- ```
+- curl -X POST http://localhost:8004/v1/images/generations   -H "Content-Type: application/json"   -d '{
+- "prompt": "A beautiful sunset over the ocean with sailing boats",
+
+**Updated in skill**:
+- ✅ (auto-marked)
+
+---
+
+
+### 2026-03-28
+**[PR #2184](https://github.com/vllm-project/vllm-omni/pull/2184)** - support quantization for Flux Kontext
+
+**Added**:
+- RT
+- TP=2 (24G/GPU) + CPU offload + FP8
+- Prompt: Add a hat to the dog
+
+**Updated in skill**:
+- ✅ (auto-marked)
+
+---
+
+
+### 2026-03-27
+**[PR #2163](https://github.com/vllm-project/vllm-omni/pull/2163)** - support sp for hunyuan
+
+**Added**:
+- The Transformer logic in hunyuanimage is：
+- For first step: it run causal and full attention with
+- query [prompt, timestamp, outputimage, last token]
+
+**Updated in skill**:
+- ✅ (auto-marked)
+
+---
+
+
+### 2026-03-27
+**[PR #2180](https://github.com/vllm-project/vllm-omni/pull/2180)** - Fix tp and Quantization incompatible for Flux
+
+**Fixed**:
+- ```
+- curl -X POST http://localhost:8004/v1/images/generations   -H "Content-Type: application/json"   -d '{
+- "prompt": "A beautiful sunset over the ocean with sailing boats",
+
+**Updated in skill**:
+- ✅ (auto-marked)
+
+---
+
+
+### 2026-03-28
+**[PR #2184](https://github.com/vllm-project/vllm-omni/pull/2184)** - support quantization for Flux Kontext
+
+**Added**:
+- RT
+- TP=2 (24G/GPU) + CPU offload + FP8
+- Prompt: Add a hat to the dog
+
+**Updated in skill**:
+- ✅ (auto-marked)
+
+---
+
+
 ### 2026-02-27
 **[PR #1505](https://github.com/vllm-project/vllm-omni/pull/1505)** - Update installation instructions for vllm 0.16.0
 

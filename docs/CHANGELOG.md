@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased] - 2026-03-04 ~ 2026-04-01
 
 ### Added
+- [quantization] support sp for hunyuan ([#2163](https://github.com/vllm-project/vllm-omni/pull/2163))
+- [quantization] support quantization for Flux Kontext ([#2184](https://github.com/vllm-project/vllm-omni/pull/2184))
+- [quantization] support sp for hunyuan ([#2163](https://github.com/vllm-project/vllm-omni/pull/2163))
+- [quantization] support quantization for Flux Kontext ([#2184](https://github.com/vllm-project/vllm-omni/pull/2184))
 - [api] Streaming output ([#1438](https://github.com/vllm-project/vllm-omni/pull/1438))
 - [cicd] Streaming output ([#1438](https://github.com/vllm-project/vllm-omni/pull/1438))
 - [api] Speed up diffusion model startup by multi-thread weight loading ([#1504](https://github.com/vllm-project/vllm-omni/pull/1504))
@@ -28,6 +32,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - [api] Improved IPC serialization for numpy scalars ([#1644](https://github.com/vllm-project/vllm-omni/pull/1644))
 
 ### Fixed
+- [cicd] Fix examples tests error ([#2138](https://github.com/vllm-project/vllm-omni/pull/2138))
+- [cicd] Fix keyError: num_processed_tokens_delta ([#2213](https://github.com/vllm-project/vllm-omni/pull/2213))
+- [cicd] Fix examples tests error ([#2138](https://github.com/vllm-project/vllm-omni/pull/2138))
+- [cicd] Fix keyError: num_processed_tokens_delta ([#2213](https://github.com/vllm-project/vllm-omni/pull/2213))
 - [quantization] fix offline text_to_image error from #1009 ([#1515](https://github.com/vllm-project/vllm-omni/pull/1515))
 - [api] Fix unexpected crash when init OmniDiffusion ([#1562](https://github.com/vllm-project/vllm-omni/pull/1562))
 - [quantization] Fix unexpected crash when init OmniDiffusion ([#1562](https://github.com/vllm-project/vllm-omni/pull/1562))

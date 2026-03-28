@@ -5,6 +5,62 @@
 
 ---
 
+### 2026-03-25
+**[PR #2145](https://github.com/vllm-project/vllm-omni/pull/2145)** - Improve Fish Speech S2 Pro voice cloning TTFP
+
+**Changed**:
+- This PR improves Fish Speech S2 Pro voice cloning TTFP.
+- Previously, the Fish Speech voice cloning path built the full clone prompt in the API server:
+- - resolve `ref_audio`
+
+**Updated in skill**:
+- ✅ (auto-marked)
+
+---
+
+
+### 2026-03-27
+**[PR #2268](https://github.com/vllm-project/vllm-omni/pull/2268)** - Fix Fish Speech S2 Pro prompt handling for truncated audio & emotion tag
+
+**Fixed**:
+- This PR fixes the Fish Speech S2 Pro issues reported in #2248 by aligning prompt construction across serving, model-side structured clone prefill, and the offline example.
+- It also closes several follow-up gaps found during review:
+- - structured voice clone now uses the same prompt/tag protocol as text-only serving
+
+**Updated in skill**:
+- ✅ (auto-marked)
+
+---
+
+
+### 2026-03-25
+**[PR #2145](https://github.com/vllm-project/vllm-omni/pull/2145)** - Improve Fish Speech S2 Pro voice cloning TTFP
+
+**Changed**:
+- This PR improves Fish Speech S2 Pro voice cloning TTFP.
+- Previously, the Fish Speech voice cloning path built the full clone prompt in the API server:
+- - resolve `ref_audio`
+
+**Updated in skill**:
+- ✅ (auto-marked)
+
+---
+
+
+### 2026-03-27
+**[PR #2268](https://github.com/vllm-project/vllm-omni/pull/2268)** - Fix Fish Speech S2 Pro prompt handling for truncated audio & emotion tag
+
+**Fixed**:
+- This PR fixes the Fish Speech S2 Pro issues reported in #2248 by aligning prompt construction across serving, model-side structured clone prefill, and the offline example.
+- It also closes several follow-up gaps found during review:
+- - structured voice clone now uses the same prompt/tag protocol as text-only serving
+
+**Updated in skill**:
+- ✅ (auto-marked)
+
+---
+
+
 ### 2026-02-26
 **[PR #1438](https://github.com/vllm-project/vllm-omni/pull/1438)** - Streaming output
 

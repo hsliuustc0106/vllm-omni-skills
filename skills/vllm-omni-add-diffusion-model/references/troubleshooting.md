@@ -78,10 +78,85 @@ out = out.reshape(batch, seq_len, -1)
 **Symptom**: `AssertionError: not divisible` or incorrect output with TP>1
 
 **Fix**:
-1. Verify `hidden_dim % tp_size == 0` and `num_heads % tp_size == 0`
+1. Verify `num_heads % tp_size == 0` and `num_kv_heads % tp_size == 0`
 2. Ensure `ColumnParallelLinear` / `RowParallelLinear` are used correctly
 3. Check that norms between parallel layers use distributed norm if needed
 4. Verify `load_weights` handles TP sharding for norm weights
+5. Use `self.to_qkv.num_heads` (local heads per GPU) for QKV split sizes, not total heads
+
+**Missing `input_is_parallel=True`**:
+
+`RowParallelLinear` expects sharded input from `ColumnParallelLinear`:
+```python
+self.w1 = ColumnParallelLinear(dim, hidden_dim, return_bias=False)
+self.w2 = RowParallelLinear(hidden_dim, dim, input_is_parallel=True, return_bias=False)
+```
+
+### Sequence Parallel Errors
+
+**Symptom**: Incorrect output or crashes with `--ulysses-degree N` or `--usp N`
+
+**Possible causes**:
+1. **Inline operations between shard/gather points**: `torch.cat()`, `pad_sequence()` etc. not at `nn.Module` boundaries. Fix: extract into submodule.
+2. **Wrong `split_dim`**: Check the tensor shape at the shard point. Sequence dimension is typically `dim=1` for `[B, S, D]` tensors.
+3. **RoPE not sharded**: If RoPE is computed separately, add it to `_sp_plan` with `split_output=True`.
+4. **Sequence not divisible by SP degree**: Use `auto_pad=True` in `SequenceParallelInput` or switch to `ulysses_mode="advanced_uaa"`.
+
+**Debugging**: Add `expected_dims=N` to `SequenceParallelInput`/`Output` for shape validation at runtime.
+
+### CFG Parallel Errors
+
+**Symptom**: CFG parallel not activating, no speedup
+
+**Fix checklist**:
+1. Pipeline inherits `CFGParallelMixin`
+2. `guidance_scale > 1.0`
+3. Negative prompt provided (even if empty string)
+4. `--cfg-parallel-size 2` specified
+5. `diffuse()` method calls `predict_noise_maybe_with_cfg()` and `scheduler_step_maybe_with_cfg()`
+
+**Symptom**: Different output with CFG parallel vs sequential
+
+**Possible cause**: Non-deterministic scheduler. Fix: pass `generator=torch.Generator(device).manual_seed(seed)` to `scheduler_step_maybe_with_cfg()`.
+
+### HSDP Errors
+
+**Symptom**: HSDP not activating or errors during weight loading
+
+**Fix checklist**:
+1. Transformer defines `_hsdp_shard_conditions` class attribute
+2. Shard condition functions return `True` for correct modules (test with `model.named_modules()`)
+3. Not combining with TP (HSDP and TP are incompatible)
+4. For standalone HSDP, `hsdp_shard_size` is specified explicitly
+
+**Verify**: Check logs for "HSDP Inference: replicate_size=..., shard_size=..." and "Sharded N modules + root".
+
+### Cache-DiT Not Applied
+
+**Symptom**: No speedup, no cache-related log messages
+
+**Fix checklist**:
+1. Model not in `_NO_CACHE_ACCELERATION` in `registry.py`
+2. Pipeline class name matches `CUSTOM_DIT_ENABLERS` key (if using custom enabler)
+3. `cache_backend="cache_dit"` specified
+4. Check logs for "Cache-dit enabled successfully on xxx"
+
+**Verify pipeline name**: `print(pipeline.__class__.__name__)` — must match registry key.
+
+### Cache-DiT Quality Degradation
+
+**Symptom**: Artifacts or lower quality with cache-dit
+
+**Fix**: Reduce aggressiveness:
+```python
+cache_config={
+    "residual_diff_threshold": 0.12,      # Lower from 0.24
+    "max_warmup_steps": 6,                # Increase from 4
+    "max_continuous_cached_steps": 2,      # Reduce if higher
+}
+```
+
+If quality is still poor, the model may need a custom enabler with per-block-list `ParamsModifier` tuning.
 
 ### Model Not Detected / Wrong Pipeline Class
 

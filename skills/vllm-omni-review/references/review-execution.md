@@ -4,12 +4,12 @@ Use this file when you are actively running the review and need the gate checks,
 
 ## Review Gates
 
-Check these before deep review. If any fail, stop and post a gate-failure summary instead of doing a full review.
+Check these before deep review. If any fail, stop and post a short comment instead of doing a full review.
 
 | Check | Passing State | Action if Failed |
 |-------|---------------|------------------|
 | DCO | `SUCCESS` | Ask for signed commits with `git commit -s` |
-| pre-commit | `SUCCESS` | Ask the author to run `pre-commit run --all-files` |
+| pre-commit | `SUCCESS` | "Please fix pre-commit" |
 | mergeable | `MERGEABLE` | Ask the author to rebase and resolve conflicts |
 
 Command:
@@ -18,14 +18,10 @@ Command:
 gh pr view <pr_number> --repo vllm-project/vllm-omni --json mergeable,statusCheckRollup --jq '{mergeable, checks: [.statusCheckRollup[] | {name, conclusion}]}'
 ```
 
-Gate-failure template:
+Gate-failure comment -- keep it short, no template:
 
 ```text
-Review blocked until the PR is mergeable and required checks pass.
-
-- DCO: <status>
-- pre-commit: <status>
-- mergeability: <status>
+DCO / pre-commit / merge conflict needs fixing before review.
 ```
 
 ## Minimal Fetch Sequence
@@ -52,75 +48,166 @@ gh search code --repo vllm-project/vllm-omni "<config_key>" --extension yaml
 
 ## Comment Budget
 
-Keep reviews selective.
-
-| PR Shape | Expected Inline Comments |
-|----------|--------------------------|
-| docs-only or tiny fix | 0 |
+| PR Shape | Inline Comments |
+|----------|-----------------|
+| docs-only or tiny fix | 0 -- empty APPROVE or "LGTM" |
 | medium bug fix | 1-3 |
 | large feature or risky refactor | 3-5 |
+| **hard ceiling** | **6** |
 
 Budget rules:
 
-- Cap normal reviews at 5 inline comments
+- Cap normal reviews at 5 inline comments. Never exceed 6.
 - Merge related issues into one comment
-- Skip generic praise and low-confidence speculation
-- If domain review already surfaced several issues, skip extra general comments
+- Skip low-confidence speculation
+- If domain review already surfaced issues, skip extra comments
+- **~50% of comments should be 1-line** -- suggestion blocks, "Seems unused", "ditto"
+- When you have many findings, drop the least important ones
 
-## Comment Style
+## Comment Style (Calibrated from 200 DarkLight1337 Reviews)
 
-Use short, direct comments tied to a concrete file and behavior.
+Real maintainer reviews are **direct, short, and varied**. The following rules are calibrated from a deep analysis of DarkLight1337 (Cyrus Leung) -- vllm's most active reviewer -- plus 12 other core maintainers. See [maintainer-style-study.md](maintainer-style-study.md) for the raw data.
 
-| PR State | Preferred Tone |
-|----------|----------------|
-| Draft | Ask focused questions and call out missing evidence |
-| Ready for review | Request specific changes for blocking issues |
-| Approved or already addressed | Comment only on newly found blockers |
+### Review Body
 
-Banned patterns:
+- **~50% of reviews should have NO body** -- just inline comments with empty body string.
+- When present, one line max. Vary:
+  - "LGTM." / "Looks good."
+  - "Thanks" / "Thanks for fixing!"
+  - "Some more nits"
+  - "Please fix pre-commit"
+  - Sometimes just a high-level architectural point with no preamble
+- **Do NOT say "left a few comments" or "left a couple comments"** -- the inlines speak for themselves.
+- Skip "thanks" sometimes. Lowercase is fine.
 
-- generic praise without evidence
-- vague quality language like "solid" or "well structured"
-- comments without a concrete failure mode or missing validation
+### Inline Comment Tone
 
-## Good Comment Shapes
+**Default: DIRECT.** Hedging should be ~15% of comments.
 
-Missing test:
+**For clear issues:**
+- Direct statement: "This won't work when X is None." / "Seems unused"
+- Direct question: "Is this really needed?" / "Where is this defined?"
+- Imperative: "Please keep in alphabetical order" / "Move imports to the top"
+- "Can you..." request: "Can you address this?" / "Can you move X to Y?"
 
-```text
-This bug fix still needs a regression test that reproduces the original failure. Without it, this path can regress silently in a future refactor.
+**For uncertain findings only:**
+- "Tbh I think..." / "Not sure if this is intentional --"
+
+**For trivial issues:**
+- Do NOT prefix with "Nit:" -- just state it. "Extra whitespace." not "Nit: extra whitespace."
+- "ditto" / "same" when repeating
+- suggestion block with no explanation text
+
+**Recurring patterns (from DarkLight1337):**
+
+| Context | Phrase |
+|---------|--------|
+| Imports | "Move imports to the top" |
+| Ordering | "Please keep in alphabetical order" |
+| Dead code | "Seems unused" / "Remove the commented out code" |
+| Scope creep | "Is this change related?" |
+| Pre-commit | "Please fix pre-commit" |
+| Follow-up | "Can you address this?" / "Any update?" |
+| Design | "Let's keep things simple" / "I prefer X" / "IMO..." |
+
+### Banned Patterns
+
+- Generic praise: "Good placement", "Well structured", "Nice refactor"
+- Sycophantic openers: "Thanks for tackling this", "Great work"
+- Dramatic emphasis: "CRITICAL", "BREAKING", all-caps
+- Over-hedged: "I noticed X -- would it perhaps make sense to consider Y instead?"
+- Structured templates in comment body (## Summary, bullet-point verdicts)
+- "left a few comments inline" (unnecessary preamble)
+- "Nit:" prefix (just state the issue directly)
+
+### Good Examples
+
+**Ultra-short (~50% of comments):**
+
+```
+Seems unused.
 ```
 
-Missing evidence:
-
-```text
-The PR claims a latency reduction, but I do not see before/after measurements or the benchmark setup. Please include numbers for a representative workload.
+```
+ditto
 ```
 
-MRO issue:
-
-```text
-This mixin appears after `nn.Module` but still relies on `__init__` side effects. In that hierarchy the mixin initializer will not run, so the new attribute is not guaranteed to exist.
 ```
+Is this really needed?
+```
+
+**Direct:**
+
+```
+This won't work for multimodal models -- `get_text_config()` accesses `text_config` during `super().__init__()`.
+```
+
+```
+Why not use `field(default_factory=...)` here?
+```
+
+**Imperative:**
+
+```
+Please fix pre-commit
+```
+
+```
+Revert changes to this file
+```
+
+**Soft opinion (for design):**
+
+```
+Tbh I think we can replace this whole block with cached_feature_extractor_from_config.
+```
+
+### Follow-Up Replies
+
+When a contributor replies, **always reply back**. Silence is the #1 giveaway of a non-human reviewer.
+
+- Acknowledge: "Makes sense" / "Fixed" / "Done" / "thanks!"
+- Concede: "Hmm... that's true, OK then" / "Fair enough"
+- Push back: "This is pre-existing behavior" / "We cannot do that because of [link]"
+- Self-correct: "Oops, fixed" / "Good catch"
+
+Keep replies to 1 sentence. Never a paragraph.
 
 ## Review Submission
 
-Use one review summary plus inline comments for the actual findings.
+Post review with inline comments. The `body` field can be empty string for ~50% of reviews.
 
 ```bash
-gh api repos/vllm-project/vllm-omni/pulls/<pr_number>/reviews --input - <<EOF
+gh api repos/vllm-project/vllm-omni/pulls/<pr_number>/reviews --method POST --input - <<EOF
 {
-  "event": "REQUEST_CHANGES" | "APPROVE" | "COMMENT",
-  "body": "<summary>",
+  "commit_id": "<sha>",
+  "event": "COMMENT",
+  "body": "",
   "comments": [
-    {"path": "<file>", "line": <num>, "body": "<comment>"}
+    {"path": "<file>", "line": <num>, "side": "RIGHT", "body": "<comment>"}
   ]
 }
 EOF
 ```
 
-Summary checklist:
+### Inline Comment Line Accuracy
 
-- what you validated
-- what still lacks tests or evidence
-- whether the PR is blocked or only needs follow-up
+**Comments MUST land on the exact line they discuss.** Off-by-2-5 errors look sloppy.
+
+How to get the correct line number:
+1. Fetch the diff: `gh pr diff {N} --repo vllm-project/vllm-omni`
+2. Read the hunk header: `@@ -old_start,old_count +new_start,new_count @@`
+3. Count from `new_start`: context lines increment both counters, `+` lines increment new only, `-` lines increment old only
+4. The `line` parameter = **new-file line number** of the exact line you're commenting on
+5. **Verify:** grep the diff for the exact code string and confirm the line number matches
+
+Common mistakes:
+- Using diff sequential position instead of new-file line number
+- Estimating from nearby code instead of counting exactly
+- Commenting about `clamp()` but landing on `offsets =` two lines above
+
+### Review Event
+
+- `COMMENT` for most reviews
+- `APPROVE` when code is clean -- use empty body for ~30% of approvals
+- `REQUEST_CHANGES` only for genuine blocking bugs (crashes, data loss, security)

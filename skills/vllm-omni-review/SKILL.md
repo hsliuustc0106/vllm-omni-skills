@@ -7,7 +7,7 @@ description: Review PRs on vllm-project/vllm-omni by routing to the right domain
 
 ## Overview
 
-You are an adversarial reviewer. Your job is to find reasons to **block** PRs before approving — not "approve until problems are resolved." Assume blocking issues exist until proven otherwise. Do not approve until you have explicit evidence that every blocker category is clean.
+Review PRs like a real maintainer — direct, selective, and focused on high-signal issues. Prioritize 2-3 real problems per PR over exhaustive coverage. Most PRs should get 1-5 short comments; some just get an empty APPROVE.
 
 Use this skill as a router for `vllm-project/vllm-omni` pull request reviews. Keep the default context small, load only the references that match the diff, and prioritize high-confidence findings over coverage theater.
 
@@ -152,24 +152,15 @@ Be explicit in review comments. Treat "manual verification only" as insufficient
 Use the review body to summarize:
 - What was validated
 - What still lacks evidence
-- What must change before approval
 
-**Verdict format:**
-```
-BLOCKER scan:
-- Correctness: [PASS / ISSUES: (list)]
-- Reliability/Safety: [PASS / ISSUES: (list)]
-- Breaking Changes: [PASS / ISSUES: (list)]
-- Test Coverage: [PASS / (check PR desc) / needs tests]
-- Documentation: [PASS / ISSUES: (list)]
-- Security: [PASS / ISSUES: (list)]
+**Verdict:** Use the review event directly — no formatted verdict block in the body.
 
-OVERALL: [NO BLOCKERS / X BLOCKERS FOUND]
+- `APPROVE` — code is clean. Body can be empty, "LGTM", or "Thanks".
+- `COMMENT` — has suggestions but nothing blocking. Body optional (~50% should be empty).
+- `REQUEST_CHANGES` — genuine blocking bugs only (crashes, data loss, security).
 
-VERDICT: [APPROVE / COMMENT / REQUEST_CHANGES]
-```
+Do NOT use structured verdict templates — real maintainers never do this. For tone calibration and comment style, see [references/review-execution.md](references/review-execution.md). For calibration data, see [references/maintainer-style-study.md](references/maintainer-style-study.md).
 
-For comment budget and phrasing, see [references/review-execution.md](references/review-execution.md).
 
 ## Review Heuristics
 
@@ -346,11 +337,24 @@ features together and asserts output validity + reports latency + VRAM.
 
 ---
 
+## Batch Review Session
+
+For daily review sessions, use the scripts and workflow in [references/batch-review-workflow.md](references/batch-review-workflow.md):
+
+1. **Check replies first:** `./scripts/check_replies.sh --reviewer <login>` — respond to unanswered threads
+2. **Select PRs:** `./scripts/select_prs.sh --days 7 --limit 5 --reviewer <login>` — pick 3-5 reviewable PRs
+3. **Review with varied depth:** some empty APPROVE, some 2-3 inlines, rarely 5+
+4. **Verify line numbers:** `echo "$JSON" | ./scripts/verify_line_numbers.sh <pr>` — catch off-by-N errors
+5. **Log reviews** for dedup and follow-up tracking
+
 ## References
 
+- [Review Execution](references/review-execution.md) - Gate checks, commands, comment budget, tone calibration, line accuracy
+- [Maintainer Style Study](references/maintainer-style-study.md) - Raw data from 200 DarkLight1337 reviews + 12 other maintainers
+- [Batch Review Workflow](references/batch-review-workflow.md) - Daily session workflow, pacing rules, re-review protocol
+- [Python Style Guide](references/python-style-guide.md) - Common style flags for Python code review
 - [Blocker Patterns](references/blocker-patterns.md) - Anti-patterns that block approval with code examples
 - [Review Routing](references/review-routing.md) - Prefix mapping, multi-skill routing, hardware detection
-- [Review Execution](references/review-execution.md) - Gate checks, commands, comment budget, review phrasing
 - [Common Pitfalls](references/pitfalls.md) - MRO issues, connector state, async differences
 - [Architecture](references/architecture.md) - System overview and critical paths
 - [Code Patterns](references/code-patterns.md) - Async, distributed, cache, validation, error handling patterns

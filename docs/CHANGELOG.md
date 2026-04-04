@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased] - 2026-03-04 ~ 2026-04-01
 
 ### Added
+- [quantization] Add MUSA platform support for Moore Threads GPUs ([#2337](https://github.com/vllm-project/vllm-omni/pull/2337))
+- [cicd] Add MUSA platform support for Moore Threads GPUs ([#2337](https://github.com/vllm-project/vllm-omni/pull/2337))
 - [api] Streaming output ([#1438](https://github.com/vllm-project/vllm-omni/pull/1438))
 - [cicd] Streaming output ([#1438](https://github.com/vllm-project/vllm-omni/pull/1438))
 - [api] Speed up diffusion model startup by multi-thread weight loading ([#1504](https://github.com/vllm-project/vllm-omni/pull/1504))

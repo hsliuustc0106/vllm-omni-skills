@@ -5,6 +5,20 @@
 
 ---
 
+### 2026-04-01
+**[PR #2337](https://github.com/vllm-project/vllm-omni/pull/2337)** - Add MUSA platform support for Moore Threads GPUs
+
+**Added**:
+- Add support for Moore Threads (MUSA) GPUs and expand the vllm-omni ecosystem.
+- * Run [Qwen/Qwen2.5-Omni-3B](https://huggingface.co/Qwen/Qwen2.5-Omni-3B)
+- * Run [Qwen/Qwen2.5-Omni-7B)](https://huggingface.co/Qwen/Qwen2.5-Omni-7B)
+
+**Updated in skill**:
+- ✅ (auto-marked)
+
+---
+
+
 ### 2026-02-27
 **[PR #1505](https://github.com/vllm-project/vllm-omni/pull/1505)** - Update installation instructions for vllm 0.16.0
 

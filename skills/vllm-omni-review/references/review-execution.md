@@ -175,6 +175,8 @@ Keep replies to 1 sentence. Never a paragraph.
 
 ## Review Submission
 
+**Do NOT auto-submit reviews to GitHub.** Present all findings and the recommended verdict locally in the conversation first. Only run the `gh api` command below when the user explicitly approves submission.
+
 Post review with inline comments. The `body` field can be empty string for ~50% of reviews.
 
 ```bash

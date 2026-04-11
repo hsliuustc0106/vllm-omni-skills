@@ -160,9 +160,11 @@ For `[Feature]` PRs affecting performance or `[Performance]` PRs, use the checkl
 
 Be explicit in review comments. Treat "manual verification only" as insufficient unless automation is genuinely impossible.
 
-### Step 6: Verify Perf/Accuracy Claims (Blocking)
+### Step 6: Verify Perf/Accuracy Claims
 
 **When to activate:** PR has `[Performance]` prefix, or PR body contains quantitative perf/accuracy claims (latency, throughput, VRAM, speedup, accuracy metrics), or Step 5 flagged missing benchmarks.
+
+**Note:** This step is non-blocking — it depends on hardware availability. If hardware is insufficient, proceed with static-only analysis or skip entirely. Do not delay the verdict waiting for hardware access.
 
 **Load** [references/perf-verification.md](references/perf-verification.md).
 
@@ -187,9 +189,11 @@ Be explicit in review comments. Treat "manual verification only" as insufficient
 
 **Delivery:** Local report first, ask user before posting as PR comment. If verification reveals a confirmed NOT_CONFIRMED for accuracy or VRAM regression, escalate to REQUEST_CHANGES via Step 8.
 
-### Step 7: Evaluate Test Quality (Blocking)
+### Step 7: Evaluate Test Quality
 
 **When to activate:** PR adds or modifies test files, or PR touches core code (`engine/`, `stages/`, `connectors/`) without adding tests, or PR is test-only.
+
+**Note:** This step is non-blocking — runtime test execution depends on hardware availability. Static analysis always runs. If hardware is insufficient, proceed with static-only analysis. Do not delay the verdict waiting for hardware access.
 
 **Load** [references/test-quality-evaluation.md](references/test-quality-evaluation.md).
 

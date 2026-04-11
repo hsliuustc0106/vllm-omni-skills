@@ -118,7 +118,7 @@ BLOCKER scan:
 
 For detailed anti-patterns with code examples, see [references/blocker-patterns.md](references/blocker-patterns.md).
 
-**If blockers found:** Track issues internally (category + file + line). Present findings to the user locally; do not auto-submit to GitHub. Do not paste structured `BLOCKING ISSUES:` templates into the review body (see Step 6).
+**If blockers found:** Track issues internally (category + file + line). Do not paste structured `BLOCKING ISSUES:` templates into the review body (see Step 6).
 
 **If no blockers:** List non-blocking suggestions and proceed to Step 3.
 
@@ -160,12 +160,12 @@ Be explicit in review comments. Treat "manual verification only" as insufficient
 
 ### Step 6: Final Verdict
 
-Use the review body to summarize:
+Post inline comments directly to GitHub as you find them. Do **not** submit a review event (APPROVE / COMMENT / REQUEST_CHANGES) — leave the verdict decision to the user.
+
+Summarize locally:
 - What was validated
 - What still lacks evidence
 - Recommended verdict (local presentation only)
-
-**Do NOT auto-submit reviews to GitHub.** Present all findings and the recommended verdict locally in the conversation. Only submit to GitHub when the user explicitly approves.
 
 Recommended verdict mapping:
 
@@ -173,7 +173,7 @@ Recommended verdict mapping:
 - `COMMENT` — suggestions only; body optional (~50% should be empty).
 - `REQUEST_CHANGES` — genuine blocking issues only (crashes, data loss, security, policy gates).
 
-When the user approves submission, use the commands in [references/review-execution.md](references/review-execution.md). For tone and inline style, see the same file. For maintainer phrasing samples, see [references/maintainer-style-study.md](references/maintainer-style-study.md).
+For tone and inline style, see [references/review-execution.md](references/review-execution.md). For maintainer phrasing samples, see [references/maintainer-style-study.md](references/maintainer-style-study.md).
 
 ## Review Heuristics
 

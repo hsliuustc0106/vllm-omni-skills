@@ -163,7 +163,7 @@ Be explicit in review comments. Treat "manual verification only" as insufficient
 Use the review body to summarize:
 - What was validated
 - What still lacks evidence
-- Recommended verdict (`APPROVE` / `COMMENT` / `REQUEST_CHANGES`)
+- Recommended verdict (local presentation only)
 
 **Do NOT auto-submit reviews to GitHub.** Present all findings and the recommended verdict locally in the conversation. Only submit to GitHub when the user explicitly approves.
 

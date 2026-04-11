@@ -108,3 +108,5 @@ Commands: <exact commands used>
 - Bug fixes that only correct logic without changing performance characteristics
 - Changes gated behind a new flag that defaults to disabled (document expected perf when enabled)
 
+**Reviewer-side verification:** For independently verifying contributor perf claims (running benchmarks yourself), see [perf-verification.md](perf-verification.md). This checklist defines what contributors must provide; that reference defines how reviewers can verify it.
+

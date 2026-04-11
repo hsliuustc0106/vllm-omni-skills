@@ -42,13 +42,15 @@ Inspired by common PR-review skill patterns (e.g. explicit modes + tool choice);
 | System layout + **code-pattern review** (async, connectors, validation, …) | [references/architecture.md](references/architecture.md) — includes “Code patterns for review” at the end |
 | Diffusion / image / video model PRs | [references/diffusion-checklist.md](references/diffusion-checklist.md) |
 | High-risk change; need coverage matrix / docs sync | [references/tests-docs-checklist.md](references/tests-docs-checklist.md) |
+| PR has perf/accuracy claims or `[Performance]` prefix | [references/perf-verification.md](references/perf-verification.md) — claim detection, hardware-aware benchmark verification, graceful degradation |
+| PR adds/modifies tests or touches core code without tests | [references/test-quality-evaluation.md](references/test-quality-evaluation.md) — assertion quality, anti-patterns, hardware-aware test execution |
 | Calibrating phrasing from real maintainers | [references/maintainer-style-study.md](references/maintainer-style-study.md) |
 
 **Legacy paths (do not load — content merged):** `pitfalls.md` → [blocker-patterns.md](references/blocker-patterns.md) **Part 2**; `code-patterns.md` → [architecture.md](references/architecture.md) **Code patterns for review**; `python-style-guide.md` → [review-execution.md](references/review-execution.md) **Python style (review flags)**; batch/CI triage → [review-execution.md](references/review-execution.md) (Batch / CI sections).
 
 ## Priority Hierarchy Under Context Pressure
 
-If context is limited, prioritize: blocker scan → evidence → domain routing → verdict.
+If context is limited, prioritize: blocker scan → evidence → perf verification → test quality → domain routing → verdict.
 
 Always run the blocker scan. Under context pressure, do a shallow scan of the most critical categories (Correctness, Security) and flag that the scan was incomplete.
 
@@ -158,7 +160,59 @@ For `[Feature]` PRs affecting performance or `[Performance]` PRs, use the checkl
 
 Be explicit in review comments. Treat "manual verification only" as insufficient unless automation is genuinely impossible.
 
-### Step 6: Final Verdict
+### Step 6: Verify Perf/Accuracy Claims (Blocking)
+
+**When to activate:** PR has `[Performance]` prefix, or PR body contains quantitative perf/accuracy claims (latency, throughput, VRAM, speedup, accuracy metrics), or Step 5 flagged missing benchmarks.
+
+**Load** [references/perf-verification.md](references/perf-verification.md).
+
+**Workflow:**
+
+1. Detect claims — extract numbers from PR body using regex patterns
+2. Detect hardware — run hardware detection to determine available GPU/VRAM/platform
+3. Check feasibility — compare estimated model size (weights + KV cache + overhead) against available VRAM
+4. Generate benchmark plan — map PR type to appropriate benchmark runner
+5. **Pre-execution gate** — present benchmark plan, estimated duration, and model/hardware to user; ask for confirmation before executing
+6. Execute (if confirmed) — run before/after benchmarks via git worktrees, with a **20-minute hard timeout** per run
+7. Report — produce Claimed vs Measured table with CONFIRMED / NOT_CONFIRMED verdict
+
+**Graceful degradation:**
+
+| Level | Condition | What happens |
+|-------|-----------|-------------|
+| Full verification | GPU available, model fits | Run before/after benchmarks |
+| Partial verification | GPU available, model needs offload | Run with `--cpu-offload-gb`, note in report |
+| Static-only | No GPU or model too large | Analyze benchmark scripts in diff for correctness, flag implausible claims |
+| Skip | No relevant perf claims | Do not activate |
+
+**Delivery:** Local report first, ask user before posting as PR comment. If verification reveals a confirmed NOT_CONFIRMED for accuracy or VRAM regression, escalate to REQUEST_CHANGES via Step 8.
+
+### Step 7: Evaluate Test Quality (Blocking)
+
+**When to activate:** PR adds or modifies test files, or PR touches core code (`engine/`, `stages/`, `connectors/`) without adding tests, or PR is test-only.
+
+**Load** [references/test-quality-evaluation.md](references/test-quality-evaluation.md).
+
+**Workflow:**
+
+1. Static analysis (always runs) — check assertion quality, anti-patterns, marker compliance, edge case coverage
+2. Detect hardware — same detection as Step 6 (cross-referenced from `perf-verification.md`)
+3. Find affected tests — map changed source files to test files via grep (not path convention)
+4. Filter by hardware — skip tests requiring unavailable resources
+5. Run tests — `pytest` with `--run-level core_model` by default; use `advanced_model` only if hardware is sufficient
+6. Categorize failures — test bug / code bug / infrastructure / flaky
+7. Assess quality — score assertion quality, edge case coverage, marker compliance, anti-patterns (A-D grades for internal analysis)
+
+**Graceful degradation:**
+
+| Level | Condition | What happens |
+|-------|-----------|-------------|
+| Full analysis | Hardware matches test markers | Static + runtime execution |
+| Static-only | Hardware doesn't match or no GPU | Static analysis only; report which tests were skipped |
+
+**Delivery:** Local assessment first, ask user before posting. Convert worst 1-2 findings to inline comments (counts against comment budget). If D-grade dimension or code bug found, escalate to REQUEST_CHANGES via Step 8.
+
+### Step 8: Final Verdict
 
 Use the review body to summarize:
 - What was validated
@@ -210,4 +264,6 @@ All paths are under `skills/vllm-omni-review/references/`. There is **no** `pitf
 - [Architecture](references/architecture.md) — Layers and critical paths; end section **Code patterns for review** = async, distributed, KV cache, validation, connectors, errors, logging (former code-patterns content)
 - [Diffusion checklist](references/diffusion-checklist.md) — Diffusion PR dimensions, PR body template, Quick Red Flags
 - [Tests & docs checklist](references/tests-docs-checklist.md) — High-risk coverage matrix and docs sync
+- [Perf verification](references/perf-verification.md) — Reviewer-side claim detection, hardware-aware benchmark verification, graceful degradation
+- [Test quality evaluation](references/test-quality-evaluation.md) — Assertion quality, anti-patterns, hardware-aware test execution, quality scoring
 - [Maintainer style study](references/maintainer-style-study.md) — Example maintainer phrasing

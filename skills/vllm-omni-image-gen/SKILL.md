@@ -124,6 +124,10 @@ vllm serve <model> --omni --cpu-offload-gb 10
 
 **GLM-Image filepath errors**: Fixed in #1609. Models with `model_subdir` or `tokenizer_subdir` now resolve paths correctly.
 
+**BAGEL think mode for text2text/img2text**: BAGEL now supports reasoning/thinking mode for text-to-text and image-to-text modalities via `--think` flag. Injects `VLM_THINK_SYSTEM_PROMPT` to enable chain-of-thought output. Fixed in #2503.
+
+**Qwen-Image tiny request sizes**: Small requests (below VAE alignment) are now clamped to minimum valid dimensions instead of collapsing to zero. All Qwen-Image pipeline variants use the shared `normalize_min_aligned_size()` helper. Fixed in #2637.
+
 ## References
 
 - For FLUX model details, see [references/flux-models.md](references/flux-models.md)

@@ -139,6 +139,12 @@ Use a reverse proxy to route by path or model name.
 
 **Connection refused**: Verify `--host` and `--port` settings. Default host is `127.0.0.1` (localhost only).
 
+**`--dtype` ignored with default stage configs**: When using default stage configs (no `--stage-configs-path`), the `--dtype` arg was silently dropped from diffusion stage engine args. Fixed in #2530 — dtype now correctly propagates from CLI.
+
+**`--stage-init-timeout` not respected**: User-configured stage init timeout was being overridden. Default is now 300s (server-side). Pass `--stage-init-timeout <seconds>` to customize. Fixed in #2519.
+
+**OOM errors produce no response**: Diffusion pipeline OOM and execution errors now return structured HTTP error responses (e.g., 507) with `request_id`, `stage_id`, and `error_type` fields instead of hanging. Uses `OmniRequestError` dataclass for end-to-end propagation. Fixed in #2638.
+
 ## References
 
 - For model-specific configurations, see [references/model-configs.md](references/model-configs.md)

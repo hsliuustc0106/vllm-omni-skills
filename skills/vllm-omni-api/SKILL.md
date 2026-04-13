@@ -25,10 +25,13 @@ Diffusion models benefit from multi-thread weight loading (enabled by default), 
 | `/v1/images/generations` | POST | Direct image generation |
 | `/v1/audio/speech` | POST | Text-to-speech (wav/mp3) |
 | `/v1/audio/voice/upload` | POST | Upload custom voice for cloning |
+| `/v1/videos/generations` | POST | Video generation (async poll) |
 | `/health` | GET | Server health check |
 | `/v1/models` | GET | List loaded models |
 
 **Update (2026-03-15):** `/v1/audio/voice/upload` endpoint restored. `/v1/audio/speech` now supports `response_format: "wav"` with streaming.
+
+**Update (2026-04-13):** `/v1/images/generations` now supports client-side request cancellation. `--max-generated-image-size` is enforced on both `/v1/images/generations` and `/v1/images/edits` (returns HTTP 400 for oversized requests).
 
 ## Chat Completions (Universal)
 
@@ -133,6 +136,7 @@ response = client.chat.completions.create(
 | 413 | Input too large | Reduce input size or increase limits |
 | 500 | Server error | Check server logs |
 | 503 | Server overloaded | Retry with backoff |
+| 507 | Insufficient storage (OOM) | Reduce resolution/batch or use quantization |
 
 ## Health Check
 

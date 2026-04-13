@@ -23,6 +23,7 @@ Diffusion models benefit from multi-thread weight loading (enabled by default), 
 |----------|--------|---------|
 | `/v1/chat/completions` | POST | Chat-based generation (text, image, audio) |
 | `/v1/images/generations` | POST | Direct image generation |
+| `/v1/images/edits` | POST | Image editing |
 | `/v1/audio/speech` | POST | Text-to-speech (wav/mp3) |
 | `/v1/audio/voice/upload` | POST | Upload custom voice for cloning |
 | `/v1/videos/generations` | POST | Video generation (async poll) |

@@ -166,7 +166,7 @@ For a step-by-step guide on integrating a new TTS model into vLLM-Omni, see the 
 
 **Slow generation**: TTS models are autoregressive - generation time scales with output duration. Enable async_chunk for lower first-packet latency. For throughput, increase `max_batch_size`.
 
-**Fish Speech voice cloning latency**: Uploaded voices via `/v1/audio/voices` now auto-cache DAC-encoded reference audio. First request encodes the reference; subsequent requests reuse the cached codes for faster TTFP. Fixed in #2609.
+**Fish Speech voice cloning latency**: Uploaded voices via `/v1/audio/voice/upload` now auto-cache DAC-encoded reference audio. First request encodes the reference; subsequent requests reuse the cached codes for faster TTFP. Fixed in #2609.
 
 **Event loop blocking under concurrent TTS**: Blocking tokenizer operations (`_build_voxtral_prompt`, `_build_fish_speech_prompt`) now run in a shared `ThreadPoolExecutor(max_workers=1)`. This prevents `/health` latency spikes under concurrent load. Fixed in #2511.
 

@@ -32,11 +32,19 @@ Inspired by common PR-review skill patterns (e.g. explicit modes + tool choice);
 
 **Parallel investigation:** Large diffs or multiple subsystems (e.g. `entrypoints/` + `engine/` + `diffusion/`) → split by directory or concern and investigate **in parallel** when subagents exist.
 
+**Subagent context compression:** Never fetch a 500-line source file into your main context. Instead, delegate to a subagent with a specific question (e.g. "What does `_resolve_ref_audio` return?") and get back a compact summary. This is the single biggest token saver — a subagent burns its own context, you get back a paragraph.
+
+**When to use subagents vs direct fetch:**
+- Reading surrounding code to verify a pattern → subagent (returns summary)
+- Reading a reference file you need for the blocker scan → direct (you need the full patterns)
+- Fetching PR metadata / diff → direct (small, needed in main context)
+- Verifying function signatures, return types, class hierarchies → subagent
+
 ## Which reference to load (do not load everything)
 
 | Situation | Open |
 |-----------|------|
-| Every review | [references/review-execution.md](references/review-execution.md) — gates, `gh` commands, comment budget, tone, batch/CI triage, Python style flags |
+| Every review | [references/review-execution.md](references/review-execution.md) — gates, `gh` commands, comment budget, tone, **incremental posting**, batch/CI triage, Python style flags |
 | Prefix / multi-skill / hardware guess | [references/review-routing.md](references/review-routing.md) |
 | Blocker scan details + merge-blocking patterns | [references/blocker-patterns.md](references/blocker-patterns.md) — Part 1 patterns; **Part 2** = former “pitfalls” (footguns, MRO, connectors, async, etc.) |
 | System layout + **code-pattern review** (async, connectors, validation, …) | [references/architecture.md](references/architecture.md) — includes “Code patterns for review” at the end |
@@ -56,8 +64,9 @@ Always run the blocker scan. Under context pressure, do a shallow scan of the mo
 
 ## Core Workflow
 
-Check whether this PR is still a draft or WIP in the PR title, if so, end the review process. 
+Check whether this PR is still a draft or WIP in the PR title, if so, end the review process.
 
+**Token budget principle:** Post inline comments as you find them. Use subagents for codebase investigation. Load references only after skimming the diff. If you're past ~60% context and haven't posted comments, wrap up and post what you have — partial review posted is better than a perfect review lost.
 
 ### Step 0: Verify Review Gates First
 
@@ -67,7 +76,9 @@ For gate commands, review submission, and comment style, see [references/review-
 
 Then continue with the workflow below.
 
-### Step 1: Gather Minimal Context
+### Step 1: Fetch Diff First, Then Decide What to Load
+
+**Diff-first loading:** Fetch the diff and PR metadata first. Skim the diff to understand what subsystems are touched, then load ONLY the references that match. Do not load references speculatively.
 
 Fetch:
 - PR metadata and changed files
@@ -75,7 +86,7 @@ Fetch:
 - Linked issues for `[Bugfix]` and `[Feature]` PRs only when conventions are unclear
 - Related PRs only when conventions or prior decisions are unclear
 
-Group changes mentally by **kind** (runtime code, tests, docs, configs) to see where risk sits; then load references (Step 4) only for areas touched.
+Group changes by **kind** (runtime code, tests, docs, configs) to see where risk sits; then load references (Step 4) only for areas touched.
 
 Do not fetch broad extra context unless the diff leaves real ambiguity.
 
@@ -212,9 +223,17 @@ Be explicit in review comments. Treat "manual verification only" as insufficient
 
 **Delivery:** Local assessment first, ask user before posting. Convert worst 1-2 findings to inline comments (counts against comment budget). If D-grade dimension or code bug found, escalate to REQUEST_CHANGES via Step 8.
 
-### Step 8: Final Verdict
+### Step 8: Incremental Posting + Final Verdict
 
-Post inline comments directly to GitHub as you find them. Do **not** submit a review event (APPROVE / COMMENT / REQUEST_CHANGES) — leave the verdict decision to the user.
+**Post inline comments directly to GitHub as you find them.** Do not accumulate comments for a batch post at the end. Each `gh api` call posts one or more comments immediately. If context runs out mid-review, the comments already posted are safe on GitHub.
+
+Posting strategy:
+- After completing the blocker scan, post any blocking-issue comments immediately
+- As domain review surfaces issues, post each comment right away
+- Minor style nits can be batched (up to 3) in a single review call if they're on the same file
+- If you find yourself past ~60% context, stop investigating and post whatever you have
+
+Do **not** submit a review event (APPROVE / COMMENT / REQUEST_CHANGES) — leave the verdict decision to the user.
 
 Summarize locally:
 - What was validated

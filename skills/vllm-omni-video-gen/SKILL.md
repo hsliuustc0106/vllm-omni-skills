@@ -19,7 +19,7 @@ vLLM-Omni supports video generation through diffusion transformer models, primar
 | NextStep-1.1 | `stepfun-ai/NextStep-1.1` | Text-to-video | 24 GB |
 | daVinci-MagiHuman | `SII-GAIR/daVinci-MagiHuman-Base-1080p` | Image-to-video + audio | 24 GB |
 
-**New (2026-04-13):** daVinci-MagiHuman is an image-to-video model that also generates audio (44100 Hz, 25 fps). Use `--enable-diffusion-pipeline-profiler` to get per-stage timing (`stage_durations`) and peak memory (`peak_memory_mb`) in video responses (async poll JSON or sync HTTP headers).
+daVinci-MagiHuman is an image-to-video model that also generates audio (44100 Hz, 25 fps). Use `--enable-diffusion-pipeline-profiler` to get per-stage timing (`stage_durations`) and peak memory (`peak_memory_mb`) in video responses (async poll JSON or sync HTTP headers).
 
 ## Quick Start: Text-to-Video
 

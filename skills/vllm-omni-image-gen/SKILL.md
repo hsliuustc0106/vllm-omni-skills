@@ -26,7 +26,7 @@ vLLM-Omni supports text-to-image generation and image editing through diffusion 
 | OmniGen2 | `OmniGen2/OmniGen2` | Text-to-image | 24 GB |
 | HunyuanImage3.0 | `tencent/HunyuanImage-3.0` | Text-to-image + editing | 40 GB |
 
-**New (2026-03-15):** Dreamid-Omni from ByteDance and FLUX.2-dev with cache_dit support are now available.
+Dreamid-Omni (ByteDance) and FLUX.2-dev (with cache_dit support) are available.
 
 ## Quick Start: Offline Generation
 

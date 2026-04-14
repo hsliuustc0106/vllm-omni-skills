@@ -25,7 +25,7 @@ vLLM-Omni supports text-to-speech (TTS), text-to-audio (sound effects, music), a
 | VoxCPM2 | `openbmb/VoxCPM2` | TTS (native AR, 30+ languages) | 8 GB |
 | Stable-Audio-Open | `stabilityai/stable-audio-open-1.0` | Text-to-audio (music/effects) | 8 GB |
 
-**New (2026-04-13):** OmniVoice now supports voice cloning via `ref_audio` + `ref_text` (requires transformers>=5.3). VoxCPM2 is a 2B tokenizer-free native AR TTS model producing 48kHz audio in 30+ languages (requires `pip install voxcpm`).
+OmniVoice supports voice cloning via `ref_audio` + `ref_text` (requires transformers>=5.3). VoxCPM2 is a 2B tokenizer-free native AR TTS model producing 48kHz audio in 30+ languages (requires `pip install voxcpm`).
 
 ## Model Architectures
 
@@ -124,7 +124,7 @@ print(outputs[0].request_output[0].text)
 
 ## Stage Configuration (Qwen3-TTS)
 
-**Update (2026-03-15):** `async_scheduling` is now **enabled by default** for Qwen3-TTS models, improving first-packet latency and throughput.
+`async_scheduling` is **enabled by default** for Qwen3-TTS models, improving first-packet latency and throughput.
 
 Default stage config uses async_chunk streaming (`qwen3_tts.yaml`). Key knobs:
 

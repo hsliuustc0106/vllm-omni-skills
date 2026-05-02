@@ -175,7 +175,7 @@ Keep replies to 1 sentence. Never a paragraph.
 
 ## Review Submission
 
-**Post inline comments as you find them — do not batch.** Each comment should go to GitHub immediately via `gh api`. This prevents losing work if context runs out.
+**Post inline comments as you find them — prefer individual posts over batching.** Each comment should go to GitHub immediately via gh api to prevent losing work if context runs out. Small batches (2-3) for related nits on the same file are acceptable.
 
 For individual comments (preferred):
 ```bash
@@ -226,10 +226,9 @@ GitHub's review API may reject `commit_id` when commenting on **newly added file
 COMMIT_ID=$(gh api repos/vllm-project/vllm-omni/pulls/<pr_number> --jq '.head.sha')
 ```
 
-**Strategy:** Post all comments in a single review call. If it fails with "Path could not be resolved":
-1. Check which files are new (status "added" in `gh pr view --json files`)
-2. Retry with the HEAD commit SHA for reviews that include new files
-3. Non-pending reviews cannot be deleted -- post remaining comments as a second review
+**Strategy:** If an individual comment post fails with "Path could not be resolved":
+1. Check if the file is new (status "added" in the gh pr view files output)
+2. Retry the individual comment post using the PR HEAD commit SHA
 
 ### Review Event
 

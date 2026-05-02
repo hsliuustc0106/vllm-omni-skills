@@ -15,7 +15,7 @@ Set these before running any commands. Check the [vllm-omni quickstart](https://
 
 ```bash
 export VLLM_VERSION="0.20.0"           # vLLM pip package version
-export VLLM_OMNI_VERSION="v0.16.0"     # vLLM-Omni release / Docker tag
+export VLLM_OMNI_VERSION="v0.20.0"     # vLLM-Omni release / Docker tag
 export PYTHON_VERSION="3.12"           # Python version
 ```
 

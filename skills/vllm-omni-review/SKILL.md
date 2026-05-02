@@ -50,15 +50,13 @@ Inspired by common PR-review skill patterns (e.g. explicit modes + tool choice);
 | System layout + **code-pattern review** (async, connectors, validation, …) | [references/architecture.md](references/architecture.md) — includes “Code patterns for review” at the end |
 | Diffusion / image / video model PRs | [references/diffusion-checklist.md](references/diffusion-checklist.md) |
 | High-risk change; need coverage matrix / docs sync | [references/tests-docs-checklist.md](references/tests-docs-checklist.md) |
-| PR has perf/accuracy claims or `[Performance]` prefix | [references/perf-verification.md](references/perf-verification.md) — claim detection, hardware-aware benchmark verification, graceful degradation |
-| PR adds/modifies tests or touches core code without tests | [references/test-quality-evaluation.md](references/test-quality-evaluation.md) — assertion quality, anti-patterns, hardware-aware test execution |
 | Calibrating phrasing from real maintainers | [references/maintainer-style-study.md](references/maintainer-style-study.md) |
 
 **Legacy paths (do not load — content merged):** `pitfalls.md` → [blocker-patterns.md](references/blocker-patterns.md) **Part 2**; `code-patterns.md` → [architecture.md](references/architecture.md) **Code patterns for review**; `python-style-guide.md` → [review-execution.md](references/review-execution.md) **Python style (review flags)**; batch/CI triage → [review-execution.md](references/review-execution.md) (Batch / CI sections).
 
 ## Priority Hierarchy Under Context Pressure
 
-If context is limited, prioritize: blocker scan → evidence → perf verification → test quality → domain routing → verdict.
+If context is limited, prioritize: blocker scan → evidence → domain routing → verdict.
 
 Always run the blocker scan. Under context pressure, do a shallow scan of the most critical categories (Correctness, Security) and flag that the scan was incomplete.
 
@@ -131,7 +129,7 @@ BLOCKER scan:
 
 For detailed anti-patterns with code examples, see [references/blocker-patterns.md](references/blocker-patterns.md).
 
-**If blockers found:** Track issues internally (category + file + line). Do not paste structured `BLOCKING ISSUES:` templates into the review body (see Step 6).
+**If blockers found:** Track issues internally (category + file + line). Do not paste structured `BLOCKING ISSUES:` templates into the review body.
 
 **If no blockers:** List non-blocking suggestions and proceed to Step 3.
 
@@ -232,6 +230,7 @@ Posting strategy:
 - As domain review surfaces issues, post each comment right away
 - Minor style nits can be batched (up to 3) in a single review call if they're on the same file
 - If you find yourself past ~60% context, stop investigating and post whatever you have
+### Step 6: Final Verdict
 
 Do **not** submit a review event (APPROVE / COMMENT / REQUEST_CHANGES) — leave the verdict decision to the user.
 
@@ -286,6 +285,4 @@ All paths are under `skills/vllm-omni-review/references/`. There is **no** `pitf
 - [Architecture](references/architecture.md) — Layers and critical paths; end section **Code patterns for review** = async, distributed, KV cache, validation, connectors, errors, logging (former code-patterns content)
 - [Diffusion checklist](references/diffusion-checklist.md) — Diffusion PR dimensions, PR body template, Quick Red Flags
 - [Tests & docs checklist](references/tests-docs-checklist.md) — High-risk coverage matrix and docs sync
-- [Perf verification](references/perf-verification.md) — Reviewer-side claim detection, hardware-aware benchmark verification, graceful degradation
-- [Test quality evaluation](references/test-quality-evaluation.md) — Assertion quality, anti-patterns, hardware-aware test execution, quality scoring
 - [Maintainer style study](references/maintainer-style-study.md) — Example maintainer phrasing

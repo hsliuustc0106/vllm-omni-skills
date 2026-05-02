@@ -120,6 +120,8 @@ Not all models are supported on every backend. Check the support matrix:
 
 **NPU operator not supported**: Some operations fall back to CPU on NPU. Check logs for fallback warnings and update CANN to the latest version.
 
+**NPU LaserAttention unsupported error**: On Ascend NPU with mindiesd, selecting `FLASH_ATTN` as the diffusion attention backend (`--diffusion-attn-backend FLASH_ATTN`) auto-imports `mindiesd` to configure `ASCEND_CUSTOM_OPP_PATH`. The internal environment variable `MINDIE_SD_FA_TYPE` is set to `ascend_laser_attention` automatically. Fixed in #2674.
+
 ## References
 
 - For CUDA-specific optimization, see [references/cuda.md](references/cuda.md)

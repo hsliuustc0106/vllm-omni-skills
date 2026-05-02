@@ -167,6 +167,8 @@ vllm serve Qwen/Qwen3-Omni-30B-A3B-Instruct --omni \
   --tensor-parallel-size 2 --port 8091
 ```
 
+Qwen3-Omni is compatible with the v2 model runner (vllm 0.19). Uses native `launch_core_engines` instead of custom spawning. `add_streaming_update` API removed; audio output tensors are explicitly converted to float. CUDAGraph supports tuple-returning thinker model. Fixed in #2522.
+
 ## Troubleshooting
 
 **Slow with video input**: Video processing requires extracting and encoding frames. Shorter clips process faster.

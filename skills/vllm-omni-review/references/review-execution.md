@@ -175,10 +175,16 @@ Keep replies to 1 sentence. Never a paragraph.
 
 ## Review Submission
 
-Post inline comments directly to GitHub as you find them. Do **not** submit a review event (APPROVE / COMMENT / REQUEST_CHANGES) — leave the verdict decision to the user. Present the recommended verdict locally in the conversation instead.
+**Post inline comments as you find them — prefer individual posts over batching.** Each comment should go to GitHub immediately via gh api to prevent losing work if context runs out. Small batches (2-3) for related nits on the same file are acceptable.
 
-Post review with inline comments. The `body` field can be empty string for ~50% of reviews.
+For individual comments (preferred):
+```bash
+gh api repos/vllm-project/vllm-omni/pulls/<pr_number>/comments --method POST --input - <<EOF
+{"commit_id": "<sha>", "path": "<file>", "line": <num>, "side": "RIGHT", "body": "<comment>"}
+EOF
+```
 
+For batching 2-3 related nits on the same file (optional):
 ```bash
 gh api repos/vllm-project/vllm-omni/pulls/<pr_number>/reviews --method POST --input - <<EOF
 {
@@ -191,6 +197,8 @@ gh api repos/vllm-project/vllm-omni/pulls/<pr_number>/reviews --method POST --in
 }
 EOF
 ```
+
+Do **not** submit a review event (APPROVE / COMMENT / REQUEST_CHANGES) — leave the verdict decision to the user. Present the recommended verdict locally in the conversation instead.
 
 ### Inline Comment Line Accuracy
 
@@ -207,6 +215,20 @@ Common mistakes:
 - Using diff sequential position instead of new-file line number
 - Estimating from nearby code instead of counting exactly
 - Commenting about `clamp()` but landing on `offsets =` two lines above
+
+### commit_id for New Files
+
+GitHub's review API may reject `commit_id` when commenting on **newly added files** (status 422, "Path could not be resolved"). The first commit SHA often doesn't work for files that don't exist on the base branch.
+
+**Fix:** Use the PR head SHA instead:
+
+```bash
+COMMIT_ID=$(gh api repos/vllm-project/vllm-omni/pulls/<pr_number> --jq '.head.sha')
+```
+
+**Strategy:** If an individual comment post fails with "Path could not be resolved":
+1. Check if the file is new (status "added" in the gh pr view files output)
+2. Retry the individual comment post using the PR HEAD commit SHA
 
 ### Review Event
 

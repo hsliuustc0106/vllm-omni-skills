@@ -26,7 +26,7 @@ vLLM-Omni supports text-to-image generation and image editing through diffusion 
 | OmniGen2 | `OmniGen2/OmniGen2` | Text-to-image | 24 GB |
 | HunyuanImage3.0 | `tencent/HunyuanImage-3.0` | Text-to-image + editing | 40 GB |
 
-**New (2026-03-15):** Dreamid-Omni from ByteDance and FLUX.2-dev with cache_dit support are now available.
+Dreamid-Omni from ByteDance and FLUX.2-dev with cache_dit support are available. FLUX.2-klein supports plain string prompts (no dict wrapper needed).
 
 ## Quick Start: Offline Generation
 
@@ -123,6 +123,8 @@ vllm serve <model> --omni --cpu-offload-gb 10
 **HunyuanImage3.0 load_weights error**: Fixed in #1598. Ensure you are using the latest vllm-omni.
 
 **GLM-Image filepath errors**: Fixed in #1609. Models with `model_subdir` or `tokenizer_subdir` now resolve paths correctly.
+
+**BAGEL trajectory_latents count**: `len(trajectory_latents)` is `num_denoising_steps + 1` (includes initial noise at index 0). Fixed in #3258.
 
 ## References
 

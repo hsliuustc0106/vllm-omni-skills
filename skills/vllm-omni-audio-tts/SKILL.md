@@ -21,6 +21,7 @@ vLLM-Omni supports text-to-speech (TTS), text-to-audio (sound effects, music), a
 | Fish Speech S2 Pro | `fishaudio/s2-pro` | TTS + voice cloning (dual-AR + DAC) | 16 GB |
 | CosyVoice3 0.5B | `FunAudioLLM/Fun-CosyVoice3-0.5B-2512` | TTS (AR + flow matching) | 4 GB |
 | MiMo-Audio-7B | `XiaomiMiMo/MiMo-Audio-7B-Instruct` | Audio understanding + TTS | 24 GB |
+| MiMo-V2.5-ASR | `XiaomiMiMo/MiMo-V2.5-ASR` | ASR (speech-to-text) | 24 GB |
 | Stable-Audio-Open | `stabilityai/stable-audio-open-1.0` | Text-to-audio (music/effects) | 8 GB |
 
 ## Model Architectures
@@ -120,7 +121,7 @@ print(outputs[0].request_output[0].text)
 
 ## Stage Configuration (Qwen3-TTS)
 
-**Update (2026-03-15):** `async_scheduling` is now **enabled by default** for Qwen3-TTS models, improving first-packet latency and throughput.
+`async_scheduling` is **enabled by default** for Qwen3-TTS models, improving first-packet latency and throughput.
 
 Default stage config uses async_chunk streaming (`qwen3_tts.yaml`). Key knobs:
 
@@ -159,6 +160,12 @@ For a step-by-step guide on integrating a new TTS model into vLLM-Omni, see the 
 **Audio quality issues**: Ensure reference audio for voice cloning is clean (no background noise), 10-20 seconds, single speaker.
 
 **Qwen3-TTS code predictor crash**: Fixed in #1619. If you encounter a crash in the code predictor stage, update to the latest vllm-omni.
+
+**Qwen3-TTS NaN on fp16-only GPUs**: The code predictor auto-upcasts to float32 for numerical stability on GPUs without bf16 support (Turing, Volta). No manual override needed. Fixed in #3253.
+
+**Qwen3-TTS speaker_embedding dimension error**: Speaker embedding dimensions must match the model's talker hidden_size (2048 for 1.7B, 1024 for 0.6B). Mismatched dimensions return HTTP 400. Fixed in #3191.
+
+**Qwen3-TTS load_format: dummy**: `speaker_encoder` is always constructed at init time. Voice cloning works under `load_format: dummy` without extra configuration. Fixed in #3117.
 
 **Slow generation**: TTS models are autoregressive - generation time scales with output duration. Enable async_chunk for lower first-packet latency. For throughput, increase `max_batch_size`.
 

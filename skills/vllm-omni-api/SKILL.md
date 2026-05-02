@@ -26,7 +26,8 @@ Diffusion models benefit from multi-thread weight loading (enabled by default), 
 | `/v1/images/edits` | POST | Image editing |
 | `/v1/audio/speech` | POST | Text-to-speech (wav/mp3) |
 | `/v1/audio/voice/upload` | POST | Upload custom voice for cloning |
-| `/v1/videos/generations` | POST | Video generation (async poll) |
+| /v1/images/edits | POST | Image editing |
+| /v1/videos/generations | POST | Video generation (async poll) |
 | `/health` | GET | Server health check |
 | `/v1/models` | GET | List loaded models |
 

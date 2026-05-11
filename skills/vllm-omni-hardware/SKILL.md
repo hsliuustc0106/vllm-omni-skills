@@ -120,6 +120,17 @@ Not all models are supported on every backend. Check the support matrix:
 
 **NPU operator not supported**: Some operations fall back to CPU on NPU. Check logs for fallback warnings and update CANN to the latest version.
 
+## Out-of-Tree Hardware Backends
+
+Out-of-tree hardware backends can customize the diffusion engine without forking core code by subclassing `OmniPlatform` and overriding extension points:
+
+| Method | Returns | Purpose |
+|--------|---------|---------|
+| `get_diffusion_worker_cls()` | Fully qualified class path | Custom diffusion worker |
+| `get_diffusion_model_runner_cls()` | Fully qualified class path | Custom model runner |
+
+Use `OmniPlatformEnum.OOT` with `is_out_of_tree()` for platform detection. Register custom diffusion pipelines via `register_diffusion_model(model_arch, module_name, class_name)` in `vllm_omni.diffusion.registry`. Defaults preserve existing behavior for CUDA, ROCm, NPU, XPU, and MUSA.
+
 ## References
 
 - For CUDA-specific optimization, see [references/cuda.md](references/cuda.md)

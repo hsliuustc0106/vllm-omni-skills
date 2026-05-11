@@ -98,6 +98,7 @@ Video generation is significantly more compute-intensive than image generation:
   ```bash
   vllm serve <model> --omni --cpu-offload-gb 20
   ```
+- For multi-transformer pipelines (e.g., Wan2.2-T2V has `transformer` + `transformer-2`), the sequential offloader now offloads all other DiTs to CPU when any one is running. This allows Wan2.2-T2V to fit on 64GB GPUs with `--enable-cpu-offload --tensor-parallel-size 2`.
 
 ## Troubleshooting
 

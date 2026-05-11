@@ -120,7 +120,7 @@ print(outputs[0].request_output[0].text)
 
 ## Stage Configuration (Qwen3-TTS)
 
-**Update (2026-03-15):** `async_scheduling` is now **enabled by default** for Qwen3-TTS models, improving first-packet latency and throughput.
+`async_scheduling` is **enabled by default** for Qwen3-TTS models, improving first-packet latency and throughput.
 
 Default stage config uses async_chunk streaming (`qwen3_tts.yaml`). Key knobs:
 
@@ -129,8 +129,17 @@ Default stage config uses async_chunk streaming (`qwen3_tts.yaml`). Key knobs:
 | `async_chunk` | Enable inter-stage streaming | `true` |
 | `runtime.max_batch_size` | Max requests batched per stage | `1` |
 | `enforce_eager` | Disable CUDA Graph (Stage 0: false, Stage 1: true) | varies |
-| `codec_chunk_frames` | AR frames per async chunk | `25` |
+| `codec_chunk_frames` | AR frames per async chunk (inter-stage streaming only) | `25` |
 | `codec_left_context_frames` | Sliding context window for smooth boundaries | `25` |
+| `initial_codec_chunk_frames` | Frames for first emitted codec chunk only (lowers TTFA) | `0` |
+| `decode_chunk_frames` | Code2Wav internal decode chunk size (independent of codec streaming) | `300` |
+| `decode_left_context_frames` | Code2Wav internal left context for decode | `25` |
+
+Connector streaming chunking (`codec_chunk_frames` / `codec_left_context_frames`) is **decoupled** from Code2Wav internal decode chunking (`decode_chunk_frames` / `decode_left_context_frames`). The connector controls inter-stage streaming windows only, while Code2Wav keeps its own independent decode parameters. Use `initial_codec_chunk_frames` to emit a small first chunk for low TTFA, then subsequent chunks return to the normal `codec_chunk_frames` window.
+
+The uniproc Code2Wav stage default `max_num_seqs` is now `10` (was `1`). Avoid reducing below 10 for latency-sensitive deployments.
+
+CUDA Graph warmup for Qwen3-TTS now accounts for custom `decode_chunk_frames` / `decode_left_context_frames` overrides.
 
 For batch mode (no streaming), use `qwen3_tts_batch.yaml`.
 
@@ -152,7 +161,7 @@ response = client.chat.completions.create(
 
 ## Adding a New TTS Model
 
-For a step-by-step guide on integrating a new TTS model into vLLM-Omni, see the [TTS model developer guide](https://github.com/vllm-project/vllm-omni/blob/main/docs/contributing/model/adding_tts_model.md).
+For a step-by-step guide on integrating a new TTS model into vLLM-Omni, see the [TTS model developer guide](https://github.com/vllm-project/vllm-omni/blob/main/docs/contributing/model/adding_tts_model.md). Offline examples are consolidated under `examples/offline_inference/text_to_speech/<model>/end2end.py`, and online serving examples under `examples/online_serving/text_to_speech/<model>/`.
 
 ## Troubleshooting
 

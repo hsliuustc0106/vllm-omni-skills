@@ -84,6 +84,8 @@ For diffusion models, layer-wise offloading moves individual transformer layers 
 vllm serve <model> --omni --enable-layerwise-cpu-offload
 ```
 
+When multiple DiT transformers exist in a pipeline (e.g., Wan2.2-T2V's `transformer` + `transformer-2`), the sequential offloader applies mutual exclusion: only one DiT is loaded on GPU at a time, and all others are offloaded to CPU along with encoders. This prevents OOM on memory-constrained GPUs (64 GB).
+
 ## GPU Memory Configuration
 
 Maximize throughput by tuning GPU memory allocation:

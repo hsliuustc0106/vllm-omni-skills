@@ -106,9 +106,10 @@ When audio output is wrong, check in this order:
    - Voice cloning: `ref_audio` encoding and prompt injection
    - `max_new_tokens` override in sampling params
    - Model-specific default values
-3. **Create client scripts**: `speech_client.py`, `run_server.sh`
-4. **Test all response formats**: wav, mp3, flac, pcm
-5. **Add Gradio demo**: Interactive web UI with streaming support
+3. **Use `tokens_input()` for prompt construction**: All TTS prompt builders must use `vllm.inputs.tokens_input(prompt_token_ids=...)` instead of raw dicts. This avoids deprecated `preprocess()` fallback warnings. The returned dict has `"type": "token"` automatically. Add model-specific keys (e.g., `additional_information`) to the returned dict.
+4. **Create client scripts**: `speech_client.py`, `run_server.sh`
+5. **Test all response formats**: wav, mp3, flac, pcm
+6. **Add Gradio demo**: Interactive web UI with streaming support
 
 ### Voice Cloning Pattern
 
@@ -143,18 +144,23 @@ def build_voice_clone_prompt(ref_audio_path: str, text: str, codec) -> list:
 1. **Update stage config YAML**:
    ```yaml
    async_chunk: true
-   codec_chunk_frames: 25      # frames per chunk
+   codec_chunk_frames: 25      # inter-stage streaming window
    codec_left_context_frames: 25  # overlap for smooth boundaries
+   initial_codec_chunk_frames: 10 # first chunk only (optional, lowers TTFA)
    ```
 2. **Implement chunk handling in Stage 1**:
    - Accept partial input (chunk of codec codes)
    - Handle left context for smooth audio boundaries
    - Return partial audio in `OmniOutput`
-3. **Test streaming**:
+3. **Separate connector chunking from decoder chunking**:
+   - `codec_chunk_frames` / `codec_left_context_frames` control inter-stage streaming windows
+   - `decode_chunk_frames` / `decode_left_context_frames` control the decoder's internal processing (independent)
+   - Use `initial_codec_chunk_frames` for a smaller first chunk to lower TTFA, then return to normal `codec_chunk_frames` for subsequent chunks
+4. **Test streaming**:
    - Verify audio quality matches non-streaming output
    - Check for artifacts at chunk boundaries
    - Measure TTFA (time to first audio)
-4. **Update online serving** to support `stream=true` with PCM output
+5. **Update online serving** to support `stream=true` with PCM output
 
 ### Streaming Architecture
 
@@ -255,6 +261,7 @@ Use this checklist when integrating a new TTS model:
 
 ### Phase 3: Online Serving
 - [ ] Model added to `serving_speech.py`
+- [ ] Prompt builder uses `tokens_input()` from `vllm.inputs` (not raw dicts)
 - [ ] Prompt builder handles text input correctly
 - [ ] Voice cloning works (if supported)
 - [ ] All response formats work (wav, mp3, flac, pcm)

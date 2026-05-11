@@ -26,8 +26,6 @@ vLLM-Omni supports text-to-image generation and image editing through diffusion 
 | OmniGen2 | `OmniGen2/OmniGen2` | Text-to-image | 24 GB |
 | HunyuanImage3.0 | `tencent/HunyuanImage-3.0` | Text-to-image + editing | 40 GB |
 
-**New (2026-03-15):** Dreamid-Omni from ByteDance and FLUX.2-dev with cache_dit support are now available.
-
 ## Quick Start: Offline Generation
 
 ```python
@@ -119,6 +117,8 @@ vllm serve <model> --omni --cpu-offload-gb 10
 ```
 
 **Slow generation**: Enable TeaCache for 1.5-2x speedup (see vllm-omni-perf skill). Multi-thread weight loading (enabled by default for diffusion models) also reduces startup time significantly.
+
+**HunyuanImage3.0 garbage output in offline inference**: Fixed in #3243. The AR stage now uses the Instruct chat template (`User:`/`Assistant:` framing) instead of the pretrain format. Trigger tags (`💭`, `<recaption>`) must go *after* `Assistant:`, not before the user prompt. Use `build_prompt_tokens()` from `vllm_omni.diffusion.models.hunyuan_image3.prompt_utils` for segment-by-segment tokenization that avoids cross-segment BPE merges. MoE routing now runs in fp32 (matching HF). VAE pixel values must stay fp32 through preprocessing — do not pre-cast to bf16.
 
 **HunyuanImage3.0 load_weights error**: Fixed in #1598. Ensure you are using the latest vllm-omni.
 

@@ -51,6 +51,8 @@ vllm serve <model> --omni --enable-cache-dit
 
 Can be combined with TeaCache, but test independently first to measure impact.
 
+TeaCache and CPU Offload hooks are compatible — use them simultaneously with `--enable-teacache --enable-cpu-offload` (or `--cpu-offload-gb`). The HookRegistry sorts hooks alphabetically and ensures the forward-overriding hook (TeaCache) runs last in the pre-process chain. Only one forward-overriding hook is allowed at a time. Fixed in #2689.
+
 ## Quantization
 
 For full quantization guidance (method selection, AWQ/GPTQ workflows, FP8 KV cache, quality verification), see the dedicated **[vllm-omni-quantization](../vllm-omni-quantization/SKILL.md)** skill.

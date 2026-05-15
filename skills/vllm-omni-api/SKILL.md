@@ -23,12 +23,18 @@ Diffusion models benefit from multi-thread weight loading (enabled by default), 
 |----------|--------|---------|
 | `/v1/chat/completions` | POST | Chat-based generation (text, image, audio) |
 | `/v1/images/generations` | POST | Direct image generation |
+| `/v1/images/edits` | POST | Image editing |
 | `/v1/audio/speech` | POST | Text-to-speech (wav/mp3) |
 | `/v1/audio/voice/upload` | POST | Upload custom voice for cloning |
+| /v1/images/edits | POST | Image editing |
+| /v1/videos/generations | POST | Video generation (async poll) |
 | `/health` | GET | Server health check |
 | `/v1/models` | GET | List loaded models |
 
-**Update (2026-03-15):** `/v1/audio/voice/upload` endpoint restored. `/v1/audio/speech` now supports `response_format: "wav"` with streaming.
+`/v1/audio/voice/upload` endpoint restored. `/v1/audio/speech` supports `response_format: "wav"` with streaming.
+`/v1/audio/speech` supports `response_format: "wav"` with streaming.
+
+`/v1/images/generations` supports client-side request cancellation via `AbortController` (or `client.cancel()` in the openai Python SDK). `--max-generated-image-size` is enforced on both `/v1/images/generations` and `/v1/images/edits` (returns HTTP 400 for oversized requests).
 
 ## Chat Completions (Universal)
 
@@ -76,15 +82,20 @@ curl -s http://localhost:8091/v1/chat/completions \
 
 ## Image Generation Endpoint
 
+Supports `output_format` (png, jpeg, webp) and `size` in both request and response:
+
 ```bash
 curl -s http://localhost:8091/v1/images/generations \
   -H "Content-Type: application/json" \
   -d '{
     "prompt": "a cup of coffee on a table",
     "size": "1024x1024",
-    "n": 1
-  }' | jq '.data[0].url'
+    "n": 1,
+    "output_format": "png"
+  }' | jq '.data[0]'
 ```
+
+The response includes `output_format` and `size` fields. When `output_format` is not specified, defaults to `png`.
 
 ## Streaming Responses
 
@@ -133,6 +144,7 @@ response = client.chat.completions.create(
 | 413 | Input too large | Reduce input size or increase limits |
 | 500 | Server error | Check server logs |
 | 503 | Server overloaded | Retry with backoff |
+| 507 | Insufficient storage (OOM) | Reduce resolution/batch or use quantization |
 
 ## Health Check
 

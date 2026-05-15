@@ -32,32 +32,39 @@ Inspired by common PR-review skill patterns (e.g. explicit modes + tool choice);
 
 **Parallel investigation:** Large diffs or multiple subsystems (e.g. `entrypoints/` + `engine/` + `diffusion/`) → split by directory or concern and investigate **in parallel** when subagents exist.
 
+**Subagent context compression:** Never fetch a 500-line source file into your main context. Instead, delegate to a subagent with a specific question (e.g. "What does `_resolve_ref_audio` return?") and get back a compact summary. This is the single biggest token saver — a subagent burns its own context, you get back a paragraph.
+
+**When to use subagents vs direct fetch:**
+- Reading surrounding code to verify a pattern → subagent (returns summary)
+- Reading a reference file you need for the blocker scan → direct (you need the full patterns)
+- Fetching PR metadata / diff → direct (small, needed in main context)
+- Verifying function signatures, return types, class hierarchies → subagent
+
 ## Which reference to load (do not load everything)
 
 | Situation | Open |
 |-----------|------|
-| Every review | [references/review-execution.md](references/review-execution.md) — gates, `gh` commands, comment budget, tone, batch/CI triage, Python style flags |
+| Every review | [references/review-execution.md](references/review-execution.md) — gates, `gh` commands, comment budget, tone, **incremental posting**, batch/CI triage, Python style flags |
 | Prefix / multi-skill / hardware guess | [references/review-routing.md](references/review-routing.md) |
 | Blocker scan details + merge-blocking patterns | [references/blocker-patterns.md](references/blocker-patterns.md) — Part 1 patterns; **Part 2** = former “pitfalls” (footguns, MRO, connectors, async, etc.) |
 | System layout + **code-pattern review** (async, connectors, validation, …) | [references/architecture.md](references/architecture.md) — includes “Code patterns for review” at the end |
 | Diffusion / image / video model PRs | [references/diffusion-checklist.md](references/diffusion-checklist.md) |
 | High-risk change; need coverage matrix / docs sync | [references/tests-docs-checklist.md](references/tests-docs-checklist.md) |
-| PR has perf/accuracy claims or `[Performance]` prefix | [references/perf-verification.md](references/perf-verification.md) — claim detection, hardware-aware benchmark verification, graceful degradation |
-| PR adds/modifies tests or touches core code without tests | [references/test-quality-evaluation.md](references/test-quality-evaluation.md) — assertion quality, anti-patterns, hardware-aware test execution |
 | Calibrating phrasing from real maintainers | [references/maintainer-style-study.md](references/maintainer-style-study.md) |
 
 **Legacy paths (do not load — content merged):** `pitfalls.md` → [blocker-patterns.md](references/blocker-patterns.md) **Part 2**; `code-patterns.md` → [architecture.md](references/architecture.md) **Code patterns for review**; `python-style-guide.md` → [review-execution.md](references/review-execution.md) **Python style (review flags)**; batch/CI triage → [review-execution.md](references/review-execution.md) (Batch / CI sections).
 
 ## Priority Hierarchy Under Context Pressure
 
-If context is limited, prioritize: blocker scan → evidence → perf verification → test quality → domain routing → verdict.
+If context is limited, prioritize: blocker scan → evidence → domain routing → verdict.
 
 Always run the blocker scan. Under context pressure, do a shallow scan of the most critical categories (Correctness, Security) and flag that the scan was incomplete.
 
 ## Core Workflow
 
-Check whether this PR is still a draft or WIP in the PR title, if so, end the review process. 
+Check whether this PR is still a draft or WIP in the PR title, if so, end the review process.
 
+**Token budget principle:** Post inline comments as you find them. Use subagents for codebase investigation. Load references only after skimming the diff. If you're past ~60% context and haven't posted comments, wrap up and post what you have — partial review posted is better than a perfect review lost.
 
 ### Step 0: Verify Review Gates First
 
@@ -67,7 +74,9 @@ For gate commands, review submission, and comment style, see [references/review-
 
 Then continue with the workflow below.
 
-### Step 1: Gather Minimal Context
+### Step 1: Fetch Diff First, Then Decide What to Load
+
+**Diff-first loading:** Fetch the diff and PR metadata first. Skim the diff to understand what subsystems are touched, then load ONLY the references that match. Do not load references speculatively.
 
 Fetch:
 - PR metadata and changed files
@@ -75,7 +84,7 @@ Fetch:
 - Linked issues for `[Bugfix]` and `[Feature]` PRs only when conventions are unclear
 - Related PRs only when conventions or prior decisions are unclear
 
-Group changes mentally by **kind** (runtime code, tests, docs, configs) to see where risk sits; then load references (Step 4) only for areas touched.
+Group changes by **kind** (runtime code, tests, docs, configs) to see where risk sits; then load references (Step 4) only for areas touched.
 
 Do not fetch broad extra context unless the diff leaves real ambiguity.
 
@@ -120,7 +129,7 @@ BLOCKER scan:
 
 For detailed anti-patterns with code examples, see [references/blocker-patterns.md](references/blocker-patterns.md).
 
-**If blockers found:** Track issues internally (category + file + line). Do not paste structured `BLOCKING ISSUES:` templates into the review body (see Step 6).
+**If blockers found:** Track issues internally (category + file + line). Do not paste structured `BLOCKING ISSUES:` templates into the review body.
 
 **If no blockers:** List non-blocking suggestions and proceed to Step 3.
 
@@ -212,9 +221,18 @@ Be explicit in review comments. Treat "manual verification only" as insufficient
 
 **Delivery:** Local assessment first, ask user before posting. Convert worst 1-2 findings to inline comments (counts against comment budget). If D-grade dimension or code bug found, escalate to REQUEST_CHANGES via Step 8.
 
-### Step 8: Final Verdict
+### Step 8: Incremental Posting + Final Verdict
 
-Post inline comments directly to GitHub as you find them. Do **not** submit a review event (APPROVE / COMMENT / REQUEST_CHANGES) — leave the verdict decision to the user.
+**Post inline comments directly to GitHub as you find them.** Do not accumulate comments for a batch post at the end. Each `gh api` call posts one or more comments immediately. If context runs out mid-review, the comments already posted are safe on GitHub.
+
+Posting strategy:
+- After completing the blocker scan, post any blocking-issue comments immediately
+- As domain review surfaces issues, post each comment right away
+- Minor style nits can be batched (up to 3) in a single review call if they're on the same file
+- If you find yourself past ~60% context, stop investigating and post whatever you have
+### Step 6: Final Verdict
+
+Do **not** submit a review event (APPROVE / COMMENT / REQUEST_CHANGES) — leave the verdict decision to the user.
 
 Summarize locally:
 - What was validated
@@ -267,6 +285,4 @@ All paths are under `skills/vllm-omni-review/references/`. There is **no** `pitf
 - [Architecture](references/architecture.md) — Layers and critical paths; end section **Code patterns for review** = async, distributed, KV cache, validation, connectors, errors, logging (former code-patterns content)
 - [Diffusion checklist](references/diffusion-checklist.md) — Diffusion PR dimensions, PR body template, Quick Red Flags
 - [Tests & docs checklist](references/tests-docs-checklist.md) — High-risk coverage matrix and docs sync
-- [Perf verification](references/perf-verification.md) — Reviewer-side claim detection, hardware-aware benchmark verification, graceful degradation
-- [Test quality evaluation](references/test-quality-evaluation.md) — Assertion quality, anti-patterns, hardware-aware test execution, quality scoring
 - [Maintainer style study](references/maintainer-style-study.md) — Example maintainer phrasing

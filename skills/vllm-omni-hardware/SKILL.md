@@ -130,6 +130,7 @@ Out-of-tree hardware backends can customize the diffusion engine without forking
 | `get_diffusion_model_runner_cls()` | Fully qualified class path | Custom model runner |
 
 Use `OmniPlatformEnum.OOT` with `is_out_of_tree()` for platform detection. Register custom diffusion pipelines via `register_diffusion_model(model_arch, module_name, class_name)` in `vllm_omni.diffusion.registry`. Defaults preserve existing behavior for CUDA, ROCm, NPU, XPU, and MUSA.
+**NPU LaserAttention unsupported error**: On Ascend NPU with mindiesd, selecting `FLASH_ATTN` as the diffusion attention backend (`--diffusion-attn-backend FLASH_ATTN`) auto-imports `mindiesd` to configure `ASCEND_CUSTOM_OPP_PATH`. The internal environment variable `MINDIE_SD_FA_TYPE` is set to `ascend_laser_attention` automatically. Fixed in #2674.
 
 ## References
 

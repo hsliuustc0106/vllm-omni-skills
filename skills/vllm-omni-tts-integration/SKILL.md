@@ -116,16 +116,22 @@ When audio output is wrong, check in this order:
 ```python
 import base64
 from pathlib import Path
+from vllm.inputs import tokens_input
 
-def build_voice_clone_prompt(ref_audio_path: str, text: str, codec) -> list:
+def build_voice_clone_prompt(ref_audio_path: str, text: str, codec, tokenizer) -> dict:
     """Build prompt with reference audio for voice cloning in serving_speech.py."""
     audio_bytes = Path(ref_audio_path).read_bytes()
     codes = codec.encode(audio_bytes)  # Encode on CPU using model's codec (e.g., DAC)
     token_ids = [code + codec.vocab_offset for code in codes.flatten().tolist()]
-    return [
-        {"role": "system", "content": f"<|voice|>{''.join(chr(t) for t in token_ids)}"},
-        {"role": "user", "content": text},
-    ]
+
+    # Build prompt with voice tokens and tokenize
+    voice_tokens = "".join(chr(t) for t in token_ids)
+    prompt = f"<|voice|>{voice_tokens}{text}"
+    prompt_token_ids = tokenizer.encode(prompt)
+
+    # Use tokens_input() to avoid deprecated preprocess() fallback
+    result = tokens_input(prompt_token_ids=prompt_token_ids)
+    return result
 ```
 
 ### Deliverables

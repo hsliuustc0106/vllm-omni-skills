@@ -101,7 +101,7 @@ register_diffusion_model(
 )
 ```
 
-This registers custom diffusion pipelines without modifying core source. When `mod_relname` is empty, the full `module_name` is used as the import path (for out-of-tree plugins).
+This registers custom diffusion pipelines without modifying core source. For out-of-tree plugins, `module_name` should be the full import path of the module containing the pipeline class.
 
 ### Step 4: Add Stage Configuration
 

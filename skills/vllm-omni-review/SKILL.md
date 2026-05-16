@@ -45,6 +45,7 @@ Inspired by common PR-review skill patterns (e.g. explicit modes + tool choice);
 | Situation | Open |
 |-----------|------|
 | Every review | [references/review-execution.md](references/review-execution.md) — gates, `gh` commands, comment budget, tone, **incremental posting**, batch/CI triage, Python style flags |
+| Verification (hardware) | [references/verification.md](references/verification.md) — checkout, test run, E2E smoke, claim verification |
 | Prefix / multi-skill / hardware guess | [references/review-routing.md](references/review-routing.md) |
 | Blocker scan details + merge-blocking patterns | [references/blocker-patterns.md](references/blocker-patterns.md) — Part 1 patterns; **Part 2** = former “pitfalls” (footguns, MRO, connectors, async, etc.) |
 | System layout + **code-pattern review** (async, connectors, validation, …) | [references/architecture.md](references/architecture.md) — includes “Code patterns for review” at the end |
@@ -133,13 +134,25 @@ For detailed anti-patterns with code examples, see [references/blocker-patterns.
 
 **If no blockers:** List non-blocking suggestions and proceed to Step 3.
 
-### Step 3: Route to the Right Skill
+### Step 3: Run Verification (Blocking)
+
+When hardware access (SSH/server/GPU) is available, **verify the PR works** — not just that it looks correct. Bugs found during verification are blocking. See [references/verification.md](references/verification.md) for detailed procedures.
+
+1. **Checkout** — `gh pr checkout <n>` on a server with the appropriate GPU/model
+2. **Unit tests** — run affected tests at minimum (e.g. `pytest -m "core_model"` for the changed area)
+3. **E2E smoke** — for bench/tool/metric PRs, start a server and run a quick smoke test (10 prompts, low concurrency) to verify new outputs appear and the tool doesn't crash
+4. **Compare claims** — check PR claims (metrics appear, values sensible, no crashes) against actual output
+5. **Report** — post findings as a PR comment; bugs found are blocking
+
+If no hardware access, skip to Step 4.
+
+### Step 4: Route to the Right Skill
 
 Use the title prefix and changed directories to decide whether a domain skill is required. Doc-only, config-only, and test-only PRs usually skip domain skills unless the diff crosses into model or API areas.
 
 **Full prefix table, multi-skill combos, hardware detection, and delegation triggers:** [references/review-routing.md](references/review-routing.md).
 
-### Step 4: Load Only the Relevant Review Reference
+### Step 5: Load Only the Relevant Review Reference
 
 Use **only** the files in this table. Older docs may mention `references/pitfalls.md` or `references/code-patterns.md`; those files were removed — use **Part 2** of blocker patterns and **Code patterns for review** in architecture instead.
 
@@ -152,7 +165,7 @@ Use **only** the files in this table. Older docs may mention `references/pitfall
 
 Pick the narrowest references that match the diff; avoid loading every row by default.
 
-### Step 5: Ask for Concrete Validation Evidence
+### Step 6: Ask for Concrete Validation Evidence
 
 When tests or benchmarks are missing **and PR description evidence is insufficient**, ask for specific evidence:
 
@@ -169,7 +182,7 @@ For `[Feature]` PRs affecting performance or `[Performance]` PRs, use the checkl
 
 Be explicit in review comments. Treat "manual verification only" as insufficient unless automation is genuinely impossible.
 
-### Step 6: Verify Perf/Accuracy Claims (Blocking)
+### Step 7: Verify Perf/Accuracy Claims (Blocking)
 
 **When to activate:** PR has `[Performance]` prefix, or PR body contains quantitative perf/accuracy claims (latency, throughput, VRAM, speedup, accuracy metrics), or Step 5 flagged missing benchmarks.
 
@@ -194,9 +207,9 @@ Be explicit in review comments. Treat "manual verification only" as insufficient
 | Static-only | No GPU or model too large | Analyze benchmark scripts in diff for correctness, flag implausible claims |
 | Skip | No relevant perf claims | Do not activate |
 
-**Delivery:** Local report first, ask user before posting as PR comment. If verification reveals a confirmed NOT_CONFIRMED for accuracy or VRAM regression, escalate to REQUEST_CHANGES via Step 8.
+**Delivery:** Local report first, ask user before posting as PR comment. If verification reveals a confirmed NOT_CONFIRMED for accuracy or VRAM regression, escalate to REQUEST_CHANGES via Step 9.
 
-### Step 7: Evaluate Test Quality (Blocking)
+### Step 8: Evaluate Test Quality (Blocking)
 
 **When to activate:** PR adds or modifies test files, or PR touches core code (`engine/`, `stages/`, `connectors/`) without adding tests, or PR is test-only.
 
@@ -219,9 +232,9 @@ Be explicit in review comments. Treat "manual verification only" as insufficient
 | Full analysis | Hardware matches test markers | Static + runtime execution |
 | Static-only | Hardware doesn't match or no GPU | Static analysis only; report which tests were skipped |
 
-**Delivery:** Local assessment first, ask user before posting. Convert worst 1-2 findings to inline comments (counts against comment budget). If D-grade dimension or code bug found, escalate to REQUEST_CHANGES via Step 8.
+**Delivery:** Local assessment first, ask user before posting. Convert worst 1-2 findings to inline comments (counts against comment budget). If D-grade dimension or code bug found, escalate to REQUEST_CHANGES via Step 9.
 
-### Step 8: Incremental Posting + Final Verdict
+### Step 9: Incremental Posting + Final Verdict
 
 **Post inline comments directly to GitHub as you find them.** Do not accumulate comments for a batch post at the end. Each `gh api` call posts one or more comments immediately. If context runs out mid-review, the comments already posted are safe on GitHub.
 
@@ -230,7 +243,7 @@ Posting strategy:
 - As domain review surfaces issues, post each comment right away
 - Minor style nits can be batched (up to 3) in a single review call if they're on the same file
 - If you find yourself past ~60% context, stop investigating and post whatever you have
-### Step 6: Final Verdict
+### Final Verdict
 
 Do **not** submit a review event (APPROVE / COMMENT / REQUEST_CHANGES) — leave the verdict decision to the user.
 
@@ -280,6 +293,7 @@ For daily sessions (reply-first, PR selection, pacing, re-review): [references/r
 All paths are under `skills/vllm-omni-review/references/`. There is **no** `pitfalls.md`, `code-patterns.md`, or `python-style-guide.md` — see the legacy map in **Which reference to load** above.
 
 - [Review execution](references/review-execution.md) — Gates, `gh` fetch/submit, comment budget, tone, **Python style (review flags)** (imports, naming, common flags — use to avoid nit wars), batch session, CI log triage
+- [Verification](references/verification.md) — Hardware verification: checkout, unit tests, E2E smoke, claim comparison, reporting
 - [Review routing](references/review-routing.md) — Prefix → domain skill, hardware, multi-skill
 - [Blocker patterns](references/blocker-patterns.md) — Part 1: merge-blocking patterns; Part 2: MRO/mixins, connectors, async/sync, diffusion latents, API validation, tensor parallel, mocks (former pitfalls content)
 - [Architecture](references/architecture.md) — Layers and critical paths; end section **Code patterns for review** = async, distributed, KV cache, validation, connectors, errors, logging (former code-patterns content)

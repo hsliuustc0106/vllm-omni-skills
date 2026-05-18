@@ -17,6 +17,7 @@ vLLM-Omni supports video generation through diffusion transformer models, primar
 | Wan2.2-TI2V-5B | `Wan-AI/Wan2.2-TI2V-5B-Diffusers` | Text+Image-to-video | 24 GB |
 | Wan2.2-I2V-A14B | `Wan-AI/Wan2.2-I2V-A14B-Diffusers` | Image-to-video | 48 GB |
 | NextStep-1.1 | `stepfun-ai/NextStep-1.1` | Text-to-video | 24 GB |
+| Helios-Distilled | `naver-ai/Helios-Distilled` | Text-to-video | 24 GB |
 | daVinci-MagiHuman | `SII-GAIR/daVinci-MagiHuman-Base-1080p` | Image-to-video + audio | 24 GB |
 
 daVinci-MagiHuman is an image-to-video model that also generates audio (44100 Hz, 25 fps). Use `--enable-diffusion-pipeline-profiler` to get per-stage timing (`stage_durations`) and peak memory (`peak_memory_mb`) in video responses (async poll JSON or sync HTTP headers).
@@ -105,7 +106,9 @@ Video generation is significantly more compute-intensive than image generation:
 
 ## Troubleshooting
 
-**Generation too slow**: Use tensor parallelism or enable TeaCache/Cache-DiT acceleration.
+**Generation too slow**: Use tensor parallelism or enable TeaCache/Cache-DiT acceleration. Helios supports cache-dit (`--enable-cache-dit`) for ~20% speedup.
+
+**LTX-2 error with diffusers>=0.38.0**: Fixed in #3661. Text encoder normalization moved into the diffusers connector. Update vllm-omni to the latest version when upgrading diffusers to 0.38.0+.
 
 **Out of memory**: Reduce resolution/frame count or use CPU offloading.
 

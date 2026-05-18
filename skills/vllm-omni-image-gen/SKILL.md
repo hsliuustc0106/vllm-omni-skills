@@ -124,6 +124,16 @@ vllm serve <model> --omni --cpu-offload-gb 10
 
 **HunyuanImage3.0 load_weights error**: Fixed in #1598. Ensure you are using the latest vllm-omni.
 
+**HunyuanImage3 online/offline output mismatch**: Fixed in #3500/#3516. Online multistage path now uses `build_prompt_tokens()` matching offline behavior.
+
+**HunyuanImage3 AR sampler fails with batched requests**: Fixed in #3590. `max_num_seqs > 1` now supported for AR sampling.
+
+**HunyuanImage3 deploy config fails at startup**: Fixed in #3537. Pipeline name changed to `hunyuan_image_3_moe`; update any custom deploy YAMLs.
+
+**HunyuanImage3 KV reuse broken under sequence parallel**: Fixed in #3546. `ar_kv_reuse_len` is now propagated through the DiT forward pass.
+
+**Diffusers backend crash on models without `model_index.json`**: Fixed in #3644. Non-diffusers-format models now emit a warning instead of crashing.
+
 **GLM-Image filepath errors**: Fixed in #1609. Models with `model_subdir` or `tokenizer_subdir` now resolve paths correctly.
 
 **BAGEL think mode for text2text/img2text**: BAGEL now supports reasoning/thinking mode for text-to-text and image-to-text modalities via `--think` flag. Injects `VLM_THINK_SYSTEM_PROMPT` to enable chain-of-thought output. Fixed in #2503.

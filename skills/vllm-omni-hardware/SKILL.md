@@ -45,7 +45,7 @@ uv pip install vllm==$VLLM_VERSION --torch-backend=auto
 
 **ROCm (AMD):**
 ```bash
-uv pip install vllm==$VLLM_VERSION --extra-index-url https://wheels.vllm.ai/rocm/$VLLM_VERSION/rocm700
+uv pip install vllm==$VLLM_VERSION --extra-index-url https://wheels.vllm.ai/rocm/$VLLM_VERSION/rocm722
 ```
 
 **NPU (Huawei):**
@@ -117,6 +117,8 @@ Not all models are supported on every backend. Check the support matrix:
 **CUDA out of memory**: Reduce `--gpu-memory-utilization` or use tensor parallelism across multiple GPUs.
 
 **ROCm kernel compilation slow**: First launch compiles kernels for your GPU. Subsequent launches reuse cached kernels. Set `MIOPEN_USER_DB_PATH` for persistent kernel cache.
+
+**ROCm Wan2.2 RoPE error (`too many values to unpack`)**: Fixed in #3463. Added dedicated `forward_hip()` RoPE path for ROCm using flash attention rotary embedding.
 
 **NPU operator not supported**: Some operations fall back to CPU on NPU. Check logs for fallback warnings and update CANN to the latest version.
 

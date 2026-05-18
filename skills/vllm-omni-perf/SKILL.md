@@ -51,7 +51,9 @@ vllm serve <model> --omni --enable-cache-dit
 
 Can be combined with TeaCache, but test independently first to measure impact.
 
-TeaCache and CPU Offload hooks are compatible — use them simultaneously with `--enable-teacache --enable-cpu-offload` (or `--cpu-offload-gb`). The HookRegistry sorts hooks alphabetically and ensures the forward-overriding hook (TeaCache) runs last in the pre-process chain. Only one forward-overriding hook is allowed at a time. Fixed in #2689.
+Supported models: FLUX.2-dev, Helios-Distilled, Wan2.2, and others using `ForwardPattern.Pattern_2`. Helios achieves ~20% speedup with cache-dit.
+
+TeaCache and CPU Offload hooks are compatible — use them simultaneously with `--enable-teacache --enable-cpu-offload` (or `--cpu-offload-gb`). The HookRegistry sorts hooks alphabetically and ensures the forward-overriding hook (TeaCache) runs last in the pre-process chain. Only one forward-overriding hook is allowed at a time.
 
 ## Quantization
 

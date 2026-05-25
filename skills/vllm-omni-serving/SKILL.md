@@ -145,6 +145,8 @@ Use a reverse proxy to route by path or model name.
 
 **OOM errors produce no response**: Diffusion pipeline OOM and execution errors now return structured HTTP error responses (e.g., 507) with `request_id`, `stage_id`, and `error_type` fields instead of hanging. Uses `OmniRequestError` dataclass for end-to-end propagation. Fixed in #2638.
 
+**OmniCoordinator for multi-replica serving**: OmniCoordinator enables multi-replica load balancing for LLM stages within a single node or head-distributed setup. New CLI args: `--omni-dp-size-local <int>` (local data-parallel replicas per stage, default 1), `--omni-lb-policy <str>` (load balancing policy: `random`, `round_robin`, or `least_queue_length`, default `random`), `--omni-heartbeat-timeout <float>` (seconds before marking a replica unhealthy, default 30.0). Previously, LLM stages with `num_replicas > 1` in single-stage mode were blocked — this restriction is now lifted. Internally, `InstanceInfo/InstanceList/StageStatus` were renamed to `ReplicaInfo/ReplicaList/ReplicaStatus`. KV transfer ports now include `replica_id` to avoid `EADDRINUSE`. Added in #3569.
+
 ## References
 
 - For model-specific configurations, see [references/model-configs.md](references/model-configs.md)

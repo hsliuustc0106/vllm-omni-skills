@@ -132,6 +132,8 @@ Out-of-tree hardware backends can customize the diffusion engine without forking
 Use `OmniPlatformEnum.OOT` with `is_out_of_tree()` for platform detection. Register custom diffusion pipelines via `register_diffusion_model(model_arch, module_name, class_name)` in `vllm_omni.diffusion.registry`. Defaults preserve existing behavior for CUDA, ROCm, NPU, XPU, and MUSA.
 **NPU LaserAttention unsupported error**: On Ascend NPU with mindiesd, selecting `FLASH_ATTN` as the diffusion attention backend (`--diffusion-attn-backend FLASH_ATTN`) auto-imports `mindiesd` to configure `ASCEND_CUSTOM_OPP_PATH`. The internal environment variable `MINDIE_SD_FA_TYPE` is set to `ascend_laser_attention` automatically. Fixed in #2674.
 
+**XPU flash attention default and cross-attention fix**: Flash attention (`flash_attn`) is now the default diffusion attention backend on Intel XPU (was `torch_sdpa`). Intel Max 1100 and 1550 GPUs are excluded by architecture check and still default to `torch_sdpa`. A correctness bug in `flash_attn.py` where `cu_seqlens_k` and `max_seqlen_k` incorrectly used `q_len` instead of `k_len` is fixed — this affected cross-attention correctness for any diffusion model using encoder features (e.g., video models with text encoders). Cross-attention latency improved ~100x for Wan2.2 I2V (260ms → 2ms per cross-attention step). Fixed in #3525.
+
 ## References
 
 - For CUDA-specific optimization, see [references/cuda.md](references/cuda.md)

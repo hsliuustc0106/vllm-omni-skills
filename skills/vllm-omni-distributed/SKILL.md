@@ -177,6 +177,8 @@ vllm serve <model> --omni --tensor-parallel-size 8
 
 **Ray worker disconnected**: Check network connectivity between nodes and ensure Ray dashboard shows all workers.
 
+**OmniCoordinator integration**: OmniCoordinator is now integrated into the stage engine pipeline for multi-replica load balancing. It manages replica lifecycle (registration, health checks via heartbeat, keepalive broadcast for late-joining hubs) and dispatches requests using configurable load balancing policies (`random`, `round_robin`, `least_queue_length`). Use `--omni-dp-size-local <int>` to set local data-parallel replicas per stage, `--omni-lb-policy <str>` for the balancing strategy, and `--omni-heartbeat-timeout <float>` for health check timing. For head-distributed serving, `_build_remote_replica` registers headless replicas with the coordinator. Added in #3569.
+
 ## References
 
 - For disaggregation architecture details, see [references/disaggregation.md](references/disaggregation.md)

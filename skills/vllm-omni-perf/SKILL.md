@@ -155,6 +155,8 @@ curl http://localhost:8091/metrics
 
 **Latency regression with TP**: For small models, the communication overhead of tensor parallelism may exceed the compute savings. Use TP only for models that saturate a single GPU.
 
+**XPU cross-attention performance**: Flash attention is now the default diffusion attention backend on Intel XPU. A cross-attention bug where `k_len` was replaced by `q_len` caused `cu_seqlens_k` and `max_seqlen_k` to be computed incorrectly — padding cross-attention to self-attention sequence lengths. This caused cross-attention to take ~260ms per step (same as self-attention) instead of ~2ms. The fix applies to all platforms using the `flash_attn` backend. Use `DIFFUSION_ATTENTION_BACKEND=FLASH_ATTN` to override if needed. Fixed in #3525.
+
 ## References
 
 - For TeaCache configuration details, see [references/teacache.md](references/teacache.md)

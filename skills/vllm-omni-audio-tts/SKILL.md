@@ -186,6 +186,10 @@ For a step-by-step guide on integrating a new TTS model into vLLM-Omni, see the 
 
 **Event loop blocking under concurrent TTS**: Blocking tokenizer operations (`_build_voxtral_prompt`, `_build_fish_speech_prompt`) now run in a shared `ThreadPoolExecutor(max_workers=1)`. This prevents `/health` latency spikes under concurrent load. Fixed in #2511.
 
+**MiMo-Audio text truncation under concurrent batching**: If MiMo-Audio produces truncated or garbled text under concurrent requests, ensure the `local_sampler` is greedy (`do_sample=False`) — this is the default. Stochastic `local_sampler` propagated non-deterministic audio embeddings back into text logits via the audio-embedding feedback cache. The fix also adds a `pooling_output is None` guard in `mimo_audio.py` to prevent `AttributeError` on text-only paths. Fixed in #3817.
+
+**TTS speaker cache collision with inline ref_audio**: When using voice cloning with both uploaded speakers (via `/v1/audio/voice/upload`) and inline `ref_audio`, the uploaded voice's name was still populated in metadata, causing the speaker cache to store features from the inline audio under the uploaded voice's key. Subsequent requests using that voice name got stale cached features, leading to prefill length mismatches and engine crashes. The fix ensures `voice_name` is only set when using the uploaded voice's stored audio, not when inline `ref_audio` is provided. Affects VoxCPM2, CosyVoice3, OmniVoice, MOSS-TTS-Nano, Fish Speech, and diffusion TTS. Fixed in #3523.
+
 ## References
 
 - For Qwen3-TTS details and voice options, see [references/qwen-tts.md](references/qwen-tts.md)

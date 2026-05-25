@@ -833,6 +833,10 @@ summary.report-subcard-summary {
 .report-subcard--perf .report-subcard-summary .report-subcard-ico {
   color: var(--dashboard-violet);
 }
+.report-subcard--bk-perf .report-subcard-summary .report-subcard-ico,
+.report-subcard--bk-perf-model .report-subcard-summary .report-subcard-ico {
+  color: var(--ci);
+}
 .report-subcard--local-fail .report-subcard-summary .report-subcard-ico {
   color: var(--danger-strong);
 }
@@ -861,6 +865,10 @@ details.report-subcard[open] > summary.report-subcard-summary::before {
 }
 .report-subcard--perf summary.report-subcard-summary::before {
   color: var(--dashboard-violet);
+}
+.report-subcard--bk-perf summary.report-subcard-summary::before,
+.report-subcard--bk-perf-model summary.report-subcard-summary::before {
+  color: var(--ci);
 }
 .report-subcard--local-fail summary.report-subcard-summary::before {
   color: var(--danger-strong);
@@ -951,6 +959,54 @@ details.local-summary-dim[open] > summary.local-summary-dim-summary::before {
 }
 .local-summary-dim-body > .table-scroll:first-child {
   margin-top: 0;
+}
+.report-subcard--bk-perf-model {
+  background: color-mix(in srgb, var(--dashboard-panel-bg) 94%, var(--ci-soft) 6%);
+}
+.perf-filter-scope {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.perf-filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 0.65rem;
+  padding: 0.75rem;
+  border: 1px solid color-mix(in srgb, var(--dashboard-border) 82%, var(--ci) 18%);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--dashboard-panel-strong) 88%, var(--ci-soft) 12%);
+}
+.perf-filter-label {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 10rem;
+  font-size: 0.78rem;
+  font-weight: 720;
+  color: var(--dashboard-muted);
+}
+.perf-filter-select {
+  min-height: 2rem;
+  max-width: min(22rem, 70vw);
+  padding: 0.35rem 2rem 0.35rem 0.55rem;
+  border: 1px solid var(--dashboard-border);
+  border-radius: 0.55rem;
+  background: var(--dashboard-panel-bg);
+  color: var(--dashboard-text);
+  font: inherit;
+}
+.perf-filter-select:focus {
+  outline: 2px solid color-mix(in srgb, var(--ci) 45%, transparent);
+  outline-offset: 2px;
+}
+.perf-filter-table td,
+.perf-filter-table th {
+  white-space: nowrap;
+}
+.perf-filter-empty {
+  margin: 0;
 }
 .ico {
   display: block;

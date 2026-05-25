@@ -16,6 +16,58 @@ description: Two report kinds; **default output is always HTML** unless the user
 
 **Unless the user explicitly asks for Markdown** (e.g. “生成 md / markdown”、hand-editing, or `patch_report_*.py`), **always produce HTML**: `compose_full_report.py` (default) and `nightly_local_log_report.py --html-report <path>.html`. Use `--format markdown` or `--markdown-report` / `--to-stdout markdown` **only** after that explicit request.
 
+## Agent Quick Path
+
+**Intent keywords:**
+- **Nightly**: `nightly`, `nightly report`, `nightly_jobs`, `scheduled nightly`, `生成 nightly`, `夜间报告`, `每日报告`.
+- **Release**: `release report`, `test report`, `正式报告`, `发布报告`, `测试报告`.
+- **Markdown opt-in only**: `markdown`, `.md`, `生成 md`, `生成 markdown`.
+
+### Nightly Quick Path
+
+Ask for or infer:
+- Output date/name, e.g. `nightly-report-buildkite-latest-YYYY-MM-DD.html`.
+- Buildkite token in the environment (`BUILDKITE_TOKEN` or `BUILDKITE_API_TOKEN`) unless the user explicitly wants `--no-buildkite`.
+- Kanban repo root for baseline comparison: `--kanban-repo-root /path/to/vllm-omni-kanban-private`.
+- Optional pinned Buildkite build: `--buildkite-build N`.
+- Optional local logs: `REPO_ROOT=/path/to/local/vllm-omni` with `logs/nightly_jobs`, or pass `--log-dir`.
+
+If the user asks for fresh kanban data (`fresh`, `latest assets`, `更新 kanban`, `最新 assets`), first use the kanban repo skill `.cursor/skills/update-main-docs/SKILL.md` in `vllm-omni-kanban-private`; then run the report command here.
+
+```bash
+export BUILDKITE_TOKEN=...  # or BUILDKITE_API_TOKEN; omit only with --no-buildkite
+python scripts/nightly_local_log_report.py \
+  --html-report ./nightly-report-buildkite-latest-YYYY-MM-DD.html \
+  --kanban-repo-root /path/to/vllm-omni-kanban-private \
+  --title "Nightly Buildkite report - YYYY-MM-DD"
+```
+
+### Release Quick Path
+
+Ask for or infer:
+- Buildkite token in the environment (`BUILDKITE_TOKEN` or `BUILDKITE_API_TOKEN`) - required unless using `--preview`.
+- GitHub token (`GITHUB_TOKEN` or `GH_TOKEN`) - recommended for stable issue data.
+- Optional stats window: `--stats-from YYYY-MM-DD --stats-to YYYY-MM-DD`.
+- Optional GPU local logs: `--log-dir-h200`, `--log-dir-h800`, `--log-dir-a100`.
+- Optional output path: `--out ./vllm-omni-test-report-YYYY-MM-DD.html`.
+
+```bash
+export BUILDKITE_TOKEN=...  # or BUILDKITE_API_TOKEN
+export GITHUB_TOKEN=...     # optional but recommended
+python scripts/compose_full_report.py \
+  --out ./vllm-omni-test-report-YYYY-MM-DD.html
+```
+
+With optional GPU nightly summaries:
+
+```bash
+python scripts/compose_full_report.py \
+  --log-dir-h200 /path/to/nightly_jobs_h200 \
+  --log-dir-h800 /path/to/nightly_jobs_h800 \
+  --log-dir-a100 /path/to/nightly_jobs_a100 \
+  --out ./vllm-omni-test-report-YYYY-MM-DD.html
+```
+
 ## Nightly report (local logs + optional Buildkite nightly, HTML)
 
 **Prerequisite:** `LOG_DIR` on disk - paths and pytest rules in [references/nightly-local-log-layout.md](references/nightly-local-log-layout.md). To **produce** logs on the HK cluster in Docker, follow [vllm-omni-nightly-local](../vllm-omni-nightly-local/SKILL.md): **inside the container**, run **`source /rebase/.venv/bin/activate`** before `run_nightly_jobs.sh` or other repo commands ([environment](../vllm-omni-nightly-local/references/nightly-local-environment.md)). To **copy** logs to your laptop, use [../vllm-omni-nightly-local/references/nightly-local-log-fetch.md](../vllm-omni-nightly-local/references/nightly-local-log-fetch.md) — including **`nightly_perf_manual.prev.xlsx`** when needed and **`rm -rf` local `logs/nightly_jobs`** before each sync so old runs are not mixed in.
@@ -25,16 +77,23 @@ description: Two report kinds; **default output is always HTML** unless the user
 **Full local logs (HTML):** Each failed local job has a **查看完整日志** button that toggles the concatenated raw log text. If the merged files exceed **2 MiB** (see `FULL_LOG_EMBED_MAX_BYTES` in `scripts/nightly_local_log_report.py`), the report does **not** embed the text and instead lists absolute paths to open locally.
 By default the script also pulls **main** latest **scheduled nightly** from Buildkite (vllm/vllm-omni), downloads each reportable step log, and adds **reason / heuristic analysis / excerpts** for failures (same parsing as local). Set **`BUILDKITE_TOKEN`** or **`BUILDKITE_API_TOKEN`** in the environment; use **`--no-buildkite`** for local-only. Optional **`--buildkite-build N`** to pin a build number.
 
+**Buildkite 性能基线对比（kanban assets）:** Nightly report reads precomputed history from `docs/assets/charts/*_history.json` and fills Buildkite **性能基线对比** with **latest / baseline / vs baseline**. The section keeps only rows with baseline data and only the **latest day** records (grouped to model-level metric rows). Daily report commands should use `--kanban-repo-root <vllm-omni-kanban-private>` (resolved to `<repo>/docs/assets/charts`).
+If the user asks to ensure fresh kanban data, first use the kanban repo skill `.cursor/skills/update-main-docs/SKILL.md` in `vllm-omni-kanban-private` to update `main` and restart `mkdocs serve`; then generate this report with `--kanban-repo-root`.
+Optional source checks:
+- `--kanban-expected-remote` / `--kanban-expected-branch` add warnings when current/upstream config differs.
+
 From **this** skill directory (after [fetch](../vllm-omni-nightly-local/references/nightly-local-log-fetch.md) into **`$REPO_ROOT/logs/`** on your machine):
 
 ```bash
 export REPO_ROOT=/path/to/local/vllm-omni   # logs at $REPO_ROOT/logs/nightly_jobs
 export BUILDKITE_TOKEN=...   # optional; omit with --no-buildkite
-python scripts/nightly_local_log_report.py --html-report ./nightly-report.html
+python scripts/nightly_local_log_report.py \
+  --html-report ./nightly-report.html \
+  --kanban-repo-root /path/to/vllm-omni-kanban-private
 python scripts/nightly_local_log_report.py --no-buildkite --html-report ./local-only.html
 ```
 
-Other flags: `--title`, `--buildkite-build`. **Markdown** (only if the user explicitly asks): `--markdown-report`, `--to-stdout markdown`. See `python scripts/nightly_local_log_report.py --help`.
+Other flags: `--title`, `--buildkite-build`, `--kanban-repo-root`, `--kanban-expected-remote`, `--kanban-expected-branch`. **Markdown** (only if the user explicitly asks): `--markdown-report`, `--to-stdout markdown`. See `python scripts/nightly_local_log_report.py --help`.
 
 ## Release report (Buildkite, HTML)
 
@@ -293,6 +352,7 @@ Hand-authored or review-only; automation emits the same sections in HTML by defa
 - CI Failure GitHub issues (`label:bug` + `label:ci-failure`, stats `created` range): [references/ci-github-ci-failure-issues.md](references/ci-github-ci-failure-issues.md)
 - HTML from Markdown (release): [scripts/release_md_to_html.py](scripts/release_md_to_html.py) (used by compose_full_report)
 - **Nightly** log tree / pytest parsing: [references/nightly-local-log-layout.md](references/nightly-local-log-layout.md) (fetch off cluster: [vllm-omni-nightly-local](../vllm-omni-nightly-local/SKILL.md))
+- Buildkite performance summary from kanban assets: [scripts/kanban_assets_perf_summary.py](scripts/kanban_assets_perf_summary.py)
 
 ## Cursor copy
 

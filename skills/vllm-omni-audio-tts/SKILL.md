@@ -146,6 +146,24 @@ The uniproc Code2Wav stage default `max_num_seqs` is now `10` (was `1`). Avoid r
 
 CUDA Graph warmup for Qwen3-TTS now accounts for custom `decode_chunk_frames` / `decode_left_context_frames` overrides.
 
+### High-Concurrency Profile
+
+For high-concurrency TTS serving (voice cloning, c=64+), use `qwen3_tts_high_concurrency.yaml`:
+
+```bash
+vllm serve Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice --omni \
+  --stage-configs-path vllm_omni/deploy/qwen3_tts_high_concurrency.yaml
+```
+
+This profile enables batched CUDA graph decoder, prefix CUDA graphs for the code predictor, bounded reference-code context, and first-chunk fast emit (`initial_codec_chunk_frames: 1`). Tuned for 2-GPU serving with Seed-TTS voice-clone workload. Median TTFP is higher than default profile; use for throughput/E2E rather than first-packet-latency optimization.
+
+Additional high-concurrency knobs available in the deploy config:
+- `decode_cudagraph_batch_sizes`: Multi-batch-size CUDA graph capture for Code2Wav
+- `decode_batch_bucket_frames` / `decode_batch_max_size`: Variable-length chunk batching
+- `ref_code_context_frames`: Limits reference-audio code frames per chunk for stable stage-1 shapes
+- `decode_enable_tf32: true`: Opt-in TF32 for Code2Wav
+- `code_predictor_prefix_graphs: true`: Prefix CUDA graph warmup for Stage0 code predictor
+
 For batch mode (no streaming), use `qwen3_tts_batch.yaml`.
 
 Fish Speech uses `fish_speech_s2_pro.yaml` with similar knobs. Its DAC codec outputs at 44.1 kHz (vs Qwen3-TTS's 24 kHz).

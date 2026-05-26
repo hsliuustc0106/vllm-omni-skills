@@ -190,6 +190,10 @@ pytest tests/ --cov=vllm_omni --cov-report=html
 
 **Pre-commit hook fails**: Run `pre-commit run --all-files` to see specific issues.
 
+**`OmniDiffusionConfig` field name collision with vLLM `attention_config`**: Fixed in #3489. Use `diffusion_attention_config` (not `attention_config`) in deploy YAML and code for diffusion pipelines. The old key is silently dropped.
+
+**RMSNorm inductor KeyError under HSDP + torch.compile**: Fixed in #3460. `fused_rms_norm` inductor tracing now avoids calling `.data` on DTensor objects.
+
 ## References
 
 - For detailed model integration patterns, see [references/model-integration.md](references/model-integration.md)

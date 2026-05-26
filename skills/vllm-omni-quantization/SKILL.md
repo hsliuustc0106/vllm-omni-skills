@@ -77,6 +77,7 @@ curl -s http://localhost:8091/v1/images/generations \
 | GGUF mapping fails | missing architecture-specific adapter | add explicit adapter logic, do not rely on generic fallback |
 | new quantization method design keeps growing | unified framework boundary is unclear | re-check ownership before touching model code |
 | multi-stage omni checkpoint loads but wrong stages get quantized | component scope is not constrained correctly | check component routing and model config normalization |
+| diffusion FA uses wrong KV-cache dtype when `--kv-cache-dtype` is passed | vLLM's `--kv-cache-dtype` leaked into diffusion config | use `--diffusion-kv-cache-dtype` instead (#3596) |
 | offline text_to_image fails | quantization config conflicts with diffusion pipeline init | fixed in #1515, update vllm-omni |
 | OmniDiffusion init crash | `pipeline_class` variable not initialized during quantized load | fixed in #1562, update vllm-omni |
 | HunyuanImage3.0 load_weights error | weight loading fails with quantized HunyuanImage3.0 | fixed in #1598, update vllm-omni |

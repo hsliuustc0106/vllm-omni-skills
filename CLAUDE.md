@@ -50,7 +50,7 @@ Step-by-step instructions.
 - Reference files: `<topic>.md` (lowercase, hyphens)
 - Scripts: `<verb>_<noun>.py` or `<verb>_<noun>.sh` (snake_case)
 
-## Skill Inventory (16 skills)
+## Skill Inventory (17 skills)
 
 | Skill | Scope |
 |-------|-------|
@@ -70,6 +70,7 @@ Step-by-step instructions.
 | `vllm-omni-review` | PR review guidelines |
 | `vllm-omni-recipe` | vLLM recipes documentation |
 | `vllm-omni-tts-integration` | TTS integration patterns |
+| `vllm-omni-nightly-local` | HK: SSH/Slurm/Docker; **`source /rebase/.venv/bin/activate`** in container before repo commands; `nightly_jobs`; HTML via vllm-omni-test-report (nightly) |
 
 ## Validation Rules
 
@@ -90,7 +91,7 @@ These files have cascade effects - modify with care:
 
 | File | Impact |
 |------|--------|
-| `scripts/validate_all.py` | Affects validation of all 16 skills |
+| `scripts/validate_all.py` | Affects validation of all skills |
 | `CLAUDE.md` | Changes AI behavior for all skill work |
 | `.github/PULL_REQUEST_TEMPLATE.md` | Affects all PR workflows |
 

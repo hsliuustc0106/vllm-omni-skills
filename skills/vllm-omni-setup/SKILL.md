@@ -45,9 +45,9 @@ Select the command matching your hardware:
 uv pip install vllm==$VLLM_VERSION --torch-backend=auto
 ```
 
-**AMD GPU (ROCm):**
+**ROCm (AMD):**
 ```bash
-uv pip install vllm==$VLLM_VERSION --extra-index-url https://wheels.vllm.ai/rocm/$VLLM_VERSION/rocm700
+uv pip install vllm==$VLLM_VERSION --extra-index-url https://wheels.vllm.ai/rocm/$VLLM_VERSION/rocm722
 ```
 
 ### Step 3: Install vLLM-Omni

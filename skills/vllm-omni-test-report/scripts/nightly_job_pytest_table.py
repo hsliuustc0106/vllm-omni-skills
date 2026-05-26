@@ -12,10 +12,12 @@ message matches (?i)scheduled nightly.
 from __future__ import annotations
 
 import argparse
+import http.client
 import json
 import os
 import re
 import sys
+import time
 import urllib.error
 import urllib.request
 from pathlib import Path
@@ -25,10 +27,82 @@ _SCRIPTS = Path(__file__).resolve().parent
 if str(_SCRIPTS) not in sys.path:
     sys.path.insert(0, str(_SCRIPTS))
 from md_table import render_markdown_table
+from pytest_log_parse import parse_pytest_log
 
 ORG = "vllm"
 PIPELINE = "vllm-omni"
 BRANCH = "main"
+
+
+def extract_ci_versions_from_log(log: str) -> dict[str, str]:
+    """
+    Best-effort ``vllm`` / ``vllm-omni`` version strings from a CI step log.
+
+    Uses common patterns (pip list, pip install, Successfully installed, etc.).
+    """
+    out: dict[str, str] = {"vllm": "", "vllm_omni": ""}
+    if not (log and log.strip()):
+        return out
+    sample = log if len(log) <= 900_000 else log[:550_000] + "\n" + log[-350_000:]
+
+    omni_patterns = (
+        re.compile(
+            r"Requirement already satisfied:\s*vllm[_-]omni(?:==|>=|~=|!=|<=|>|<)?\s*([0-9][0-9A-Za-z.+-]*)",
+            re.I,
+        ),
+        re.compile(
+            r"(?:Downloading|Collecting)\s+vllm[_\-_]omni[^\s]*-([0-9][0-9A-Za-z.+-]*)",
+            re.I,
+        ),
+        re.compile(
+            r"vllm[_-]omni(?:\[[^\]]*\])?\s*[=~<>!]+\s*([0-9][0-9A-Za-z.+-]*)",
+            re.I,
+        ),
+        re.compile(
+            r"Successfully installed[^\n]*\bvllm[_-]omni-([0-9][^\s,]*)",
+            re.I,
+        ),
+        re.compile(r"^\s*vllm[_-]omni\s+([0-9][0-9A-Za-z.+-]+)\s*$", re.I | re.M),
+        re.compile(
+            r"['\"]vllm[_-]omni['\"]\s*:\s*['\"]([^'\"]+)['\"]",
+            re.I,
+        ),
+    )
+    for pat in omni_patterns:
+        m = pat.search(sample)
+        if m:
+            out["vllm_omni"] = m.group(1).strip()
+            break
+
+    vllm_patterns = (
+        re.compile(
+            r"Requirement already satisfied:\s*vllm(?:==|>=|~=|!=|<=|>|<)?\s*([0-9][0-9A-Za-z.+-]*)",
+            re.I,
+        ),
+        re.compile(
+            r"Requirement already satisfied:\s*vllm\s+in\s+[^\n(]+\(([0-9][0-9A-Za-z.+-]+)\)",
+            re.I,
+        ),
+        re.compile(
+            r"(?:^|[\s/])vllm\s*[=~<>!]+\s*([0-9][0-9A-Za-z.+-]*)(?![^\n]*omni)",
+            re.I,
+        ),
+        re.compile(
+            r"Successfully installed[^\n]*?(?<![\w-])vllm-(\d[\w.+-]*)(?!-omni)",
+            re.I,
+        ),
+        re.compile(r"^\s*vllm\s+([0-9][0-9A-Za-z.+-]+)\s*$", re.I | re.M),
+    )
+    for pat in vllm_patterns:
+        m = pat.search(sample)
+        if m:
+            cand = m.group(1).strip()
+            if cand.lower() != "omni" and not cand.lower().startswith("omni"):
+                out["vllm"] = cand
+                break
+
+    return out
+
 
 # Ignore artifact/upload steps when reporting test outcomes.
 UPLOAD_PIPELINE_RE = re.compile(r"^Upload .+ Pipeline$", re.IGNORECASE)
@@ -37,16 +111,6 @@ SKIP_NON_PYTEST_JOB_RES = (
     re.compile(r"^:docker:\s*Build image\s*$", re.IGNORECASE),
     re.compile(r"^:email:\s*Nightly Collection\s*&\s*Email\s*$", re.IGNORECASE),
     re.compile(r"^:pipeline:\s*init\s*$", re.IGNORECASE),
-)
-
-# Pytest final session lines (6.x/7.x/8.x variants).
-SESSION_LINE_RE = re.compile(
-    r"^=+\s*.+\s*in\s+[\d.]+s\s*=+\s*$",
-)
-# e.g. "... 3 failed, 10 passed, 1 skipped ..."
-COUNTS_FRAGMENT_RE = re.compile(
-    r"(\d+)\s+passed|(\d+)\s+failed|(\d+)\s+skipped|(\d+)\s+error",
-    re.IGNORECASE,
 )
 
 
@@ -74,19 +138,28 @@ def http_text_tail(
         url,
         headers={"Authorization": f"Bearer {token}"},
     )
-    buf = bytearray()
-    with urllib.request.urlopen(req, timeout=300) as resp:
-        while True:
-            chunk = resp.read(262_144)
-            if not chunk:
-                break
-            buf.extend(chunk)
-            if len(buf) > max_read:
-                buf = buf[-tail_keep:]
-    return buf.decode("utf-8", errors="replace")
+    last_err: Exception | None = None
+    for attempt in range(3):
+        buf = bytearray()
+        try:
+            with urllib.request.urlopen(req, timeout=300) as resp:
+                while True:
+                    chunk = resp.read(262_144)
+                    if not chunk:
+                        break
+                    buf.extend(chunk)
+                    if len(buf) > max_read:
+                        buf = buf[-tail_keep:]
+            return buf.decode("utf-8", errors="replace")
+        except (http.client.IncompleteRead, urllib.error.URLError, TimeoutError, OSError) as e:
+            last_err = e
+            if attempt < 2:
+                time.sleep(min(8, 2**attempt))
+    assert last_err is not None
+    raise last_err
 
 
-def latest_scheduled_nightly_number(token: str) -> int:
+def resolve_latest_scheduled_nightly_number(token: str) -> int | None:
     url = (
         f"https://api.buildkite.com/v2/organizations/{ORG}/pipelines/"
         f"{PIPELINE}/builds?branch={BRANCH}&per_page=50"
@@ -95,7 +168,72 @@ def latest_scheduled_nightly_number(token: str) -> int:
     for b in builds:
         if re.search(r"scheduled\s+nightly", b.get("message") or "", re.I):
             return int(b["number"])
-    sys.exit("No scheduled nightly build found on main (per_page=50).")
+    return None
+
+
+def latest_scheduled_nightly_number(token: str) -> int:
+    n = resolve_latest_scheduled_nightly_number(token)
+    if n is None:
+        sys.exit("No scheduled nightly build found on main (per_page=50).")
+    return n
+
+
+def fetch_nightly_build(token: str, build_number: int | None) -> dict[str, Any]:
+    """Load build JSON; ``build_number=None`` = latest scheduled nightly on ``main``."""
+    if build_number is None:
+        n = resolve_latest_scheduled_nightly_number(token)
+        if n is None:
+            raise RuntimeError("No scheduled nightly build found on main (per_page=50).")
+    else:
+        n = build_number
+    url = (
+        f"https://api.buildkite.com/v2/organizations/{ORG}/pipelines/"
+        f"{PIPELINE}/builds/{n}"
+    )
+    return http_json(url, token)
+
+
+def collect_nightly_job_log_analyses(
+    build: dict[str, Any], token: str
+) -> list[dict[str, Any]]:
+    """
+    One record per reportable job: name, state, step_link, raw_url,
+    info (``parse_pytest_log`` output) or log_error.
+    """
+    build_no = int(build["number"])
+    commit_full = (build.get("commit") or "").strip()
+    build_commit_short = commit_full[:12] if commit_full else ""
+    jobs = build.get("jobs") or []
+    report_jobs = [j for j in jobs if not should_skip_job(j.get("name") or "")]
+    report_jobs.sort(key=lambda x: (x.get("name") or ""))
+    out: list[dict[str, Any]] = []
+    for j in report_jobs:
+        jid = j.get("id") or ""
+        name = j.get("name") or ""
+        state = j.get("state") or ""
+        link = job_anchor(build_no, jid)
+        raw_url = j.get("raw_log_url") or j.get("log_url")
+        rec: dict[str, Any] = {
+            "name": name,
+            "state": state,
+            "step_link": link,
+            "raw_url": raw_url,
+            "info": None,
+            "log_error": None,
+            "build_commit_short": build_commit_short,
+            "ci_versions": None,
+        }
+        if not raw_url:
+            out.append(rec)
+            continue
+        try:
+            log = http_text_tail(str(raw_url), token)
+            rec["info"] = parse_pytest_log(log)
+            rec["ci_versions"] = extract_ci_versions_from_log(log)
+        except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError, OSError) as e:
+            rec["log_error"] = str(e)
+        out.append(rec)
+    return out
 
 
 def should_skip_job(name: str) -> bool:
@@ -103,41 +241,6 @@ def should_skip_job(name: str) -> bool:
     if UPLOAD_PIPELINE_RE.match(n):
         return True
     return any(r.match(n) for r in SKIP_NON_PYTEST_JOB_RES)
-
-
-def parse_pytest(text: str) -> dict[str, Any]:
-    lines = text.splitlines()
-    failed_nodes: list[str] = []
-    error_nodes: list[str] = []
-    for line in lines:
-        if line.startswith("FAILED "):
-            failed_nodes.append(line[7:].strip())
-        elif line.startswith("ERROR "):
-            error_nodes.append(line[6:].strip())
-
-    summary = None
-    for line in reversed(lines):
-        s = line.strip()
-        if SESSION_LINE_RE.match(s) and COUNTS_FRAGMENT_RE.search(s):
-            summary = s.strip().strip("=").strip()
-            break
-    if summary is None:
-        for line in reversed(lines):
-            s = line.strip()
-            if "short test summary" in s.lower():
-                continue
-            if COUNTS_FRAGMENT_RE.search(s) and len(s) < 300:
-                summary = s
-                break
-
-    failed_nodes = list(dict.fromkeys(failed_nodes))
-    error_nodes = list(dict.fromkeys(error_nodes))
-
-    return {
-        "failed_nodes": failed_nodes,
-        "error_nodes": error_nodes,
-        "summary": summary,
-    }
 
 
 def job_anchor(build_no: int, job_id: str) -> str:
@@ -148,85 +251,115 @@ def md_cell(s: str) -> str:
     return (s or "").replace("|", "/")
 
 
-def emit_markdown(build: dict[str, Any], token: str) -> None:
-    build_no = int(build["number"])
-    jobs = build.get("jobs") or []
+def append_markdown_rows_for_nightly_job(
+    rows: list[list[str]], rec: dict[str, Any]
+) -> None:
+    """Append Markdown table rows for one Buildkite job record."""
+    name = md_cell(rec["name"])
+    state = rec["state"]
+    link = rec["step_link"]
+    em_dash = "—"
 
-    report_jobs = [j for j in jobs if not should_skip_job(j.get("name") or "")]
-    report_jobs.sort(key=lambda x: (x.get("name") or ""))
+    if not rec["raw_url"]:
+        rows.append(
+            [name, f"{md_cell(state)} — no log URL", em_dash, em_dash, f"[open]({link})"]
+        )
+        return
+    if rec["log_error"]:
+        rows.append(
+            [
+                name,
+                f"{md_cell(state)} — log fetch failed",
+                em_dash,
+                em_dash,
+                f"[open]({link})",
+            ]
+        )
+        return
 
-    rows: list[list[str]] = []
+    info = rec["info"]
+    assert info is not None
+    summary = info["summary"]
+    fails = info["failed_nodes"]
+    errors = info["error_nodes"]
 
-    for j in report_jobs:
-        name = md_cell(j.get("name") or "")
-        jid = j.get("id") or ""
-        state = j.get("state") or ""
-        link = job_anchor(build_no, jid)
-        raw_url = j.get("raw_log_url") or j.get("log_url")
-        if not raw_url:
-            rows.append(
-                [name, f"{md_cell(state)} — no log URL", f"[open]({link})"]
-            )
-            continue
+    if summary is None and not fails and not errors:
+        rows.append(
+            [
+                name,
+                f"{md_cell(state)} — non-pytest or log truncated",
+                em_dash,
+                em_dash,
+                f"[open]({link})",
+            ]
+        )
+        return
 
-        try:
-            log = http_text_tail(str(raw_url), token)
-        except urllib.error.HTTPError:
-            rows.append(
-                [name, f"{md_cell(state)} — log fetch failed", f"[open]({link})"]
-            )
-            continue
-        except urllib.error.URLError:
-            rows.append(
-                [name, f"{md_cell(state)} — log fetch failed", f"[open]({link})"]
-            )
-            continue
-        except TimeoutError:
-            rows.append(
-                [name, f"{md_cell(state)} — log fetch failed", f"[open]({link})"]
-            )
-            continue
-
-        info = parse_pytest(log)
-        summary = info["summary"]
-        fails = info["failed_nodes"]
-        errors = info["error_nodes"]
-
-        if summary is None and not fails and not errors:
-            rows.append(
-                [
-                    name,
-                    f"{md_cell(state)} — non-pytest or log truncated",
-                    f"[open]({link})",
-                ]
-            )
-            continue
-
-        agg_result = md_cell(state or "unknown")
-        if fails or errors:
-            if fails and errors:
-                agg_result = "failed/error"
-            elif fails:
-                agg_result = "failed"
-            else:
-                agg_result = "error"
-        elif summary and re.search(r"\b[1-9]\d*\s+failed\b", summary, re.I):
+    agg_result = md_cell(state or "unknown")
+    if fails or errors:
+        if fails and errors:
+            agg_result = "failed/error"
+        elif fails:
             agg_result = "failed"
-        elif summary and re.search(r"\b[1-9]\d*\s+error\b", summary, re.I):
+        else:
             agg_result = "error"
-        elif (state == "passed" or state == "finished") and not fails and not errors:
-            agg_result = "passed"
+    elif summary and re.search(r"\b[1-9]\d*\s+failed\b", summary, re.I):
+        agg_result = "failed"
+    elif summary and re.search(r"\b[1-9]\d*\s+error\b", summary, re.I):
+        agg_result = "error"
+    elif (state == "passed" or state == "finished") and not fails and not errors:
+        agg_result = "passed"
 
-        rows.append([name, md_cell(agg_result), f"[open]({link})"])
+    if agg_result == "passed" and not fails and not errors:
+        rows.append([name, "passed", em_dash, em_dash, f"[open]({link})"])
+        return
 
-        for node in fails:
-            rows.append([f"{name} — {md_cell(node)}", "failed", f"[open]({link})"])
-        for node in errors:
-            rows.append([f"{name} — {md_cell(node)}", "error", f"[open]({link})"])
+    summ_short = md_cell((summary or "")[:260])
+    if fails or errors:
+        hint = "本 step 含失败/错误用例；详见下列各行。"
+    elif agg_result in ("failed", "error", "failed/error"):
+        hint = "构建状态为失败，但未从日志中解析到 FAILED/ERROR 行（可能截断或非 pytest）。"
+    else:
+        hint = em_dash
 
+    rows.append(
+        [name, md_cell(agg_result), summ_short, hint, f"[open]({link})"]
+    )
+
+    for node in fails:
+        rows.append(
+            [
+                md_cell(node),
+                "failed",
+                md_cell(info["failed_reasons"].get(node, "")),
+                md_cell(info["failure_analyses"].get(node, "")),
+                f"[open]({link})",
+            ]
+        )
+    for node in errors:
+        rows.append(
+            [
+                md_cell(node),
+                "error",
+                md_cell(info["error_reasons"].get(node, "")),
+                md_cell(info["error_analyses"].get(node, "")),
+                f"[open]({link})",
+            ]
+        )
+
+
+def emit_markdown(build: dict[str, Any], token: str) -> None:
+    rows: list[list[str]] = []
+    for rec in collect_nightly_job_log_analyses(build, token):
+        append_markdown_rows_for_nightly_job(rows, rec)
     print("## Per-job test execution (pytest)")
     print()
-    print(render_markdown_table(["Job", "Result", "Step link"], rows))
+    print(
+        render_markdown_table(
+            ["Job / test node", "Result", "Reason (from log)", "Heuristic analysis", "Step link"],
+            rows,
+        )
+    )
 
 
 def main() -> None:
@@ -249,12 +382,7 @@ def main() -> None:
         )
         sys.exit(2)
 
-    build_no = args.build if args.build is not None else latest_scheduled_nightly_number(token)
-    url = (
-        f"https://api.buildkite.com/v2/organizations/{ORG}/pipelines/"
-        f"{PIPELINE}/builds/{build_no}"
-    )
-    build = http_json(url, token)
+    build = fetch_nightly_build(token, args.build)
     emit_markdown(build, token)
 
 

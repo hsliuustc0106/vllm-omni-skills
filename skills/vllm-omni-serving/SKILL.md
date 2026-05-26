@@ -145,6 +145,12 @@ Use a reverse proxy to route by path or model name.
 
 **OOM errors produce no response**: Diffusion pipeline OOM and execution errors now return structured HTTP error responses (e.g., 507) with `request_id`, `stage_id`, and `error_type` fields instead of hanging. Uses `OmniRequestError` dataclass for end-to-end propagation. Fixed in #2638.
 
+**DiffusionEngine.close() hangs or leaks resources**: Fixed in #3494. Close now properly waits for worker thread and completes pending futures with errors.
+
+**HunyuanImage3 deploy config fails at startup**: Fixed in #3537. Pipeline name changed from `hunyuan_image3` to `hunyuan_image_3_moe`; inter-stage connectors default to `rdma_connector`.
+
+**Multimodal cache miss across AR replicas**: Fixed in #3605. Multimodal UUIDs are now scoped per stage-0 replica to prevent the sender from skipping tensor transfers.
+
 ## References
 
 - For model-specific configurations, see [references/model-configs.md](references/model-configs.md)

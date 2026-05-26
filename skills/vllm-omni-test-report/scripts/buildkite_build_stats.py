@@ -6,18 +6,20 @@ Fetch vllm-omni builds from the Buildkite REST API for a date range and compute:
   - Average duration: arithmetic mean wall time (finished_at - created_at) for
     passed/failed builds that have both created_at and finished_at
   - With `--markdown`: main table has **Success rate/UT coverage**, **Bug avg first response** (GitHub: open +
-    closed `label=bug`, current UTC month, mean time issue opened -> first comment), plus **ut** /
+    closed `label=bug`, **`created_at` UTC date** in the same **`--from`..`--to`** window as Buildkite stats,
+    mean time issue opened -> first comment), plus **ut** /
     **ut (exclude models)** from Simple Unit Test log on the **latest `main` build that is not** a scheduled
-    nightly (same ``is_nightly`` heuristic as the merge bucket; not the raw newest build on the pipeline).
-    ``ut (exclude models)`` uses per-file lines minus any path with a directory segment named ``models``; ready/merge/nightly
+    nightly or scheduled weekly (same ``classify_build`` heuristic as the merge bucket; not the raw newest build on the pipeline).
+    ``ut (exclude models)`` uses per-file lines minus any path with a directory segment named ``models``; ready/merge/nightly/weekly
     rows use CI build stats only. The emitted
     Markdown table lists percentages only, not those path rules.
 
-Three buckets (display names in reports):
+Four CI buckets (display names in reports):
 
   1. ready — non-`main` branches
-  2. merge — `main`, ordinary runs (e.g. merged PRs), not the scheduled nightly bucket
-  3. nightly — `main`, scheduled / message-heuristic nightly pipeline
+  2. merge — `main`, ordinary runs (e.g. merged PRs), not scheduled nightly/weekly
+  3. nightly — `main`, scheduled nightly (or other scheduled runs on `main` that match the legacy nightly heuristic but **not** scheduled weekly)
+  4. weekly — `main`, Buildkite **Scheduled weekly** (message matches ``Scheduled weekly`` / ``scheduled weekly``)
 
 Usage:
 
@@ -34,6 +36,7 @@ import argparse
 import os
 import re
 import sys
+import time
 from pathlib import Path
 from collections import defaultdict
 
@@ -59,6 +62,8 @@ PIPELINE_SLUG = "vllm-omni"
 FINISHED_STATES = {"passed", "failed", "canceled", "blocked", "skipped", "not_run"}
 SUCCESS_STATE = "passed"
 FAIL_STATE = "failed"
+# Step/job states (Buildkite)
+FAIL_JOB_STATES = {"failed", "broken"}
 
 
 def default_created_range_utc() -> tuple[str, str]:
@@ -129,17 +134,20 @@ def _github_headers(gh_token: str | None) -> dict[str, str]:
     return h
 
 
-def _fetch_bug_issues_state_month(
-    state: str, utc_month_prefix: str, gh_token: str | None
+def _fetch_bug_issues_state_created_range(
+    state: str,
+    date_from: str,
+    date_to: str,
+    gh_token: str | None,
 ) -> list[dict]:
     """
     state is open or closed; label=bug; excludes PR entries.
-    Only issues with created_at in utc_month_prefix (YYYY-MM). Uses sort=created desc and stops
-    once all issues are older than the month (avoids scanning all closed history).
+    Only issues whose ``created_at`` UTC calendar date (``YYYY-MM-DD``) lies in
+    ``date_from`` .. ``date_to`` inclusive. Uses sort=created desc and stops once a page
+    contains issues older than ``date_from`` (avoids scanning all closed history).
     """
     out: list[dict] = []
     page = 1
-    month_floor = f"{utc_month_prefix}-01T00:00:00Z"
     while True:
         r = requests.get(
             f"{GITHUB_REPO_REST}/issues",
@@ -168,10 +176,15 @@ def _fetch_bug_issues_state_month(
             if i.get("pull_request"):
                 continue
             ca = str(i.get("created_at") or "")
-            if ca.startswith(utc_month_prefix):
-                out.append(i)
-            elif ca < month_floor:
+            if len(ca) < 10:
+                continue
+            d = ca[0:10]
+            if d > date_to:
+                continue
+            if d < date_from:
                 stop_paging = True
+                continue
+            out.append(i)
         if stop_paging or len(batch) < 100:
             break
         page += 1
@@ -201,10 +214,14 @@ def _first_comment_delay_seconds(issue: dict, gh_token: str | None) -> float | N
     return max(0.0, (t1 - t0).total_seconds())
 
 
-def github_bug_avg_first_response_month_cell(utc_month_prefix: str) -> str:
+def github_bug_avg_first_response_range_cell(
+    date_from: str,
+    date_to: str,
+) -> str:
     """
     Mean time from issue open to first comment for issues with label bug and
-    created_at in utc_month_prefix (YYYY-MM), combining open and closed issue lists.
+    ``created_at`` UTC date in ``date_from`` .. ``date_to`` (inclusive), combining open
+    and closed issue lists (de-duped by issue number).
 
     See:
     https://github.com/vllm-project/vllm-omni/issues?q=is%3Aissue+state%3Aopen+label%3Abug
@@ -214,7 +231,7 @@ def github_bug_avg_first_response_month_cell(utc_month_prefix: str) -> str:
     by_num: dict[int, dict] = {}
     try:
         for state in ("open", "closed"):
-            for i in _fetch_bug_issues_state_month(state, utc_month_prefix, gh):
+            for i in _fetch_bug_issues_state_created_range(state, date_from, date_to, gh):
                 n = i.get("number")
                 if isinstance(n, int):
                     by_num[n] = i
@@ -223,12 +240,12 @@ def github_bug_avg_first_response_month_cell(utc_month_prefix: str) -> str:
     except RuntimeError as e:
         return f"*N/A* ({e})"
 
-    month_issues = list(by_num.values())
-    if not month_issues:
-        return f"*N/A* (no bug issues created in {utc_month_prefix})"
+    window_issues = list(by_num.values())
+    if not window_issues:
+        return f"*N/A* (no bug issues created in {date_from}..{date_to})"
 
     delays: list[float] = []
-    for i in month_issues:
+    for i in window_issues:
         try:
             d = _first_comment_delay_seconds(i, gh)
         except requests.RequestException:
@@ -238,11 +255,12 @@ def github_bug_avg_first_response_month_cell(utc_month_prefix: str) -> str:
 
     if not delays:
         return (
-            f"*N/A* (0 issues with comments among {len(month_issues)} opened in {utc_month_prefix})"
+            f"*N/A* (0 issues with comments among {len(window_issues)} opened in "
+            f"{date_from}..{date_to})"
         )
 
     avg = sum(delays) / len(delays)
-    return f"**{format_duration(avg)}** (avg, n={len(delays)}/{len(month_issues)} issues)"
+    return f"**{format_duration(avg)}** (avg, n={len(delays)}/{len(window_issues)} issues)"
 
 
 def parse_link_header(link: str | None) -> dict[str, str]:
@@ -263,23 +281,50 @@ def fetch_builds(
     created_from: str,
     created_to: str,
     *,
+    branch: str | None = None,
     per_page: int = 100,
 ) -> list[dict]:
     """Fetch all builds for the pipeline created in [created_from, created_to] (paginated)."""
     url = (
         f"{BUILDKITE_API_BASE}/organizations/{ORG_SLUG}/pipelines/{PIPELINE_SLUG}/builds"
     )
-    params = {
+    params: dict[str, str | int] = {
         "created_from": created_from,
         "created_to": created_to,
         "per_page": per_page,
     }
+    if branch:
+        params["branch"] = branch
     headers = {"Authorization": f"Bearer {token}"}
     all_builds: list[dict] = []
 
     while True:
-        r = requests.get(url, params=params, headers=headers, timeout=60)
-        r.raise_for_status()
+        last_exc: Exception | None = None
+        r: requests.Response | None = None
+        for attempt in range(10):
+            try:
+                if params:
+                    r = requests.get(url, params=params, headers=headers, timeout=180)
+                else:
+                    r = requests.get(url, headers=headers, timeout=180)
+                if r.status_code == 429:
+                    ra = r.headers.get("Retry-After", "60")
+                    try:
+                        wait_s = int(float(ra)) + 1
+                    except ValueError:
+                        wait_s = 61
+                    time.sleep(min(180, max(1, wait_s)))
+                    continue
+                r.raise_for_status()
+                break
+            except requests.RequestException as e:
+                last_exc = e
+                if attempt < 9:
+                    time.sleep(min(8, 2 ** min(attempt, 3)))
+        else:
+            assert last_exc is not None
+            raise last_exc
+        assert r is not None
         data = r.json()
         page = data if isinstance(data, list) else [data]
         all_builds.extend(page)
@@ -292,30 +337,52 @@ def fetch_builds(
         # Follow next URL as-is; do not send params again
         url = next_url
         params = {}
+        time.sleep(
+            max(
+                0.0,
+                float(os.environ.get("BUILDKITE_BUILDS_PAGE_SLEEP", "0.12")),
+            )
+        )
 
     return all_builds
 
 
-def is_nightly(build: dict) -> bool:
-    """True if scheduled or commit message suggests nightly."""
+_WEEKLY_MSG = re.compile(r"scheduled\s+weekly", re.IGNORECASE)
+
+
+def is_scheduled_weekly(build: dict) -> bool:
+    """True if build message indicates Buildkite *Scheduled weekly* (main-only bucket uses branch check)."""
+    return bool(_WEEKLY_MSG.search(build.get("message") or ""))
+
+
+def is_nightly_bucket(build: dict) -> bool:
+    """
+    True if this main-branch build counts toward the **nightly** metrics row.
+
+    Excludes **scheduled weekly** (handled in ``classify_build``). Includes other scheduled
+    ``main`` runs and the legacy message heuristics (``nightly``, ``scheduled`` + ``build``).
+    """
+    if is_scheduled_weekly(build):
+        return False
     source = (build.get("source") or "").strip().lower()
     if source == "schedule":
         return True
     msg = (build.get("message") or "").lower()
-    if "nightly" in msg or "scheduled" in msg and "build" in msg:
+    if "nightly" in msg:
+        return True
+    if "scheduled" in msg and "build" in msg:
         return True
     return False
 
 
 def classify_build(build: dict) -> str:
-    """Return 'non_main' | 'main_non_nightly' | 'main_nightly'."""
+    """Return 'non_main' | 'main_non_nightly' | 'main_nightly' | 'main_weekly'."""
     branch = (build.get("branch") or "").strip()
-    main = branch == "main"
-    nightly = is_nightly(build)
-
-    if not main:
+    if branch != "main":
         return "non_main"
-    if nightly:
+    if is_scheduled_weekly(build):
+        return "main_weekly"
+    if is_nightly_bucket(build):
         return "main_nightly"
     return "main_non_nightly"
 
@@ -608,21 +675,33 @@ def sum_parsed_coverage_table_stmts_miss(
 
 def fetch_latest_main_non_nightly_build(token: str) -> dict | None:
     """
-    Newest finished-or-not build on ``branch=main`` that is **not** classified as nightly
+    Newest finished-or-not build on ``branch=main`` that is **not** classified as nightly or weekly
     (``classify_build`` -> ``main_non_nightly``), same idea as
-    https://buildkite.com/vllm/vllm-omni/builds?branch=main but skipping Scheduled nightly rows.
+    https://buildkite.com/vllm/vllm-omni/builds?branch=main but skipping Scheduled nightly / weekly rows.
     Scans up to 10 API pages (50 builds/page) newest-first.
     """
     url = f"{BUILDKITE_API_BASE}/organizations/{ORG_SLUG}/pipelines/{PIPELINE_SLUG}/builds"
     per_page = 50
     for page in range(1, 11):
-        r = requests.get(
-            url,
-            params={"branch": "main", "per_page": per_page, "page": page},
-            headers={"Authorization": f"Bearer {token}"},
-            timeout=60,
-        )
-        r.raise_for_status()
+        last_exc: Exception | None = None
+        r = None
+        for attempt in range(3):
+            try:
+                r = requests.get(
+                    url,
+                    params={"branch": "main", "per_page": per_page, "page": page},
+                    headers={"Authorization": f"Bearer {token}"},
+                    timeout=180,
+                )
+                r.raise_for_status()
+                break
+            except requests.RequestException as e:
+                last_exc = e
+                if attempt < 2:
+                    time.sleep(min(8, 2**attempt))
+        if r is None:
+            assert last_exc is not None
+            raise last_exc
         builds = r.json()
         if not isinstance(builds, list) or not builds:
             return None
@@ -632,6 +711,170 @@ def fetch_latest_main_non_nightly_build(token: str) -> dict | None:
         if len(builds) < per_page:
             return None
     return None
+
+
+def _bk_get_with_retries(
+    url: str,
+    token: str,
+    *,
+    params: dict[str, str | int] | None = None,
+) -> requests.Response:
+    last_exc: Exception | None = None
+    r: requests.Response | None = None
+    for attempt in range(10):
+        try:
+            r = requests.get(
+                url,
+                params=params or {},
+                headers={"Authorization": f"Bearer {token}"},
+                timeout=180,
+            )
+            if r.status_code == 429:
+                ra = r.headers.get("Retry-After", "60")
+                try:
+                    wait_s = int(float(ra)) + 1
+                except ValueError:
+                    wait_s = 61
+                time.sleep(min(180, max(1, wait_s)))
+                continue
+            r.raise_for_status()
+            return r
+        except requests.RequestException as e:
+            last_exc = e
+            if attempt < 9:
+                time.sleep(min(8, 2 ** min(attempt, 3)))
+    assert last_exc is not None
+    raise last_exc
+
+
+def fetch_build_with_jobs(token: str, build_number: int | str) -> dict:
+    """GET a single build (includes ``jobs[]``)."""
+    url = (
+        f"{BUILDKITE_API_BASE}/organizations/{ORG_SLUG}/pipelines/"
+        f"{PIPELINE_SLUG}/builds/{build_number}"
+    )
+    r = _bk_get_with_retries(url, token)
+    out = r.json()
+    if not isinstance(out, dict):
+        raise ValueError("unexpected Buildkite JSON for single build")
+    return out
+
+
+def ensure_build_with_jobs(token: str, build: dict) -> dict:
+    """Refetch by number when the list endpoint omitted ``jobs``."""
+    if build.get("jobs"):
+        return build
+    num = build.get("number")
+    if num is None:
+        return build
+    return fetch_build_with_jobs(token, num)
+
+
+def fetch_latest_finished_non_main_build(token: str) -> dict | None:
+    """
+    Newest **finished** build with ``classify_build`` -> ``non_main`` (a.k.a. **ready** in metrics).
+
+    Scans all branches, newest-first, up to 10 API pages (50 builds/page).
+    """
+    url = f"{BUILDKITE_API_BASE}/organizations/{ORG_SLUG}/pipelines/{PIPELINE_SLUG}/builds"
+    per_page = 50
+    for page in range(1, 11):
+        r = _bk_get_with_retries(
+            url, token, params={"per_page": per_page, "page": page}
+        )
+        builds = r.json()
+        if not isinstance(builds, list) or not builds:
+            return None
+        for cand in builds:
+            st = (cand.get("state") or "").strip().lower()
+            if st not in FINISHED_STATES:
+                continue
+            if classify_build(cand) == "non_main":
+                return cand
+        if len(builds) < per_page:
+            return None
+    return None
+
+
+def fetch_latest_finished_merge_build(token: str) -> dict | None:
+    """
+    Newest **finished** build on ``main`` with ``classify_build`` -> ``main_non_nightly``
+    (**merge** in metrics: not scheduled nightly/weekly).
+    """
+    url = f"{BUILDKITE_API_BASE}/organizations/{ORG_SLUG}/pipelines/{PIPELINE_SLUG}/builds"
+    per_page = 50
+    for page in range(1, 11):
+        r = _bk_get_with_retries(
+            url,
+            token,
+            params={"branch": "main", "per_page": per_page, "page": page},
+        )
+        builds = r.json()
+        if not isinstance(builds, list) or not builds:
+            return None
+        for cand in builds:
+            st = (cand.get("state") or "").strip().lower()
+            if st not in FINISHED_STATES:
+                continue
+            if classify_build(cand) == "main_non_nightly":
+                return cand
+        if len(builds) < per_page:
+            return None
+    return None
+
+
+def failed_job_names_from_build(build: dict) -> list[str]:
+    names: list[str] = []
+    for j in build.get("jobs") or []:
+        st = (j.get("state") or "").lower()
+        if st in FAIL_JOB_STATES:
+            names.append((j.get("name") or "(unnamed)").replace("|", "/"))
+    return names
+
+
+def l2_l3_ready_merge_gate(token: str) -> tuple[bool, str]:
+    """
+    **测试结论** — «L2&L3最新一次通过率为100%».
+
+    Pass iff the latest **finished** **ready** (non-main) and **merge** (main non-nightly/weekly)
+    builds each have **no** failed/broken jobs (same bucket names as metrics table).
+    """
+    try:
+        rb = fetch_latest_finished_non_main_build(token)
+        mb = fetch_latest_finished_merge_build(token)
+    except Exception as exc:
+        return False, f"Buildkite 请求失败（{exc}）"
+
+    if rb is None:
+        return (
+            False,
+            "未找到已结束的 ready CI 构建（non-main，与 Metrics「ready」同口径）",
+        )
+    if mb is None:
+        return (
+            False,
+            "未找到已结束的 merge CI 构建（main 非 nightly/weekly，与 Metrics「merge」同口径）",
+        )
+
+    rb = ensure_build_with_jobs(token, rb)
+    mb = ensure_build_with_jobs(token, mb)
+    rf = failed_job_names_from_build(rb)
+    mf = failed_job_names_from_build(mb)
+    if not rf and not mf:
+        return True, ""
+
+    parts: list[str] = []
+    if rf:
+        rn = rb.get("number", "?")
+        head = "、".join(rf[:8])
+        tail = f" 等共 {len(rf)} 个" if len(rf) > 8 else ""
+        parts.append(f"ready #{rn} 存在失败 job：{head}{tail}")
+    if mf:
+        mn = mb.get("number", "?")
+        head = "、".join(mf[:8])
+        tail = f" 等共 {len(mf)} 个" if len(mf) > 8 else ""
+        parts.append(f"merge #{mn} 存在失败 job：{head}{tail}")
+    return False, "；".join(parts)
 
 
 def fetch_ut_coverage_simple_unit_test(
@@ -805,13 +1048,14 @@ def main() -> int:
                 if delta >= 0:
                     bucket.duration_seconds.append(delta)
 
-    # Print three buckets: success rate and average duration
+    # Print four CI buckets: success rate and average duration
     labels = {
         "non_main": "ready",
         "main_non_nightly": "merge",
         "main_nightly": "nightly",
+        "main_weekly": "weekly",
     }
-    keys_order = ("non_main", "main_non_nightly", "main_nightly")
+    keys_order = ("non_main", "main_non_nightly", "main_nightly", "main_weekly")
     print(
         "--- By category (success rate: passed/failed only; avg duration: mean over builds with both timestamps) ---"
     )
@@ -867,13 +1111,15 @@ def main() -> int:
             ut_dur = "*N/A* (no pytest summary line with `passed` and `in ...s` in log)"
         ut_other = "-"
         if bnum is None:
-            ut_rate = "*N/A* (no non-nightly `main` build found for Simple Unit Test)"
-            ut_excl_rate = "*N/A* (no non-nightly `main` build found for Simple Unit Test)"
+            ut_rate = "*N/A* (no merge-style `main` build found for Simple Unit Test; excludes scheduled nightly/weekly)"
+            ut_excl_rate = "*N/A* (no merge-style `main` build found for Simple Unit Test; excludes scheduled nightly/weekly)"
             ut_dur = "*N/A*"
             ut_other = "-"
 
-        utc_month = datetime.now(timezone.utc).strftime("%Y-%m")
-        bug_cell = github_bug_avg_first_response_month_cell(utc_month).replace("|", "/")
+        bug_cell = github_bug_avg_first_response_range_cell(
+            args.created_from,
+            args.created_to,
+        ).replace("|", "/")
 
         print()
         print("## Metrics overview")
@@ -896,7 +1142,13 @@ def main() -> int:
         metrics_rows.append(["ut", ut_rate, ut_dur, ut_other, "-"])
         metrics_rows.append(["ut (exclude models)", ut_excl_rate, "-", ut_other, "-"])
         metrics_rows.append(
-            [f"bugs (first response, {utc_month})", "-", "-", "-", bug_cell]
+            [
+                f"bugs (first response, {args.created_from}..{args.created_to})",
+                "-",
+                "-",
+                "-",
+                bug_cell,
+            ]
         )
         print(render_markdown_table(metrics_header, metrics_rows))
 

@@ -177,6 +177,12 @@ vllm serve <model> --omni --tensor-parallel-size 8
 
 **Ray worker disconnected**: Check network connectivity between nodes and ensure Ray dashboard shows all workers.
 
+**Multimodal cache miss across AR replicas (distributed)**: Fixed in #3605. When multiple AR replicas serve the same image, multimodal UUIDs are now scoped per replica to prevent tensor transfer being skipped.
+
+**HunyuanImage3 KV reuse broken under sequence parallel**: Fixed in #3546. `ar_kv_reuse_len` is now correctly propagated through the DiT forward pass and SP seq_len calculations.
+
+**SHM connector `test_chunk_transfer_adapter` failures**: Fixed in #3650. Updated test assertions for connector transfer adapter protocol changes.
+
 ## References
 
 - For disaggregation architecture details, see [references/disaggregation.md](references/disaggregation.md)

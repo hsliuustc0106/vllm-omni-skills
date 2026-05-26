@@ -50,6 +50,7 @@ Inspired by common PR-review skill patterns (e.g. explicit modes + tool choice);
 | Blocker scan details + merge-blocking patterns | [references/blocker-patterns.md](references/blocker-patterns.md) — Part 1 patterns; **Part 2** = former “pitfalls” (footguns, MRO, connectors, async, etc.) |
 | System layout + **code-pattern review** (async, connectors, validation, …) | [references/architecture.md](references/architecture.md) — includes “Code patterns for review” at the end |
 | Diffusion / image / video model PRs | [references/diffusion-checklist.md](references/diffusion-checklist.md) |
+| New model / omni pipeline PRs (TTS, audio, multimodal) | [references/model-addition-checklist.md](references/model-addition-checklist.md) — dead-code scan, description/diff integrity, copy-paste detection, registry consistency |
 | High-risk change; need coverage matrix / docs sync | [references/tests-docs-checklist.md](references/tests-docs-checklist.md) |
 | Calibrating phrasing from real maintainers | [references/maintainer-style-study.md](references/maintainer-style-study.md) |
 
@@ -159,6 +160,7 @@ Use **only** the files in this table. Older docs may mention `references/pitfall
 | Diff Area                                                                                 | Load                                                       |
 | ----------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
 | `vllm_omni/engine/`, `vllm_omni/stages/`, `vllm_omni/connectors/`, `vllm_omni/diffusion/` | [blocker-patterns.md](references/blocker-patterns.md) **Part 2** (common pitfalls) |
+| New model under `vllm_omni/model_executor/models/` (`[Model]` or un-prefixed new-model PR) | [model-addition-checklist.md](references/model-addition-checklist.md) — description/diff integrity, dead-code patterns, copy-paste detection, registry/config consistency |
 | Async, distributed coordination, validation, connector behavior                           | [architecture.md](references/architecture.md) — section **Code patterns for review** (at end of file) |
 | Scheduler, stage boundaries, execution model, critical paths                              | [Architecture](references/architecture.md) (full)          |
 | High-risk changes (core logic, configs/params, error handling, concurrency/distributed, I/O) or `[Feature]` / `[Bugfix]` PRs | [references/tests-docs-checklist.md](references/tests-docs-checklist.md) |

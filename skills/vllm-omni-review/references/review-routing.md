@@ -16,10 +16,10 @@ Use this file when the main review skill needs help deciding which domain skill,
 | `[Hardware]` | `vllm-omni-hardware` | Backend compatibility, device guards, platform assumptions |
 | `[API]` | `vllm-omni-api` | OpenAI compatibility, request validation, response behavior |
 | `[CI]` | `vllm-omni-cicd` | Pipeline correctness, deployment safety |
-| `[Model]` | `vllm-omni-contrib` | Model integration patterns, tests, config wiring |
+| `[Model]` | `vllm-omni-contrib` | Model integration patterns, tests, config wiring. Load [model-addition-checklist.md](model-addition-checklist.md) for dead-code scan, description/diff integrity, and copy-paste detection. |
 | `[Bug]`, `[Bugfix]` | none by default | Use [tests-docs-checklist.md](tests-docs-checklist.md) for regression and coverage evidence |
 | `[Refactor]` | none by default | Behavior preservation and invariant drift |
-| `[Feature]` | none by default | Acceptance criteria, docs, tests |
+| `[Feature]` | none by default | Acceptance criteria, docs, tests. If the feature is a new model addition, load [model-addition-checklist.md](model-addition-checklist.md). |
 
 ## Multi-Skill Routing
 

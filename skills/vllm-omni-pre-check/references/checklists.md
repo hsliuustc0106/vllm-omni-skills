@@ -2,6 +2,36 @@
 
 Each item is a concrete check the skill runs against the diff. ✗ = fix before PR. ⚠ = consider fixing.
 
+## All PRs: Title Format (check first)
+
+PR title must follow the structured format:
+
+```
+[domain][type][hardware?] title
+```
+
+| Tag | Required | Values |
+|-----|----------|--------|
+| **Domain** | Yes | `omni`, `tts`, `diffusion`, `world-model`, `image`, `video`, `audio`, `engine`, `worker`, `entrypoint`, `ci`, `docs` |
+| **Type** | Yes | `feature`, `bugfix`, `perf`, `refactor`, `doc`, `test`, `ci`, `hotfix`, `release` |
+| **Hardware** | Only if NOT GPU | `NPU`, `ROCm`, `XPU` |
+
+**Examples:**
+
+```
+✓ [tts][feature] Add MiniCPM-o 4.5 support
+✓ [diffusion][bugfix] Fix Ovis image text encoder dtype
+✓ [omni][perf] Qwen3-Omni performance optimization
+✓ [tts][bugfix][NPU] Fix VoxCPM2 on Ascend
+✗ Fix Ovis image text encoder dtype          ← missing [domain][type]
+✗ [Perf] Qwen3-Omni optimization             ← missing [domain], wrong case
+✗ [WIP]: Add model                           ← WIP in title, no structured tag
+```
+
+- [ ] **Title matches `[domain][type][hardware?] title`** — ✗ if missing tags, wrong case, or WIP/Draft in title
+
+---
+
 ## Bug Fix PRs
 
 ### Quick
@@ -9,7 +39,6 @@ Each item is a concrete check the skill runs against the diff. ✗ = fix before 
 - [ ] **PR body has 4 sections:** what broke (error message), repro steps, root cause, fix description
 - [ ] **Fix is minimal:** diff touches only files directly related to the bug. No unrelated refactors or style changes.
 - [ ] **Repro is runnable:** the PR body includes a copy-paste command that reproduces the bug
-- [ ] **No WIP/draft:** title doesn't contain `[WIP]`, `[Draft]`, `[Don't merge]`
 - [ ] **Branch is rebased:** `git merge-base HEAD origin/main` is recent, no merge conflicts
 
 ### Full (adds)
@@ -29,7 +58,7 @@ Each item is a concrete check the skill runs against the diff. ✗ = fix before 
 - [ ] **Hardware specified:** GPU model, count, VRAM. "L4" or "H20" is sufficient. "tested on GPU" is not.
 - [ ] **Concurrency scaling:** if the optimization claims better throughput, numbers at 2+ concurrency levels
 - [ ] **No unexplained regressions:** if any metric goes down at any concurrency level, explain why
-- [ ] **No WIP/draft, branch rebased**
+- [ ] **Branch is rebased:** `git merge-base HEAD origin/main` is recent, no merge conflicts
 
 ### Full (adds)
 
@@ -51,7 +80,7 @@ Each item is a concrete check the skill runs against the diff. ✗ = fix before 
 - [ ] **Pipeline config `custom_process_input_func` paths resolve:** each referenced module.function exists
 - [ ] **`__init__.py` exports match registry:** each registered class appears in `__init__.py` and `__all__`
 - [ ] **Shell script modes match README:** `run_curl.sh` supports every mode the README documents
-- [ ] **No WIP/draft, branch rebased**
+- [ ] **Branch is rebased:** `git merge-base HEAD origin/main` is recent, no merge conflicts
 
 ### Full (adds)
 
@@ -68,7 +97,7 @@ Each item is a concrete check the skill runs against the diff. ✗ = fix before 
 ### Quick
 
 - [ ] **PR body matches diff:** description doesn't claim changes not in the diff
-- [ ] **No WIP/draft, branch rebased**
+- [ ] **Branch is rebased:** `git merge-base HEAD origin/main` is recent, no merge conflicts
 - [ ] **CI gates passing:** DCO, pre-commit, build — check `gh pr view --json statusCheckRollup`
 
 ### Full (adds)

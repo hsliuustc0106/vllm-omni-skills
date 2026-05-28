@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """
 Re-fetch **## Open issues** (open ``label:bug``, ``created_at`` date in stats window)
-and splice into an existing report.
+and splice into an existing report. The refreshed table includes the DI priority and DI value
+used by ``compose_full_report.py`` for the release conclusion row.
 
 Requires GITHUB_TOKEN or GH_TOKEN for reliable pagination (optional but recommended).
 
@@ -33,7 +34,8 @@ GITHUB_BULLET_RE = re.compile(
 )
 NEW_GITHUB_BULLET = (
     "- GitHub: `GET /repos/vllm-project/vllm-omni/issues?state=open&labels=bug` (paginated); "
-    "**Open issues** table = issues with `created_at` **UTC date** in `--stats-from`..`--stats-to`\n"
+    "**Open issues** table = issues with `created_at` **UTC date** in `--stats-from`..`--stats-to`; "
+    "DI = priority label weights (`critical` 10 / `high priority` 3 / `medium priority` 1 / `low priority` 0.1 / `invalid` 0)\n"
 )
 
 

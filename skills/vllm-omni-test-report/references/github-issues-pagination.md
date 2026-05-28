@@ -76,10 +76,24 @@ jq --arg from "2026-04-01" --arg to "2026-05-07" \
 
 For a **full calendar month**, set both ends explicitly (e.g. `--stats-from 2026-05-01 --stats-to 2026-05-31`).
 
+## DI calculation for release reports
+
+The **Open issues (stats window)** table is also the source for the release conclusion row **遗留DI小于30**. For every open `label:bug` issue in the stats window, use the first matching label below and sum all DI values:
+
+| Label | DI |
+|-------|----|
+| `critical` | 10 |
+| `high priority` | 3 |
+| `medium priority` | 1 |
+| `low priority` | 0.1 |
+| `invalid` | 0 |
+
+If an issue has `invalid`, its DI is `0` even when another priority label is present. Issues without one of these labels are listed as `unclassified` and contribute `0`.
+
 ## Report row shape (for Markdown table)
 
 ```bash
-jq -r '.[] | "| [#\(.number)](\(.html_url)) | \(.title | gsub("\\|"; "/")) | \(.created_at[0:10]) | open | @" + .user.login + " |"'
+jq -r '.[] | "| [#\(.number)](\(.html_url)) | \(.title | gsub("\\|"; "/")) | \(.created_at[0:10]) | <priority> | <DI> | open | @" + .user.login + " |"'
 ```
 
 (Escape `|` in titles as needed for Markdown.)

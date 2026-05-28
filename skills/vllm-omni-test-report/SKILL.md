@@ -28,17 +28,17 @@ description: Two report kinds; **default output is always HTML** unless the user
 Ask for or infer:
 - Output date/name, e.g. `nightly-report-buildkite-latest-YYYY-MM-DD.html`.
 - Buildkite token in the environment (`BUILDKITE_TOKEN` or `BUILDKITE_API_TOKEN`) unless the user explicitly wants `--no-buildkite`.
-- Kanban repo root for baseline comparison: `--kanban-repo-root /path/to/vllm-omni-kanban-private`.
+- Kanban repo root for baseline comparison: `--kanban-repo-root /path/to/vllm-omni-kanban`.
 - Optional pinned Buildkite build: `--buildkite-build N`.
 - Optional local logs: `REPO_ROOT=/path/to/local/vllm-omni` with `logs/nightly_jobs`, or pass `--log-dir`.
 
-If the user asks for fresh kanban data (`fresh`, `latest assets`, `更新 kanban`, `最新 assets`), first use the kanban repo skill `.cursor/skills/update-main-docs/SKILL.md` in `vllm-omni-kanban-private`; then run the report command here.
+If the user asks for fresh kanban data (`fresh`, `latest assets`, `更新 kanban`, `最新 assets`), first use the kanban repo skill `.cursor/skills/update-main-docs/SKILL.md` in `vllm-omni-kanban`; then run the report command here.
 
 ```bash
 export BUILDKITE_TOKEN=...  # or BUILDKITE_API_TOKEN; omit only with --no-buildkite
 python scripts/nightly_local_log_report.py \
   --html-report ./nightly-report-buildkite-latest-YYYY-MM-DD.html \
-  --kanban-repo-root /path/to/vllm-omni-kanban-private \
+  --kanban-repo-root /path/to/vllm-omni-kanban \
   --title "Nightly Buildkite report - YYYY-MM-DD"
 ```
 
@@ -74,13 +74,19 @@ python scripts/compose_full_report.py \
 
 **Performance workbook:** If **`logs/nightly_perf_manual.xlsx`** sits next to your `nightly_jobs` directory (same parent `logs/`), the report includes a **性能测试结果** section with one HTML/Markdown table per worksheet. Install **`openpyxl`** (`pip install openpyxl`) to read `.xlsx`. **Before you pull or sync logs for the next run**, if `logs/nightly_perf_manual.xlsx` already exists locally from the previous run, copy it to **`logs/nightly_perf_manual.prev.xlsx`** (baseline for ↑/↓ % deltas); then **remove the local `logs/nightly_jobs` tree** (`rm -rf`) so the new fetch does not keep stale job directories; then fetch the new logs and workbook as usual. Details: [references/nightly-local-log-layout.md](references/nightly-local-log-layout.md) and [../vllm-omni-nightly-local/references/nightly-local-log-fetch.md](../vllm-omni-nightly-local/references/nightly-local-log-fetch.md).
 
+**Local performance baseline:** For Local Test **性能基线对比**, the report auto-detects `<kanban-repo-root>/data/local_nightly_raw` when `--kanban-repo-root` is set. Pass `--local-perf-result-root <path>` only to override that root. The script reads the latest timestamped local perf benchmark result directory under the root. Supported result filenames follow the perf artifact patterns `result_test_*.json`, `diffusion_result_*.json`, and `benchmark_results_*.json`; records must include baseline data such as `benchmark_params.baseline`. This section is separate from `nightly_perf_manual.xlsx`: the workbook shows detailed benchmark tables, while local perf benchmark result JSON powers latest / baseline / vs baseline rows. It is also separate from kanban assets and does not mutate the kanban checkout.
+
 **Full local logs (HTML):** Each failed local job has a **查看完整日志** button that toggles the concatenated raw log text. If the merged files exceed **2 MiB** (see `FULL_LOG_EMBED_MAX_BYTES` in `scripts/nightly_local_log_report.py`), the report does **not** embed the text and instead lists absolute paths to open locally.
 By default the script also pulls **main** latest **scheduled nightly** from Buildkite (vllm/vllm-omni), downloads each reportable step log, and adds **reason / heuristic analysis / excerpts** for failures (same parsing as local). Set **`BUILDKITE_TOKEN`** or **`BUILDKITE_API_TOKEN`** in the environment; use **`--no-buildkite`** for local-only. Optional **`--buildkite-build N`** to pin a build number.
 
-**Buildkite 性能基线对比（kanban assets）:** Nightly report reads precomputed history from `docs/assets/charts/*_history.json` and fills Buildkite **性能基线对比** with **latest / baseline / vs baseline**. The section keeps only rows with baseline data and only the **latest day** records (grouped to model-level metric rows). Daily report commands should use `--kanban-repo-root <vllm-omni-kanban-private>` (resolved to `<repo>/docs/assets/charts`).
-If the user asks to ensure fresh kanban data, first use the kanban repo skill `.cursor/skills/update-main-docs/SKILL.md` in `vllm-omni-kanban-private` to update `main` and restart `mkdocs serve`; then generate this report with `--kanban-repo-root`.
+**Buildkite 性能基线对比（kanban assets）:** Nightly report reads precomputed history from `docs/assets/charts/*_history.json` and fills Buildkite **性能基线对比** with **latest / baseline / vs baseline**. The section keeps only rows with baseline data and only the **latest day** records (grouped to model-level metric rows). Daily report commands should use `--kanban-repo-root <vllm-omni-kanban>` (resolved to `<repo>/docs/assets/charts`).
+If the user asks to ensure fresh kanban data, first use the kanban repo skill `.cursor/skills/update-main-docs/SKILL.md` in `vllm-omni-kanban` to update `main` and restart `mkdocs serve`; then generate this report with `--kanban-repo-root`.
 Optional source checks:
 - `--kanban-expected-remote` / `--kanban-expected-branch` add warnings when current/upstream config differs.
+
+**Kanban raw fallback:** By default the report remains read-only against kanban assets. If `*_history.json` is missing or has no baseline rows, the **性能基线对比** section shows diagnostics for `<kanban-repo>/data/buildkite_nightly_raw` (raw perf JSON count, recent build IDs, latest raw/history mtimes) and explains that local `nightly_jobs` and `nightly_perf_manual.xlsx` are separate report inputs, not baseline sources. To explicitly regenerate kanban assets from raw perf artifacts before rendering, add `--kanban-refresh-from-raw` with `--kanban-repo-root <vllm-omni-kanban>`; optional `--kanban-raw-root <path>` overrides the raw root. This runs kanban-side `scripts/sync_buildkite_raw_model_results.py` for known model groups and then `scripts/generate_charts.py`, so it mutates the kanban checkout under `data/results/` and `docs/assets/charts/`.
+
+**Kanban raw model sync mapping:** Keep `KANBAN_RAW_MODEL_SYNCS` in `scripts/nightly_local_log_report.py` aligned with `vllm-omni-kanban/scripts/mkdocs_hooks.py`. Current mapping: `qwen3omni -> qwen3_omni`, `qwen3tts -> qwen3_tts`, `qwen_image -> qwen_image`, `qwen_image_edit -> qwen_image_edit`, `qwen_image_edit_2509 -> qwen_image_edit_2509`, `wan22 -> wan22`. When adding a model, update kanban first, then update both the report script constant and this note.
 
 From **this** skill directory (after [fetch](../vllm-omni-nightly-local/references/nightly-local-log-fetch.md) into **`$REPO_ROOT/logs/`** on your machine):
 
@@ -89,11 +95,18 @@ export REPO_ROOT=/path/to/local/vllm-omni   # logs at $REPO_ROOT/logs/nightly_jo
 export BUILDKITE_TOKEN=...   # optional; omit with --no-buildkite
 python scripts/nightly_local_log_report.py \
   --html-report ./nightly-report.html \
-  --kanban-repo-root /path/to/vllm-omni-kanban-private
+  --kanban-repo-root /path/to/vllm-omni-kanban
+python scripts/nightly_local_log_report.py \
+  --html-report ./nightly-report.html \
+  --local-perf-result-root /path/to/vllm-omni-kanban/data/local_perf_results
+python scripts/nightly_local_log_report.py \
+  --html-report ./nightly-report.html \
+  --kanban-repo-root /path/to/vllm-omni-kanban \
+  --kanban-refresh-from-raw
 python scripts/nightly_local_log_report.py --no-buildkite --html-report ./local-only.html
 ```
 
-Other flags: `--title`, `--buildkite-build`, `--kanban-repo-root`, `--kanban-expected-remote`, `--kanban-expected-branch`. **Markdown** (only if the user explicitly asks): `--markdown-report`, `--to-stdout markdown`. See `python scripts/nightly_local_log_report.py --help`.
+Other flags: `--title`, `--buildkite-build`, `--local-perf-result-root`, `--kanban-repo-root`, `--kanban-raw-root`, `--kanban-refresh-from-raw`, `--kanban-expected-remote`, `--kanban-expected-branch`. **Markdown** (only if the user explicitly asks): `--markdown-report`, `--to-stdout markdown`. See `python scripts/nightly_local_log_report.py --help`.
 
 ## Release report (Buildkite, HTML)
 
@@ -121,11 +134,11 @@ python scripts/compose_full_report.py --format markdown --out ./vllm-omni-test-r
 
 Generate a **human-readable test report** ordered as:
 
-1. **测试结论** — 检查项表格：仅 **UT 覆盖率…** 与 **需求 / 性能 / DI** 共 4 项在 HTML 为手动 **通过 / 不通过**；**L2&L3最新一次通过率为100%**、**致命issue遗留个数为0**、**所有遗留 bug 均已分配责任人** 为 **自动**（Buildkite：与 Metrics 相同的 **ready**（non-main）与 **merge**（main 非 nightly/weekly）各自最近一次**已结束**构建，任一 job 为 `failed`/`broken` 则该项不通过；GitHub：**无** open **`critical`**；open **`label:bug`** 均有 **assignee**。与 stats 窗口无关）。归档/纯 Markdown 与 HTML 一致。
+1. **测试结论** — 检查项表格：仅 **UT 覆盖率…** 与 **需求 / 性能** 共 3 项在 HTML 为手动 **通过 / 不通过**；**L2&L3最新一次通过率为100%**、**遗留 DI 小于 30**、**致命issue遗留个数为0**、**所有遗留 bug 均已分配责任人** 为 **自动**（Buildkite：与 Metrics 相同的 **ready**（non-main）与 **merge**（main 非 nightly/weekly）各自最近一次**已结束**构建，任一 job 为 `failed`/`broken` 则该项不通过；GitHub：stats window 内 open **`label:bug`** 按 priority labels 加权后 **DI < 30**；**无** open **`critical`**；open **`label:bug`** 均有 **assignee**）。归档/纯 Markdown 与 HTML 一致。
 2. **Metrics overview** — Same as before: `buildkite_build_stats.py --markdown` (**Success rate/UT coverage**, **Bug avg first response**, **ut** / **ut (exclude models)**，与 **`--stats-from`..`--stats-to`** 对齐)。
 3. **Test Result** — `### Common stack (all rows)` from [references/local-test-matrix.md](references/local-test-matrix.md)；`### H200` / `### H800` / `### A100` 为与 **nightly** 本地 **Summary** 相同的分组表（传入 `--log-dir-h200` / `--log-dir-h800` / `--log-dir-a100`，目录需符合 [references/nightly-local-log-layout.md](references/nightly-local-log-layout.md)）；`### H100（CI — Buildkite scheduled nightly）` 仅含 **Build**（build 号/分支/commit）、可报告 Job **Summary**、**Failed test jobs**（**不含** per-job pytest 详表与 **Analysis (CI Failure)**；需要时请用手工或 `nightly_job_pytest_table.py` / `patch_report_ci_failure.py` 维护独立文档）。
 4. **Issue tracking** — GitHub Search：`label:ci-failure`，**title** 含 **`local test`**，`created` 在 stats 窗口内（与 metrics 同源日期范围）。
-5. **Open issues (stats window)** — 仍为分页 **`label:bug`**、**open**，`created_at` UTC 日期落在 **`--stats-from`..`--stats-to`**。
+5. **Open issues (stats window)** — 仍为分页 **`label:bug`**、**open**，`created_at` UTC 日期落在 **`--stats-from`..`--stats-to`**；同一批 issue 预计算每日 DI：`critical` = 10，`high priority` = 3，`medium priority` = 1，`low priority` = 0.1，`invalid` = 0，总和用于 **遗留DI小于30** 自动行。
 
 ## When to Apply
 
@@ -320,7 +333,7 @@ Hand-authored or review-only; automation emits the same sections in HTML by defa
 
 ## Open issues (stats window)
 
-（REST 分页 `label:bug`；`created_at` 落在 stats 窗口。）
+（REST 分页 `label:bug`；`created_at` 落在 stats 窗口；按 priority labels 计算 DI。）
 
 ## Data source
 

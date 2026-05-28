@@ -6,7 +6,7 @@ Agents and users should **emit HTML by default**; pass ``--format markdown`` onl
 
   - 测试结论: interactive checklist (HTML) / static MD; 自动行：「L2&L3…」= Buildkite 最新已结束
     **ready** + **merge**（与 metrics 同口径）均无 failed/broken job；「致命issue…」= 无 open ``critical``；
-    「遗留bug…」= open ``bug`` 均有 assignee
+    「遗留DI…」= stats window 内 open ``bug`` 按 priority labels 加权后小于 30；「遗留bug…」= open ``bug`` 均有 assignee
   - Metrics overview: buildkite_build_stats.py --markdown
   - Test Result: Common stack from references/local-test-matrix.md; H200/H800/A100 from
     optional --log-dir-h* (nightly-style Summary); H100 = Buildkite scheduled nightly (**Build** 表
@@ -46,6 +46,21 @@ from release_md_to_html import (
 )
 
 CI_FAILURE_LABEL = "ci-failure"  # matches GitHub label on vllm-project/vllm-omni
+BUG_DI_THRESHOLD_TENTHS = 300  # "遗留DI小于30"; store DI in tenths to avoid float drift.
+BUG_DI_WEIGHTS_TENTHS: dict[str, int] = {
+    "critical": 100,
+    "high priority": 30,
+    "medium priority": 10,
+    "low priority": 1,
+    "invalid": 0,
+}
+BUG_DI_LABEL_ORDER: tuple[str, ...] = (
+    "invalid",
+    "critical",
+    "high priority",
+    "medium priority",
+    "low priority",
+)
 
 ORG = "vllm"
 PIPELINE = "vllm-omni"
@@ -180,6 +195,70 @@ def _github_fetch_open_bug_issues(gh_token: str | None) -> list[dict]:
     return _github_fetch_open_issues_with_label(gh_token, "bug")
 
 
+def _format_di_tenths(value: int) -> str:
+    """Display a tenths-based DI integer without floating-point formatting."""
+    sign = "-" if value < 0 else ""
+    v = abs(value)
+    whole, frac = divmod(v, 10)
+    if frac == 0:
+        return f"{sign}{whole}"
+    return f"{sign}{whole}.{frac}"
+
+
+def _issue_label_names(issue: dict) -> set[str]:
+    """Normalized label names on a GitHub issue."""
+    names: set[str] = set()
+    labels = issue.get("labels") or []
+    for label in labels:
+        raw_name = label.get("name") if isinstance(label, dict) else str(label)
+        if raw_name:
+            names.add(str(raw_name).strip().lower())
+    return names
+
+
+def _bug_di_label_and_value(issue: dict) -> tuple[str, int]:
+    """Return the DI priority label and tenths value for one open bug issue."""
+    labels = _issue_label_names(issue)
+    if "invalid" in labels:
+        return "invalid", BUG_DI_WEIGHTS_TENTHS["invalid"]
+    for label in BUG_DI_LABEL_ORDER:
+        if label == "invalid":
+            continue
+        if label in labels:
+            return label, BUG_DI_WEIGHTS_TENTHS[label]
+    return "unclassified", 0
+
+
+def _bug_di_summary(issues: list[dict]) -> tuple[int, dict[str, int]]:
+    """Sum DI for stats-window open bugs and count labels used by the rule."""
+    counts = {label: 0 for label in BUG_DI_LABEL_ORDER}
+    counts["unclassified"] = 0
+    total = 0
+    for issue in issues:
+        label, value = _bug_di_label_and_value(issue)
+        counts[label] += 1
+        total += value
+    return total, counts
+
+
+def _bug_di_detail(total_tenths: int, counts: dict[str, int]) -> str:
+    """Human-readable DI calculation detail for the release conclusion row."""
+    parts = [
+        f"{label}={counts[label]}"
+        for label in BUG_DI_LABEL_ORDER
+        if counts.get(label, 0)
+    ]
+    if counts.get("unclassified", 0):
+        parts.append(f"unclassified={counts['unclassified']}")
+    detail = ", ".join(parts) if parts else "no open bug in stats window"
+    return f"自动 DI={_format_di_tenths(total_tenths)}（{detail}）"
+
+
+def _bug_di_conclusion(issues: list[dict]) -> tuple[bool, str]:
+    total_tenths, counts = _bug_di_summary(issues)
+    return total_tenths < BUG_DI_THRESHOLD_TENTHS, _bug_di_detail(total_tenths, counts)
+
+
 def no_open_critical_labeled_issues(
     gh_token: str | None,
 ) -> tuple[bool, str]:
@@ -242,11 +321,11 @@ def github_open_bug_rows_in_range(
     gh_token: str | None,
     date_from: str,
     date_to: str,
-) -> tuple[int, int, str]:
+) -> tuple[int, int, str, list[dict]]:
     """
     Paginate **open** issues with label ``bug`` (PR entries excluded).
 
-    Return ``(total_open_bug_fetched, count_in_created_range, markdown_table)``.
+    Return ``(total_open_bug_fetched, count_in_created_range, markdown_table, issues_in_range)``.
     ``count_in_created_range`` = issues whose **UTC calendar date** of ``created_at``
     lies in ``[date_from, date_to]`` inclusive (``YYYY-MM-DD`` strings).
     """
@@ -262,42 +341,50 @@ def github_open_bug_rows_in_range(
     for i in in_range:
         t = (i.get("title") or "").replace("|", "\\|").replace("\n", " ")
         u = (i.get("user") or {}).get("login", "")
+        di_label, di_tenths = _bug_di_label_and_value(i)
         row_cells.append(
             [
                 f"[#{i['number']}](https://github.com/vllm-project/vllm-omni/issues/{i['number']})",
                 t,
                 str(i["created_at"])[:10],
+                di_label,
+                _format_di_tenths(di_tenths),
                 "open",
                 f"@{u}",
             ]
         )
     body = render_markdown_table(
-        ["Issue", "Title", "Opened at", "Status", "Owner"],
+        ["Issue", "Title", "Opened at", "Priority", "DI", "Status", "Owner"],
         row_cells,
     )
-    return len(all_items), len(in_range), body
+    return len(all_items), len(in_range), body, in_range
 
 
-def render_open_issues_section(
+def render_open_issues_section_with_di(
     stats_from: str,
     stats_to: str,
     gh_token: str | None,
-) -> str:
-    """Markdown for ``## Open issues`` block (GitHub REST, open ``label:bug`` only)."""
+) -> tuple[str, bool | None, str]:
+    """Markdown for ``## Open issues`` plus DI conclusion data when GitHub fetch succeeds."""
     github_open_error = ""
+    di_row_ok: bool | None = None
+    di_row_detail = ""
     try:
-        open_total, open_range_n, issue_rows = github_open_bug_rows_in_range(
+        open_total, open_range_n, issue_rows, issues_in_range = github_open_bug_rows_in_range(
             gh_token, stats_from, stats_to
         )
+        di_row_ok, di_row_detail = _bug_di_conclusion(issues_in_range)
     except Exception as exc:
         open_total = 0
         open_range_n = 0
         issue_rows = render_markdown_table(
-            ["Issue", "Title", "Opened at", "Status", "Owner"],
+            ["Issue", "Title", "Opened at", "Priority", "DI", "Status", "Owner"],
             [
                 [
                     "*—*",
                     "*Failed to fetch; set `GITHUB_TOKEN` or fill in manually*",
+                    "*—*",
+                    "*—*",
                     "*—*",
                     "*—*",
                     "*—*",
@@ -313,12 +400,23 @@ def render_open_issues_section(
     )
     return (
         f"## Open issues (stats window)\n\n"
-        f"Open issues labeled **bug**, state **open**, **excluding PRs**, with **`created_at`** "
-        f"(UTC date) in **{stats_from}** … **{stats_to}** (same as Buildkite **`--stats-from`** / "
-        f"**`--stats-to`**): **{open_range_n}** (total open `bug` issues when fetched: "
-        f"**{open_total}**).{github_open_note}\n\n"
+        f"Open issues labeled **bug**, state **open**, excluding PRs, with `created_at` "
+        f"(UTC date) in **{stats_from}** … **{stats_to}** (same as Buildkite `--stats-from` / "
+        f"`--stats-to`): **{open_range_n}** (total open `bug` issues when fetched: "
+        f"**{open_total}**). DI uses priority labels: `critical` = 10, `high priority` = 3, "
+        f"`medium priority` = 1, `low priority` = 0.1, `invalid` = 0.{github_open_note}\n\n"
         f"{issue_rows}\n"
-    )
+    ), di_row_ok, di_row_detail
+
+
+def render_open_issues_section(
+    stats_from: str,
+    stats_to: str,
+    gh_token: str | None,
+) -> str:
+    """Markdown for ``## Open issues`` block (GitHub REST, open ``label:bug`` only)."""
+    section, _, _ = render_open_issues_section_with_di(stats_from, stats_to, gh_token)
+    return section
 
 
 def github_ci_failure_analysis_rows(
@@ -398,7 +496,7 @@ def render_ci_failure_section(
         ci_fail_error = str(exc)
 
     ci_filter_note = (
-        f"**Filter:** `label:bug` **and** `label:{CI_FAILURE_LABEL}`, "
+        f"**Filter:** `label:bug` and `label:{CI_FAILURE_LABEL}`, "
         f"`created` (UTC) **{stats_from}** … **{stats_to}** (same window as Buildkite metrics / "
         f"`--stats-from` / `--stats-to`). "
         f"**Cross-check:** "
@@ -505,8 +603,8 @@ def render_issue_tracking_section(
         err_note = str(exc)
 
     filt = (
-        f"**Filter:** GitHub Search — `label:{CI_FAILURE_LABEL}`, **`created`** (UTC) "
-        f"**{stats_from}** … **{stats_to}**, **title** contains **`local test`** (case-insensitive). "
+        f"**Filter:** GitHub Search — `label:{CI_FAILURE_LABEL}`, `created` (UTC) "
+        f"**{stats_from}** … **{stats_to}**, title contains `local test` (case-insensitive). "
         f"**Cross-check:** "
         f"[search · ci-failure + local in title](https://github.com/search?q=repo%3Avllm-project%2Fvllm-omni+is%3Aissue+label%3Aci-failure+local+test+in%3Atitle&type=issues).\n\n"
     )
@@ -831,8 +929,8 @@ def preview_report_markdown(
 
     issue_tracking = (
         "## Issue tracking\n\n"
-        "**Filter:** GitHub Search — `label:ci-failure`, **`created`** (UTC) "
-        f"**{stats_from}** … **{stats_to}**, **title** contains **`local test`**。\n\n"
+        "**Filter:** GitHub Search — `label:ci-failure`, `created` (UTC) "
+        f"**{stats_from}** … **{stats_to}**, title contains `local test`。\n\n"
         "*以下为 **预览假数据**（列与正式报告一致）。*\n\n"
         "*Matching issues: **2**.*\n\n"
         + render_markdown_table(
@@ -857,15 +955,18 @@ def preview_report_markdown(
 
     open_issues_block = (
         "## Open issues (stats window)\n\n"
-        f"Open issues labeled **bug**，**`created_at`** 落在 **{stats_from}** … **{stats_to}** "
-        "（*以下为预览假数据；正式发布为 GitHub 分页结果。*）\n\n"
+        f"Open issues labeled **bug**, state **open**, excluding PRs, with `created_at` "
+        f"(UTC date) in **{stats_from}** … **{stats_to}**. "
+        "*以下为预览假数据；正式发布为 GitHub 分页结果。*\n\n"
         + render_markdown_table(
-            ["Issue", "Title", "Opened at", "Status", "Owner"],
+            ["Issue", "Title", "Opened at", "Priority", "DI", "Status", "Owner"],
             [
                 [
                     "[#10055](https://github.com/vllm-project/vllm-omni/issues/10055)",
                     "OOM when loading Qwen-Omni with FP8 on 40GB",
                     "2026-05-14",
+                    "high priority",
+                    "3",
                     "open",
                     "@alice-preview",
                 ],
@@ -873,6 +974,8 @@ def preview_report_markdown(
                     "[#10042](https://github.com/vllm-project/vllm-omni/issues/10042)",
                     "Intermittent timeout on L2 diffusion accuracy",
                     stats_to,
+                    "medium priority",
+                    "1",
                     "open",
                     "@bob-preview",
                 ],
@@ -880,6 +983,8 @@ def preview_report_markdown(
                     "[#10030](https://github.com/vllm-project/vllm-omni/issues/10030)",
                     "Docs: wrong env var for TEE cache",
                     "2026-05-10",
+                    "low priority",
+                    "0.1",
                     "open",
                     "@carol-preview",
                 ],
@@ -1014,6 +1119,8 @@ def main() -> None:
                     archive_download_name=archive_name,
                     l2_l3_row_ok=True,
                     l2_l3_row_detail="",
+                    di_row_ok=True,
+                    di_row_detail="自动 DI=4.1（high priority=1, medium priority=1, low priority=1）",
                     critical_row_ok=True,
                     critical_row_detail="",
                     assignee_row_ok=True,
@@ -1027,6 +1134,8 @@ def main() -> None:
                     md,
                     l2_l3_row_ok=True,
                     l2_l3_row_detail="",
+                    di_row_ok=True,
+                    di_row_detail="自动 DI=4.1（high priority=1, medium priority=1, low priority=1）",
                     critical_row_ok=True,
                     critical_row_detail="",
                     assignee_row_ok=True,
@@ -1145,7 +1254,9 @@ def main() -> None:
     issue_tracking_block = render_issue_tracking_section(
         stats_from, stats_to, gh_token
     )
-    open_issues_block = render_open_issues_section(stats_from, stats_to, gh_token)
+    open_issues_block, di_row_ok, di_row_detail = render_open_issues_section_with_di(
+        stats_from, stats_to, gh_token
+    )
 
     md = f"""# vLLM-Omni Test Report - Scheduled Nightly
 
@@ -1155,12 +1266,15 @@ def main() -> None:
 {issue_tracking_block}{open_issues_block}
 ## Data source
 
-- **测试结论（自动）：** (1) Buildkite **ready**（non-main）与 **merge**（main 非 nightly/weekly）各自**最近一次已结束**构建中无 `failed`/`broken` job（与 Metrics「ready / merge」bucket 同分类）；(2) 无 open **`critical`**；(3) open **`label:bug`** 均有 assignee
-- **Test Result:** Common stack from `references/local-test-matrix.md`; H200/H800/A100 via `--log-dir-h200` / `--log-dir-h800` / `--log-dir-a100` (nightly-style Summary); H100 = Buildkite scheduled nightly (this build #{build_no}: **Build** 表仅链接/分支/commit + Summary + failed jobs)
-- **Issue tracking:** GitHub Search — `label:ci-failure`, **`local test` in:title**, `created` in `{stats_from}`..`{stats_to}` (UTC)
+- **测试结论（自动）：** (1) Buildkite **ready**（non-main）与 **merge**（main 非 nightly/weekly）各自**最近一次已结束**构建中无 `failed`/`broken` job；
+  (2) stats window 内 open `label:bug` 按 priority labels 加权后 **DI < 30**；(3) 无 open `critical`；(4) open `label:bug` 均有 assignee
+- **Test Result:** Common stack from `references/local-test-matrix.md`; H200/H800/A100 via `--log-dir-h200` / `--log-dir-h800` / `--log-dir-a100`;
+  H100 = Buildkite scheduled nightly (this build #{build_no}: **Build** 表仅链接/分支/commit + Summary + failed jobs)
+- **Issue tracking:** GitHub Search — `label:ci-failure`, `local test` in:title, `created` in `{stats_from}`..`{stats_to}` (UTC)
 - **Open issues:** REST `label:bug`, `created_at` UTC date in `{stats_from}`..`{stats_to}`
 - Buildkite API: `{ORG}/{PIPELINE}` branch `main`
-- `scripts/buildkite_build_stats.py --from {stats_from} --to {stats_to} --markdown` (**bugs (first response, …)** = GitHub `label:bug` issues with `created_at` UTC date in the same `--from`..`--to` window)
+- `scripts/buildkite_build_stats.py --from {stats_from} --to {stats_to} --markdown` (**bugs (first response, …)** =
+  GitHub `label:bug` issues with `created_at` UTC date in the same `--from`..`--to` window)
 """
     if args.format == "html":
         archive_name = out_path.with_suffix(".md").name
@@ -1170,6 +1284,8 @@ def main() -> None:
                 archive_download_name=archive_name,
                 l2_l3_row_ok=l2_l3_row_ok,
                 l2_l3_row_detail=l2_l3_row_detail,
+                di_row_ok=di_row_ok,
+                di_row_detail=di_row_detail,
                 critical_row_ok=critical_row_ok,
                 critical_row_detail=critical_row_detail,
                 assignee_row_ok=assignee_row_ok,
@@ -1183,6 +1299,8 @@ def main() -> None:
                 md,
                 l2_l3_row_ok=l2_l3_row_ok,
                 l2_l3_row_detail=l2_l3_row_detail,
+                di_row_ok=di_row_ok,
+                di_row_detail=di_row_detail,
                 critical_row_ok=critical_row_ok,
                 critical_row_detail=critical_row_detail,
                 assignee_row_ok=assignee_row_ok,

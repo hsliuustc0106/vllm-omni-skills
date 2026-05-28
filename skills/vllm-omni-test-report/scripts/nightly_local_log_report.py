@@ -13,9 +13,11 @@ import html
 import json
 import os
 import re
+import subprocess
 import sys
 from collections import defaultdict
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -37,7 +39,7 @@ from nightly_perf_manual_xlsx import (
     PERF_MANUAL_FILENAME,
     load_perf_manual_with_compare,
 )
-from kanban_assets_perf_summary import build_assets_perf_summary
+from kanban_assets_perf_summary import _build_perf_rows, build_assets_perf_summary
 from report_html_theme import EDITORIAL_THEME_CSS
 
 
@@ -102,6 +104,39 @@ class KanbanAssetsConfig:
     repo_root: Path | None
     expected_remote: str | None = None
     expected_branch: str | None = None
+    raw_root: Path | None = None
+    refresh_from_raw: bool = False
+    refresh_note: str | None = None
+    refresh_warnings: list[str] = field(default_factory=list)
+
+
+@dataclass
+class LocalPerfResultConfig:
+    result_root: Path | None = None
+
+
+def _default_local_perf_result_root(kanban_repo_root: Path | None) -> Path | None:
+    if kanban_repo_root is None:
+        return None
+    candidate = (kanban_repo_root / "data/local_nightly_raw").resolve()
+    return candidate if candidate.is_dir() else None
+
+
+# Keep this list aligned with vllm-omni-kanban/scripts/mkdocs_hooks.py and
+# the maintenance note in SKILL.md.
+KANBAN_RAW_MODEL_SYNCS: tuple[tuple[str, str], ...] = (
+    ("qwen3omni", "qwen3_omni"),
+    ("qwen3tts", "qwen3_tts"),
+    ("qwen_image", "qwen_image"),
+    ("qwen_image_edit", "qwen_image_edit"),
+    ("qwen_image_edit_2509", "qwen_image_edit_2509"),
+    ("wan22", "wan22"),
+)
+KANBAN_RAW_PATTERNS = (
+    "result_test_*.json",
+    "diffusion_result_*.json",
+    "benchmark_results_*.json",
+)
 
 
 def _svg_icon(inner: str, *, size: int = 20, extra_class: str = "") -> str:
@@ -1027,6 +1062,196 @@ def _perf_pct(v: Any) -> str:
     return "N/A"
 
 
+def _as_num(value: Any) -> float | None:
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, (int, float)):
+        return float(value)
+    if isinstance(value, str) and value.strip():
+        try:
+            return float(value.strip())
+        except ValueError:
+            return None
+    return None
+
+
+def _fmt_mtime(path: Path) -> str:
+    try:
+        return datetime.fromtimestamp(path.stat().st_mtime).isoformat(timespec="seconds")
+    except OSError:
+        return ""
+
+
+def _resolve_kanban_raw_root(kanban_cfg: KanbanAssetsConfig) -> Path | None:
+    if kanban_cfg.raw_root is not None:
+        return kanban_cfg.raw_root.resolve()
+    if kanban_cfg.repo_root is not None:
+        return (kanban_cfg.repo_root / "data/buildkite_nightly_raw").resolve()
+    return None
+
+
+def _collect_kanban_raw_files(raw_root: Path | None) -> list[Path]:
+    if raw_root is None or not raw_root.is_dir():
+        return []
+    files: dict[Path, None] = {}
+    for pattern in KANBAN_RAW_PATTERNS:
+        for path in raw_root.rglob(pattern):
+            if path.is_file():
+                files[path] = None
+    return sorted(files)
+
+
+def _build_ids_from_raw_files(raw_root: Path | None, paths: list[Path]) -> list[str]:
+    if raw_root is None:
+        return []
+    ids: set[str] = set()
+    for path in paths:
+        try:
+            rel = path.relative_to(raw_root)
+        except ValueError:
+            continue
+        if not rel.parts:
+            continue
+        head = rel.parts[0]
+        if head.isdigit():
+            ids.add(head)
+    return sorted(ids, key=lambda item: int(item))
+
+
+def _kanban_raw_assets_diagnostic(
+    kanban_cfg: KanbanAssetsConfig,
+    summary: dict[str, Any],
+) -> dict[str, Any]:
+    assets_dir_txt = str(summary.get("assets_dir") or "")
+    assets_dir = Path(assets_dir_txt) if assets_dir_txt else None
+    history_files = sorted(assets_dir.glob("*_history.json")) if assets_dir and assets_dir.is_dir() else []
+    raw_root = _resolve_kanban_raw_root(kanban_cfg)
+    raw_files = _collect_kanban_raw_files(raw_root)
+    build_ids = _build_ids_from_raw_files(raw_root, raw_files)
+
+    latest_history = max(history_files, key=lambda p: p.stat().st_mtime) if history_files else None
+    latest_raw = max(raw_files, key=lambda p: p.stat().st_mtime) if raw_files else None
+    recommended = ""
+    if kanban_cfg.repo_root:
+        recommended = (
+            "python scripts/nightly_local_log_report.py --kanban-repo-root "
+            f"{kanban_cfg.repo_root} --kanban-refresh-from-raw ..."
+        )
+
+    return {
+        "raw_root": str(raw_root or ""),
+        "raw_exists": bool(raw_root and raw_root.is_dir()),
+        "raw_file_count": len(raw_files),
+        "raw_build_ids": build_ids[-5:],
+        "raw_latest_mtime": _fmt_mtime(latest_raw) if latest_raw else "",
+        "history_file_count": len(history_files),
+        "history_latest_mtime": _fmt_mtime(latest_history) if latest_history else "",
+        "recommended_command": recommended,
+    }
+
+
+def _kanban_repo_dirty(repo: Path) -> tuple[bool | None, str]:
+    proc = subprocess.run(
+        ["git", "status", "--porcelain"],
+        cwd=str(repo),
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if proc.returncode != 0:
+        detail = (proc.stderr or proc.stdout or "").strip()
+        return None, detail[:500]
+    return bool(proc.stdout.strip()), proc.stdout.strip()[:500]
+
+
+def _kanban_python(repo: Path) -> str:
+    candidates = (
+        repo / ".venv/bin/python",
+        repo / ".venv/Scripts/python.exe",
+    )
+    for candidate in candidates:
+        if candidate.is_file():
+            return str(candidate)
+    return sys.executable
+
+
+def _run_kanban_refresh_from_raw(
+    kanban_repo_root: Path | None,
+    raw_root: Path | None,
+) -> tuple[str | None, list[str]]:
+    if kanban_repo_root is None:
+        return None, ["kanban raw refresh skipped: --kanban-repo-root is required."]
+    repo = kanban_repo_root.resolve()
+    if not repo.is_dir():
+        return None, [f"kanban raw refresh skipped: repo root not found: {repo}"]
+    sync_script = repo / "scripts/sync_buildkite_raw_model_results.py"
+    gen_script = repo / "scripts/generate_charts.py"
+    missing = [str(p) for p in (sync_script, gen_script) if not p.is_file()]
+    if missing:
+        return None, ["kanban raw refresh skipped: missing script(s): " + ", ".join(missing)]
+
+    dirty, detail = _kanban_repo_dirty(repo)
+    if dirty is None:
+        return None, [
+            "kanban raw refresh skipped: unable to verify clean git working tree"
+            + (f"; {detail}" if detail else "")
+        ]
+    if dirty:
+        return None, [
+            "kanban raw refresh skipped: kanban checkout has uncommitted changes. "
+            "Commit or clean that repo before regenerating assets."
+            + (f" Changed entries: {detail}" if detail else "")
+        ]
+
+    warnings: list[str] = []
+    synced_models = 0
+    py = _kanban_python(repo)
+    for model_name, model_keywords in KANBAN_RAW_MODEL_SYNCS:
+        cmd = [
+            py,
+            str(sync_script),
+            "--model-name",
+            model_name,
+            "--model-keywords",
+            model_keywords,
+        ]
+        if raw_root is not None:
+            cmd.extend(["--raw-root", str(raw_root.resolve())])
+        proc = subprocess.run(
+            cmd,
+            cwd=str(repo),
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        if proc.returncode != 0:
+            detail = (proc.stderr or proc.stdout or "").strip()
+            warnings.append(
+                f"kanban raw sync failed for {model_name}: exit {proc.returncode}"
+                + (f"; {detail[:500]}" if detail else "")
+            )
+            continue
+        synced_models += 1
+
+    proc = subprocess.run(
+        [py, str(gen_script)],
+        cwd=str(repo),
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if proc.returncode != 0:
+        detail = (proc.stderr or proc.stdout or "").strip()
+        warnings.append(
+            f"kanban generate_charts.py failed: exit {proc.returncode}"
+            + (f"; {detail[:500]}" if detail else "")
+        )
+        return None, warnings
+
+    note = f"kanban raw refresh completed: synced {synced_models} model group(s), regenerated chart history assets."
+    return note, warnings
+
+
 _PERF_TABLE_HEADERS = [
     "Type",
     "Config",
@@ -1090,6 +1315,211 @@ def _render_perf_model_table_html(table_id: str, rows: list[list[str]]) -> str:
     return "\n".join(parts)
 
 
+def _raw_json_timestamp(path: Path) -> str:
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        payload = None
+    if payload is not None:
+        records = payload if isinstance(payload, list) else [payload]
+        timestamps: list[str] = []
+        for item in records:
+            if not isinstance(item, dict):
+                continue
+            raw = str(item.get("timestamp") or "").strip()
+            if not raw:
+                continue
+            try:
+                timestamps.append(datetime.strptime(raw, "%Y%m%d-%H%M%S").isoformat())
+            except ValueError:
+                timestamps.append(raw)
+        if timestamps:
+            return max(timestamps)
+
+    match = re.search(r"(\d{8}-\d{6})", path.stem)
+    if match:
+        try:
+            return datetime.strptime(match.group(1), "%Y%m%d-%H%M%S").isoformat()
+        except ValueError:
+            return ""
+    return ""
+
+
+def _local_perf_result_files(result_dir: Path) -> list[Path]:
+    if not result_dir.is_dir():
+        return []
+    paths: dict[Path, None] = {}
+    for pattern in KANBAN_RAW_PATTERNS:
+        for path in result_dir.rglob(pattern):
+            if path.is_file():
+                paths[path] = None
+    return sorted(paths)
+
+
+def _pick_latest_local_perf_result_dir(result_root: Path) -> Path | None:
+    if not result_root.is_dir():
+        return None
+    dirs = [path for path in result_root.iterdir() if path.is_dir()]
+    if not dirs:
+        return None
+    def _created_at(path: Path) -> float:
+        stat = path.stat()
+        return float(getattr(stat, "st_birthtime", stat.st_mtime))
+    return max(dirs, key=_created_at)
+
+
+def _load_local_perf_result_payload(path: Path) -> tuple[list[dict[str, Any]], str | None]:
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        return [], str(exc)
+    if isinstance(payload, list):
+        return [item for item in payload if isinstance(item, dict)], None
+    if isinstance(payload, dict):
+        if isinstance(payload.get("results"), list):
+            return [item for item in payload["results"] if isinstance(item, dict)], None
+        return [payload], None
+    return [], "unsupported JSON payload: expected object, list, or object with results list"
+
+
+def _local_perf_date(raw: dict[str, Any], source_file: Path) -> tuple[str, str]:
+    ts = str(raw.get("timestamp") or "").strip()
+    if ts:
+        try:
+            parsed = datetime.strptime(ts, "%Y%m%d-%H%M%S")
+            return parsed.strftime("%Y-%m-%d %H:%M:%S"), parsed.isoformat()
+        except ValueError:
+            return ts, ts
+    file_ts = _raw_json_timestamp(source_file)
+    return file_ts, file_ts
+
+
+def _set_scaled_metric(record: dict[str, Any], key: str, value: Any, scale: float = 1.0) -> None:
+    num = _as_num(value)
+    if num is not None:
+        record[key] = num * scale
+
+
+def _normalize_local_perf_result_record(raw: dict[str, Any], source_file: Path) -> dict[str, Any] | None:
+    result = raw.get("result") if isinstance(raw.get("result"), dict) else raw
+    bench = raw.get("benchmark_params") if isinstance(raw.get("benchmark_params"), dict) else {}
+    server = raw.get("server_params") if isinstance(raw.get("server_params"), dict) else {}
+    baseline = bench.get("baseline") if isinstance(bench.get("baseline"), dict) else raw.get("baseline")
+    if not isinstance(result, dict) or not isinstance(baseline, dict):
+        return None
+
+    date, sort_timestamp = _local_perf_date(raw, source_file)
+    model = server.get("model") or result.get("model") or raw.get("Model") or raw.get("model_id") or "unknown"
+    record: dict[str, Any] = {
+        "test_name": str(raw.get("test_name") or source_file.stem),
+        "model_id": str(model),
+        "benchmark_name": str(bench.get("name") or raw.get("benchmark_name") or ""),
+        "dataset_name": str(bench.get("dataset") or result.get("dataset") or raw.get("Dataset") or ""),
+        "task": str(bench.get("task") or result.get("task") or raw.get("Task") or ""),
+        "max_concurrency": bench.get("max-concurrency", raw.get("max_concurrency")),
+        "num_prompts": bench.get("num-prompts", raw.get("num_prompts")),
+        "completed_requests": result.get("completed_requests", raw.get("completed")),
+        "failed_requests": result.get("failed_requests", raw.get("failed")),
+        "date": date,
+        "sort_timestamp": sort_timestamp,
+        "source_file": source_file.name,
+    }
+    record["config_key"] = " | ".join(
+        str(record.get(field) or "")
+        for field in ("benchmark_name", "dataset_name", "task", "max_concurrency", "num_prompts")
+    )
+
+    _set_scaled_metric(record, "throughput_qps", result.get("throughput_qps"))
+    _set_scaled_metric(record, "e2e_latency_ms", result.get("latency_mean"), 1000.0)
+    _set_scaled_metric(record, "e2e_latency_p99_ms", result.get("latency_p99"), 1000.0)
+    _set_scaled_metric(record, "peak_memory_gb", result.get("peak_memory_mb_mean"), 1.0 / 1024.0)
+    _set_scaled_metric(record, "baseline_throughput_qps", baseline.get("throughput_qps"))
+    _set_scaled_metric(record, "baseline_e2e_latency_ms", baseline.get("latency_mean"), 1000.0)
+    _set_scaled_metric(record, "baseline_e2e_latency_p99_ms", baseline.get("latency_p99"), 1000.0)
+    _set_scaled_metric(record, "baseline_peak_memory_gb", baseline.get("peak_memory_mb_mean"), 1.0 / 1024.0)
+    return record
+
+
+def _local_perf_summary(
+    local_perf_cfg: LocalPerfResultConfig,
+) -> tuple[dict[str, Any], dict[str, list[list[str]]]]:
+    if local_perf_cfg.result_root is None:
+        return {
+            "status": "missing",
+            "message": "local perf result root is not configured. Pass --local-perf-result-root.",
+            "result_root": "",
+            "result_dir": "",
+            "rows": [],
+            "summary": {"pass": 0, "fail": 0, "n/a": 0},
+        }, {}
+
+    result_root = local_perf_cfg.result_root.resolve()
+    result_dir = _pick_latest_local_perf_result_dir(result_root)
+    if result_dir is None:
+        return {
+            "status": "missing",
+            "message": f"No timestamped local perf result directories found under {result_root}.",
+            "result_root": str(result_root),
+            "result_dir": "",
+            "rows": [],
+            "summary": {"pass": 0, "fail": 0, "n/a": 0},
+        }, {}
+
+    result_files = _local_perf_result_files(result_dir)
+    if not result_files:
+        return {
+            "status": "missing",
+            "message": f"No perf benchmark result JSON files found under {result_dir}.",
+            "result_root": str(result_root),
+            "result_dir": str(result_dir),
+            "rows": [],
+            "summary": {"pass": 0, "fail": 0, "n/a": 0},
+        }, {}
+
+    records: list[dict[str, Any]] = []
+    errors: list[str] = []
+    for raw_path in result_files:
+        payload, error = _load_local_perf_result_payload(raw_path)
+        if error:
+            errors.append(f"{raw_path.name}: {error}")
+            continue
+        records.extend(
+            rec
+            for item in payload
+            if (rec := _normalize_local_perf_result_record(item, raw_path)) is not None
+        )
+    rows = _build_perf_rows(records)
+    rows = [row for row in rows if row.baseline is not None]
+    rows.sort(key=lambda row: (row.model, row.config_key, row.metric))
+    counts = {"pass": 0, "fail": 0, "n/a": 0}
+    grouped_rows: dict[str, list[list[str]]] = {}
+    for row in rows:
+        counts[row.status] = counts.get(row.status, 0) + 1
+        grouped_rows.setdefault(_md_cell(row.model or "unknown"), []).append(
+            [
+                _md_cell(row.model_type),
+                _md_cell(row.config_view),
+                _md_cell(row.test_name),
+                _md_cell(row.metric),
+                _perf_num(row.latest),
+                _perf_num(row.baseline),
+                _perf_pct(row.vs_baseline_pct),
+                _md_cell(row.status),
+            ]
+        )
+    return {
+        "status": "ok" if rows else "empty",
+        "message": "" if rows else "No baseline-backed rows found in local perf benchmark result JSON.",
+        "result_root": str(result_root),
+        "result_dir": str(result_dir),
+        "file_count": len(result_files),
+        "errors": errors,
+        "latest_day": max((str(rec.get("date") or "")[:10] for rec in records), default=""),
+        "rows": rows,
+        "summary": counts,
+    }, grouped_rows
+
+
 def _buildkite_perf_rows(
     kanban_cfg: KanbanAssetsConfig,
 ) -> tuple[dict[str, Any], dict[str, list[list[str]]]]:
@@ -1099,6 +1529,12 @@ def _buildkite_perf_rows(
         expected_remote=kanban_cfg.expected_remote,
         expected_branch=kanban_cfg.expected_branch,
     )
+    if kanban_cfg.refresh_note:
+        summary.setdefault("warnings", []).append(kanban_cfg.refresh_note)
+    for warning in kanban_cfg.refresh_warnings:
+        summary.setdefault("warnings", []).append(warning)
+    if summary.get("status") != "ok" or kanban_cfg.refresh_warnings:
+        summary["raw_fallback"] = _kanban_raw_assets_diagnostic(kanban_cfg, summary)
     grouped_rows: dict[str, list[list[str]]] = {}
     for item in summary.get("rows", []):
         model = _md_cell(str(item.get("model") or "unknown"))
@@ -1115,6 +1551,56 @@ def _buildkite_perf_rows(
             ]
         )
     return summary, grouped_rows
+
+
+def _kanban_fallback_items(summary: dict[str, Any]) -> list[str]:
+    diag = summary.get("raw_fallback") or {}
+    if not isinstance(diag, dict):
+        return []
+    items = [
+        "本地 nightly_jobs 只用于用例通过情况分析，nightly_perf_manual.xlsx 只用于详细 perf benchmark 表格；二者不参与 baseline 对比。",
+    ]
+    raw_root = str(diag.get("raw_root") or "")
+    if raw_root:
+        items.append(f"kanban raw root: {raw_root}")
+    raw_count = int(diag.get("raw_file_count") or 0)
+    if diag.get("raw_exists"):
+        items.append(f"raw perf JSON files: {raw_count}")
+    else:
+        items.append("raw perf JSON root is missing or not a directory.")
+    build_ids = diag.get("raw_build_ids") or []
+    if build_ids:
+        items.append("recent raw build ids: " + ", ".join(str(v) for v in build_ids))
+    if diag.get("raw_latest_mtime"):
+        items.append(f"latest raw mtime: {diag.get('raw_latest_mtime')}")
+    items.append(f"history files: {int(diag.get('history_file_count') or 0)}")
+    if diag.get("history_latest_mtime"):
+        items.append(f"latest history mtime: {diag.get('history_latest_mtime')}")
+    if raw_count:
+        items.append("Raw data is present. Re-run with --kanban-refresh-from-raw to invoke kanban sync + generate_charts before rendering.")
+    elif diag.get("recommended_command"):
+        items.append(f"Refresh command pattern: {diag.get('recommended_command')}")
+    return items
+
+
+def _render_kanban_fallback_html(summary: dict[str, Any]) -> str:
+    items = _kanban_fallback_items(summary)
+    if not items:
+        return ""
+    return (
+        '<div class="note"><strong>Raw data fallback 诊断:</strong><ul>'
+        + "".join(f"<li>{html.escape(item)}</li>" for item in items)
+        + "</ul></div>"
+    )
+
+
+def _append_kanban_fallback_markdown(lines: list[str], summary: dict[str, Any]) -> None:
+    items = _kanban_fallback_items(summary)
+    if not items:
+        return
+    lines.append("- **Raw data fallback 诊断:**")
+    for item in items:
+        lines.append(f"  - {_md_cell(item)}")
 
 
 def _render_buildkite_perf_inner_html(kanban_cfg: KanbanAssetsConfig) -> str:
@@ -1147,6 +1633,9 @@ def _render_buildkite_perf_inner_html(kanban_cfg: KanbanAssetsConfig) -> str:
     if summary.get("status") != "ok":
         msg = summary.get("message") or "No performance rows available."
         parts.append(f'<p class="note">{html.escape(str(msg))}</p>')
+        fallback_html = _render_kanban_fallback_html(summary)
+        if fallback_html:
+            parts.append(fallback_html)
         return "\n".join(parts)
     parts.append(
         "<p class=\"hint\">"
@@ -1192,6 +1681,7 @@ def _append_buildkite_perf_markdown(lines: list[str], summary: dict[str, Any], g
         lines.append(
             f"- **说明:** {_md_cell(str(summary.get('message') or 'No performance rows available.'))}"
         )
+        _append_kanban_fallback_markdown(lines, summary)
         lines.append("")
         return
     stats = summary.get("summary", {})
@@ -1211,6 +1701,75 @@ def _append_buildkite_perf_markdown(lines: list[str], summary: dict[str, Any], g
                 grouped_rows[model_name],
             )
         )
+        lines.append("")
+
+
+def _render_local_perf_baseline_inner_html(local_perf_cfg: LocalPerfResultConfig) -> str:
+    summary, grouped_rows = _local_perf_summary(local_perf_cfg)
+    parts: list[str] = [
+        '<p class="meta"><strong>数据源:</strong> '
+        f'<code>{html.escape(str(summary.get("result_dir") or summary.get("result_root") or ""))}</code></p>'
+    ]
+    if summary.get("file_count"):
+        parts.append(f'<p class="meta"><strong>文件数:</strong> {int(summary.get("file_count") or 0)}</p>')
+    if summary.get("errors"):
+        err_html = "".join(f"<li>{html.escape(str(err))}</li>" for err in summary.get("errors") or [])
+        parts.append(f'<div class="note"><strong>读取提示:</strong><ul>{err_html}</ul></div>')
+    if summary.get("status") != "ok":
+        parts.append(
+            f'<p class="note">{html.escape(str(summary.get("message") or "No local perf benchmark baseline rows available."))}</p>'
+        )
+        return "\n".join(parts)
+    stats = summary.get("summary", {})
+    parts.append(
+        "<p class=\"hint\">"
+        f"读取最新 local perf benchmark result JSON（{html.escape(str(summary.get('latest_day') or 'N/A'))}），仅展示包含 baseline 的指标。"
+        "</p>"
+    )
+    parts.append(
+        '<p class="meta"><strong>统计:</strong> '
+        f"pass={int(stats.get('pass', 0))}, "
+        f"fail={int(stats.get('fail', 0))}, "
+        f"n/a={int(stats.get('n/a', 0))}</p>"
+    )
+    for i, model_name in enumerate(sorted(grouped_rows.keys())):
+        model_rows = grouped_rows[model_name]
+        table_html = _render_perf_model_table_html(f"local-perf-model-{i}", model_rows)
+        parts.append(
+            _details_subcard(
+                f"{model_name} ({len(model_rows)} rows)",
+                table_html,
+                open_default=False,
+                details_class="report-subcard--local-perf-model",
+                icon_paths=_SVG_LIST,
+            )
+        )
+    return "\n".join(parts)
+
+
+def _append_local_perf_baseline_markdown(lines: list[str], local_perf_cfg: LocalPerfResultConfig) -> None:
+    summary, grouped_rows = _local_perf_summary(local_perf_cfg)
+    lines.append("## Local 性能基线对比")
+    lines.append("")
+    lines.append(f"- **数据源:** `{summary.get('result_dir') or summary.get('result_root') or ''}`")
+    if summary.get("file_count"):
+        lines.append(f"- **文件数:** `{int(summary.get('file_count') or 0)}`")
+    for err in summary.get("errors") or []:
+        lines.append(f"- **读取提示:** {_md_cell(str(err))}")
+    if summary.get("status") != "ok":
+        lines.append(f"- **说明:** {_md_cell(str(summary.get('message') or 'No local perf benchmark baseline rows available.'))}")
+        lines.append("")
+        return
+    stats = summary.get("summary", {})
+    lines.append(f"- **最新日期:** `{summary.get('latest_day')}`")
+    lines.append(
+        f"- **统计:** pass `{int(stats.get('pass', 0))}` / fail `{int(stats.get('fail', 0))}` / n-a `{int(stats.get('n/a', 0))}`"
+    )
+    lines.append("")
+    for model_name in sorted(grouped_rows.keys()):
+        lines.append(f"### {model_name}")
+        lines.append("")
+        lines.append(render_markdown_table(_PERF_TABLE_HEADERS, grouped_rows[model_name]))
         lines.append("")
 
 
@@ -1326,6 +1885,7 @@ def emit_report(
     bk_jobs: list[dict[str, Any]] | None = None,
     bk_note: str | None = None,
     kanban_cfg: KanbanAssetsConfig | None = None,
+    local_perf_cfg: LocalPerfResultConfig | None = None,
 ) -> None:
     groups = discover_job_logs(log_dir)
     if kanban_cfg is None:
@@ -1333,6 +1893,8 @@ def emit_report(
             assets_dir=DEFAULT_KANBAN_ASSETS_DIR,
             repo_root=DEFAULT_KANBAN_REPO_ROOT,
         )
+    if local_perf_cfg is None:
+        local_perf_cfg = LocalPerfResultConfig()
 
     lines: list[str] = [
         f"# {_md_cell(title)}",
@@ -1353,6 +1915,7 @@ def emit_report(
         )
         lines.append("")
         _append_perf_manual_markdown(lines, log_dir)
+        _append_local_perf_baseline_markdown(lines, local_perf_cfg)
         print("\n".join(lines), file=out_fp)
         return
 
@@ -1366,6 +1929,7 @@ def emit_report(
     )
     lines.append("")
     _append_perf_manual_markdown(lines, log_dir)
+    _append_local_perf_baseline_markdown(lines, local_perf_cfg)
 
     for job_name, paths, info in job_rows:
         if _job_is_clean(info):
@@ -1807,6 +2371,7 @@ def emit_report_html(
     bk_jobs: list[dict[str, Any]] | None = None,
     bk_note: str | None = None,
     kanban_cfg: KanbanAssetsConfig | None = None,
+    local_perf_cfg: LocalPerfResultConfig | None = None,
 ) -> None:
     groups = discover_job_logs(log_dir)
     if kanban_cfg is None:
@@ -1814,6 +2379,8 @@ def emit_report_html(
             assets_dir=DEFAULT_KANBAN_ASSETS_DIR,
             repo_root=DEFAULT_KANBAN_REPO_ROOT,
         )
+    if local_perf_cfg is None:
+        local_perf_cfg = LocalPerfResultConfig()
 
     css = EDITORIAL_THEME_CSS
 
@@ -1870,6 +2437,15 @@ def emit_report_html(
             _perf_manual_inner_html(log_dir),
             open_default=False,
             details_class="report-subcard--perf",
+            icon_paths=_SVG_CHART_BARS,
+        )
+    )
+    local_chunks.append(
+        _details_subcard(
+            "性能基线对比",
+            _render_local_perf_baseline_inner_html(local_perf_cfg),
+            open_default=False,
+            details_class="report-subcard--local-perf-baseline",
             icon_paths=_SVG_CHART_BARS,
         )
     )
@@ -2031,13 +2607,13 @@ def main() -> None:
         "--kanban-assets-dir",
         type=Path,
         default=DEFAULT_KANBAN_ASSETS_DIR,
-        help="Path to vllm-omni-kanban-private docs/assets/charts for Buildkite performance summary.",
+        help="Path to vllm-omni-kanban docs/assets/charts for Buildkite performance summary.",
     )
     parser.add_argument(
         "--kanban-repo-root",
         type=Path,
         default=DEFAULT_KANBAN_REPO_ROOT,
-        help="Path to vllm-omni-kanban-private repo root; resolves docs/assets/charts and enables source validation.",
+        help="Path to vllm-omni-kanban repo root; resolves docs/assets/charts and enables source validation.",
     )
     parser.add_argument(
         "--kanban-expected-remote",
@@ -2048,6 +2624,24 @@ def main() -> None:
         "--kanban-expected-branch",
         default=None,
         help="Expected kanban branch name (for warning only), e.g. main.",
+    )
+    parser.add_argument(
+        "--kanban-raw-root",
+        type=Path,
+        default=None,
+        help="Optional kanban raw perf artifact root (default: <kanban-repo-root>/data/buildkite_nightly_raw).",
+    )
+    parser.add_argument(
+        "--kanban-refresh-from-raw",
+        action="store_true",
+        help="Opt-in: run kanban raw sync + generate_charts before reading docs/assets/charts history.",
+    )
+    parser.add_argument(
+        "--local-perf-result-root",
+        type=Path,
+        default=None,
+        help="Root directory containing timestamped local perf benchmark result directories "
+        "(default: <kanban-repo-root>/data/local_nightly_raw when it exists).",
     )
     parser.add_argument(
         "--title",
@@ -2079,6 +2673,22 @@ def main() -> None:
         repo_root=args.kanban_repo_root.resolve() if args.kanban_repo_root else None,
         expected_remote=(args.kanban_expected_remote or "").strip() or None,
         expected_branch=(args.kanban_expected_branch or "").strip() or None,
+        raw_root=args.kanban_raw_root.resolve() if args.kanban_raw_root else None,
+        refresh_from_raw=bool(args.kanban_refresh_from_raw),
+    )
+    if kanban_cfg.refresh_from_raw:
+        refresh_note, refresh_warnings = _run_kanban_refresh_from_raw(
+            kanban_cfg.repo_root,
+            _resolve_kanban_raw_root(kanban_cfg),
+        )
+        kanban_cfg.refresh_note = refresh_note
+        kanban_cfg.refresh_warnings = refresh_warnings
+    local_perf_cfg = LocalPerfResultConfig(
+        result_root=(
+            args.local_perf_result_root.resolve()
+            if args.local_perf_result_root
+            else _default_local_perf_result_root(kanban_cfg.repo_root)
+        ),
     )
 
     if args.html_report:
@@ -2094,6 +2704,7 @@ def main() -> None:
                 bk_jobs=bk_jobs,
                 bk_note=bk_note,
                 kanban_cfg=kanban_cfg,
+                local_perf_cfg=local_perf_cfg,
             )
     elif args.markdown_report:
         out = args.markdown_report
@@ -2108,6 +2719,7 @@ def main() -> None:
                 bk_jobs=bk_jobs,
                 bk_note=bk_note,
                 kanban_cfg=kanban_cfg,
+                local_perf_cfg=local_perf_cfg,
             )
     else:
         if args.to_stdout == "markdown":
@@ -2120,6 +2732,7 @@ def main() -> None:
                 bk_jobs=bk_jobs,
                 bk_note=bk_note,
                 kanban_cfg=kanban_cfg,
+                local_perf_cfg=local_perf_cfg,
             )
         else:
             emit_report_html(
@@ -2131,6 +2744,7 @@ def main() -> None:
                 bk_jobs=bk_jobs,
                 bk_note=bk_note,
                 kanban_cfg=kanban_cfg,
+                local_perf_cfg=local_perf_cfg,
             )
 
 

@@ -31,6 +31,8 @@ RELEASE_CONCLUSION_ITEMS: tuple[str, ...] = (
 
 # 「L2&L3最新一次通过率为100%」：最新已结束 ready + merge 构建均无 failed/broken job
 CONCLUSION_L2_L3_ROW_INDEX = 1
+# 「遗留DI小于30」：由 compose 基于 stats window 内 open bug 的 priority labels 预计算
+CONCLUSION_DI_ROW_INDEX = 4
 # 「致命issue遗留个数为0」：由 compose 检测是否存在 open 且 label 为 ``critical`` 的 issue
 CONCLUSION_CRITICAL_ROW_INDEX = 5
 # 「所有遗留bug均已分配责任人」：open label:bug 的 assignees
@@ -117,6 +119,8 @@ def test_conclusion_markdown_for_archive(
     *,
     l2_l3_row_ok: bool | None = None,
     l2_l3_row_detail: str = "",
+    di_row_ok: bool | None = None,
+    di_row_detail: str = "",
     critical_row_ok: bool | None = None,
     critical_row_detail: str = "",
     assignee_row_ok: bool | None = None,
@@ -138,6 +142,12 @@ def test_conclusion_markdown_for_archive(
                 verdict_ok = False
                 if l2_l3_row_detail:
                     extra = f"（{l2_l3_row_detail.replace('|', '/')}）"
+        elif i == CONCLUSION_DI_ROW_INDEX and di_row_ok is not None:
+            cell = "通过" if di_row_ok else "不通过"
+            if not di_row_ok:
+                verdict_ok = False
+            if di_row_detail:
+                extra = f"（{di_row_detail.replace('|', '/')}）"
         elif i == CONCLUSION_CRITICAL_ROW_INDEX and critical_row_ok is not None:
             cell = "通过" if critical_row_ok else "不通过"
             if not critical_row_ok:
@@ -160,6 +170,8 @@ def release_conclusion_widget_html(
     *,
     l2_l3_row_ok: bool | None = None,
     l2_l3_row_detail: str = "",
+    di_row_ok: bool | None = None,
+    di_row_detail: str = "",
     critical_row_ok: bool | None = None,
     critical_row_detail: str = "",
     assignee_row_ok: bool | None = None,
@@ -168,7 +180,7 @@ def release_conclusion_widget_html(
     """Interactive table + verdict (Go / Rejected) for ``.release-doc`` HTML.
 
     Automatic rows (non-clickable when ``*_row_ok`` is not ``None``): **L2&L3**,
-    **致命issue…**, **遗留bug责任人**.
+    **遗留DI**, **致命issue…**, **遗留bug责任人**.
     """
     rows: list[str] = []
     for i, item in enumerate(RELEASE_CONCLUSION_ITEMS):
@@ -177,6 +189,9 @@ def release_conclusion_widget_html(
         if i == CONCLUSION_L2_L3_ROW_INDEX:
             auto_ok = l2_l3_row_ok
             row_detail = l2_l3_row_detail
+        elif i == CONCLUSION_DI_ROW_INDEX:
+            auto_ok = di_row_ok
+            row_detail = di_row_detail
         elif i == CONCLUSION_CRITICAL_ROW_INDEX:
             auto_ok = critical_row_ok
             row_detail = critical_row_detail
@@ -264,6 +279,8 @@ def apply_release_conclusion_placeholder(
     *,
     l2_l3_row_ok: bool | None = None,
     l2_l3_row_detail: str = "",
+    di_row_ok: bool | None = None,
+    di_row_detail: str = "",
     critical_row_ok: bool | None = None,
     critical_row_detail: str = "",
     assignee_row_ok: bool | None = None,
@@ -275,6 +292,8 @@ def apply_release_conclusion_placeholder(
     widget = release_conclusion_widget_html(
         l2_l3_row_ok=l2_l3_row_ok,
         l2_l3_row_detail=l2_l3_row_detail,
+        di_row_ok=di_row_ok,
+        di_row_detail=di_row_detail,
         critical_row_ok=critical_row_ok,
         critical_row_detail=critical_row_detail,
         assignee_row_ok=assignee_row_ok,
@@ -292,6 +311,8 @@ def materialize_release_conclusion_in_markdown(
     *,
     l2_l3_row_ok: bool | None = None,
     l2_l3_row_detail: str = "",
+    di_row_ok: bool | None = None,
+    di_row_detail: str = "",
     critical_row_ok: bool | None = None,
     critical_row_detail: str = "",
     assignee_row_ok: bool | None = None,
@@ -303,6 +324,8 @@ def materialize_release_conclusion_in_markdown(
     block = test_conclusion_markdown_for_archive(
         l2_l3_row_ok=l2_l3_row_ok,
         l2_l3_row_detail=l2_l3_row_detail,
+        di_row_ok=di_row_ok,
+        di_row_detail=di_row_detail,
         critical_row_ok=critical_row_ok,
         critical_row_detail=critical_row_detail,
         assignee_row_ok=assignee_row_ok,
@@ -969,6 +992,8 @@ def convert_release_report_markdown(
     archive_download_name: str | None = None,
     l2_l3_row_ok: bool | None = None,
     l2_l3_row_detail: str = "",
+    di_row_ok: bool | None = None,
+    di_row_detail: str = "",
     critical_row_ok: bool | None = None,
     critical_row_detail: str = "",
     assignee_row_ok: bool | None = None,
@@ -990,6 +1015,8 @@ def convert_release_report_markdown(
         body,
         l2_l3_row_ok=l2_l3_row_ok,
         l2_l3_row_detail=l2_l3_row_detail,
+        di_row_ok=di_row_ok,
+        di_row_detail=di_row_detail,
         critical_row_ok=critical_row_ok,
         critical_row_detail=critical_row_detail,
         assignee_row_ok=assignee_row_ok,
@@ -1003,6 +1030,8 @@ def convert_release_report_markdown(
         md,
         l2_l3_row_ok=l2_l3_row_ok,
         l2_l3_row_detail=l2_l3_row_detail,
+        di_row_ok=di_row_ok,
+        di_row_detail=di_row_detail,
         critical_row_ok=critical_row_ok,
         critical_row_detail=critical_row_detail,
         assignee_row_ok=assignee_row_ok,

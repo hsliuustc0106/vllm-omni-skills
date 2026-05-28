@@ -633,7 +633,7 @@ def main() -> None:
         "--kanban-repo-root",
         type=Path,
         default=DEFAULT_REPO_ROOT,
-        help="Path to vllm-omni-kanban-private repo root.",
+        help="Path to vllm-omni-kanban repo root.",
     )
     parser.add_argument(
         "--expected-remote",

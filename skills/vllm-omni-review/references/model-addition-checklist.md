@@ -4,15 +4,86 @@ Quick-reference checklist for PRs that add a new omni model (TTS, audio, multimo
 
 ---
 
+## Blocking Gate: Profiling + Baseline Comparison
+
+**New model PRs MUST include two pieces of evidence before approval. Missing either is a REQUEST_CHANGES blocker.**
+
+### A. Detailed Profiling (implementation bug detection)
+
+"It runs" is not enough. The contributor must run a profiler against the implementation to surface hidden bugs — kernels that silently fail, memory patterns that waste VRAM, or ops that fall back to CPU.
+
+**Required profiling dimensions:**
+
+| Dimension | Tool | What to check |
+|-----------|------|---------------|
+| **Kernel execution** | `torch.profiler.profile()` + Chrome trace, or `nsys` | All ops execute on the expected device (no silent CPU fallback). No `aten::copy` storms between CPU/GPU. No unexplained CPU time in the hot path. |
+| **Memory** | `torch.cuda.memory_stats()`, `nvidia-smi`, or `torch.cuda.memory_summary()` | Peak VRAM at rest and under load. No memory leaks across repeated inferences. No `torch.cuda.empty_cache()` calls in the hot path (a sign of fragmentation workarounds). |
+| **CUDA kernel launch** | `torch.profiler.profile()` (CUDA time) | No excessive kernel launch overhead (many tiny ops). Kernels achieve reasonable GPU utilization. |
+| **Precision** | Manual inspection of intermediate tensors | No unexpected `NaN`/`inf` values in hidden states. fp16/bf16 paths produce values within tolerance of fp32. |
+
+**What to flag as potential bugs from profiling:**
+
+- `aten::copy` or `aten::to` in the forward pass (unintended device/host transfers)
+- `CUDA kernel launch` time >> `CUDA kernel` time (kernel launch bottleneck)
+- `cudaMalloc`/`cudaFree` inside the forward pass (dynamic allocation in hot path)
+- `cudaStreamSynchronize` or `cudaDeviceSynchronize` calls (unintended sync points)
+- Any op taking >20% of total step time when it shouldn't be on the critical path
+- GPU utilization < 60% for compute-bound models
+- `cpu_self` time > 10% of `cuda_self` time in the forward pass
+
+**Format:** The contributor must include:
+1. A Chrome trace screenshot or timeline summary showing the top 10 ops by CUDA time
+2. Peak VRAM measurement (at rest + under load with batch_size=1)
+3. A brief statement confirming no anomalies or listing anomalies found + explained
+
+### B. Baseline Performance Comparison
+
+The new implementation must be compared against the canonical upstream implementation on the same hardware with the same inputs.
+
+**Acceptable baselines (in priority order):**
+1. Official model repo (e.g. GitHub release from the model author)
+2. HuggingFace transformers/diffusers pipeline
+3. Another established vLLM implementation (for model upgrades)
+
+**Required comparison metrics:**
+
+| Metric | Minimum | Preferred |
+|--------|---------|-----------|
+| End-to-end wall time | batch_size=1, same prompt | batch_size=1,4,8 |
+| Peak VRAM | Single measurement | Before/after warmup, batch_size=1,4 |
+| Output quality | Visual/audio comparison for identical inputs | Quantitative metric (PSNR, SSIM, MCD, WER, etc.) |
+| TTFT / RTF | Single measurement | At 3+ concurrency levels |
+
+**Format:** A comparison table with at minimum three columns: Metric, Baseline, This PR. Example:
+
+| Metric | Official Repo (HF diffusers) | This PR (vllm-omni) | Delta |
+|--------|------------------------------|----------------------|-------|
+| Wall time (bs=1) | 12.3s | 11.8s | -4% |
+| Peak VRAM | 8.2 GB | 7.9 GB | -4% |
+| Output PSNR | 31.2 dB | 31.1 dB | -0.1 dB |
+
+**Regression rules:**
+- **Latency regression > 10%** → must be explained and justified (e.g., "vLLM scheduler overhead amortized at higher batch sizes")
+- **VRAM regression > 5%** → flagged as blocking unless justified
+- **Output quality regression** (any visible/audible degradation) → blocking
+- **Any concurrency level with throughput regression** → must be explained
+
+**Graceful degradation for baseline comparison:**
+- If the upstream code doesn't compile or run on the available hardware: document the attempt, explain the blocker, and fall back to measuring against a known-good vllm-omni main branch
+- If the model has no upstream implementation: state this explicitly and provide the profiling evidence (Gate A) at minimum
+
+---
+
 ## Quick Red Flags (scan first)
 
 | # | Red Flag | Action |
 |---|----------|--------|
-| 1 | PR body lists files/architectures not present in diff | Request PR description update; flag as incomplete |
-| 2 | `__all__` re-exports private `_`-prefixed functions | These shouldn't be public API |
-| 3 | Same string constant defined in 3+ files | Consolidate to single source |
-| 4 | "backward-compat alias" comment in brand-new code | Drop the alias |
-| 5 | `del unused_param` inside function body | Remove the parameter from the signature |
+| 1 | No profiling data or baseline comparison in PR body | **Blocking.** Request profiling trace + baseline table before further review |
+| 2 | PR body lists files/architectures not present in diff | Request PR description update; flag as incomplete |
+| 3 | `__all__` re-exports private `_`-prefixed functions | These shouldn't be public API |
+| 4 | Same string constant defined in 3+ files | Consolidate to single source |
+| 5 | "backward-compat alias" comment in brand-new code | Drop the alias |
+| 6 | `del unused_param` inside function body | Remove the parameter from the signature |
 
 ---
 
@@ -184,9 +255,9 @@ Output correctness is the highest bar for any model PR. "It runs" is not enough.
 
 ---
 
-## Dimension 8: Performance Comparison
+## Dimension 8: Performance Comparison (Detailed Checklist)
 
-Performance claims must be reproducible. "It's faster" without data gets flagged.
+**The blocking gate above is the minimum bar.** This dimension provides the detailed checklist for evaluating the quality of submitted performance data. Use it to assess whether the contributor's baseline comparison and profiling meet the required standard.
 
 ### 8.1 Measurement Methodology
 
@@ -207,7 +278,7 @@ Specifies hardware (H20), model, config, and measurement method. **Still missing
 
 Covers the full concurrency range so scaling behavior is visible. **Still missing:** hardware spec, software versions, warmup count.
 
-### 8.2 Comparison Baseline
+### 8.2 Comparison Baseline (see blocking gate for requirements)
 
 - [ ] If replacing an existing model: before/after on same hardware, same inputs
 - [ ] If new model: comparison against original upstream repo on same hardware

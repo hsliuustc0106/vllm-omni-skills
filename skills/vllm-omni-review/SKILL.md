@@ -50,7 +50,7 @@ Inspired by common PR-review skill patterns (e.g. explicit modes + tool choice);
 | Blocker scan details + merge-blocking patterns | [references/blocker-patterns.md](references/blocker-patterns.md) — Part 1 patterns; **Part 2** = former “pitfalls” (footguns, MRO, connectors, async, etc.) |
 | System layout + **code-pattern review** (async, connectors, validation, …) | [references/architecture.md](references/architecture.md) — includes “Code patterns for review” at the end |
 | Diffusion / image / video model PRs | [references/diffusion-checklist.md](references/diffusion-checklist.md) |
-| New model / omni pipeline PRs (TTS, audio, multimodal) | [references/model-addition-checklist.md](references/model-addition-checklist.md) — dead-code scan, description/diff integrity, copy-paste detection, registry consistency |
+| New model / omni pipeline PRs (TTS, audio, multimodal) | [references/model-addition-checklist.md](references/model-addition-checklist.md) — **profiling + baseline comparison (blocking gate)**, dead-code scan, description/diff integrity, copy-paste detection, registry consistency |
 | High-risk change; need coverage matrix / docs sync | [references/tests-docs-checklist.md](references/tests-docs-checklist.md) |
 | Calibrating phrasing from real maintainers | [references/maintainer-style-study.md](references/maintainer-style-study.md) |
 
@@ -160,7 +160,7 @@ Use **only** the files in this table. Older docs may mention `references/pitfall
 | Diff Area                                                                                 | Load                                                       |
 | ----------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
 | `vllm_omni/engine/`, `vllm_omni/stages/`, `vllm_omni/connectors/`, `vllm_omni/diffusion/` | [blocker-patterns.md](references/blocker-patterns.md) **Part 2** (common pitfalls) |
-| New model under `vllm_omni/model_executor/models/` (`[Model]` or un-prefixed new-model PR) | [model-addition-checklist.md](references/model-addition-checklist.md) — description/diff integrity, dead-code patterns, copy-paste detection, registry/config consistency |
+| New model under `vllm_omni/model_executor/models/` (`[Model]` or un-prefixed new-model PR) | [model-addition-checklist.md](references/model-addition-checklist.md) — **blocking gate: profiling + baseline comparison**, then dead-code, copy-paste, registry/config consistency |
 | Async, distributed coordination, validation, connector behavior                           | [architecture.md](references/architecture.md) — section **Code patterns for review** (at end of file) |
 | Scheduler, stage boundaries, execution model, critical paths                              | [Architecture](references/architecture.md) (full)          |
 | High-risk changes (core logic, configs/params, error handling, concurrency/distributed, I/O) or `[Feature]` / `[Bugfix]` PRs | [references/tests-docs-checklist.md](references/tests-docs-checklist.md) |
@@ -173,9 +173,10 @@ When tests or benchmarks are missing **and PR description evidence is insufficie
 
 | Change Type | Minimum Evidence to Request |
 |-------------|-----------------------------|
+| **New model** | **Profiling trace (kernel + memory) + baseline comparison vs official repo/HF/diffusers** (see blocking gate in model-addition-checklist) |
 | API behavior | Functional tests covering success + invalid input + response contract |
 | Model execution | Inference correctness tests comparing outputs against baseline |
-| Performance optimization | Benchmark showing before/after latency on stated hardware |
+| Performance optimization | **A/B benchmark (baseline vs PR) + accuracy comparison on same hardware.** Mean ± stddev over ≥3 runs, warmup excluded. Accuracy regression is blocking. |
 | New feature (performance-affecting) | Performance comparison test: baseline vs. with change (latency, throughput, VRAM) |
 | Memory management | Peak memory measurement showing no regression |
 | Bug fixes | Regression test that reproduces the original bug |
@@ -184,32 +185,22 @@ For `[Feature]` PRs affecting performance or `[Performance]` PRs, use the checkl
 
 Be explicit in review comments. Treat "manual verification only" as insufficient unless automation is genuinely impossible.
 
-### Step 7: Verify Perf/Accuracy Claims (Blocking)
+### Step 7: Verify Perf/Accuracy Claims — A/B Required (Blocking)
 
-**When to activate:** PR has `[Performance]` prefix, or PR body contains quantitative perf/accuracy claims (latency, throughput, VRAM, speedup, accuracy metrics), or Step 5 flagged missing benchmarks.
+**When to activate:** `[Performance]` / `[Perf]` prefix, or quantitative perf/accuracy claims in PR body, or Step 5 flagged missing benchmarks.
 
-**Load** [references/perf-verification.md](references/perf-verification.md).
+**Core rule: Every perf PR must provide A/B results for BOTH perf AND accuracy.** Speedup with silent quality degradation is a blocker.
 
-**Workflow:**
+**Load** [references/perf-verification.md](references/perf-verification.md) for full workflow, regression rules, git worktree setup, and evidence templates.
 
-1. Detect claims — extract numbers from PR body using regex patterns
-2. Detect hardware — run hardware detection to determine available GPU/VRAM/platform
-3. Check feasibility — compare estimated model size (weights + KV cache + overhead) against available VRAM
-4. Generate benchmark plan — map PR type to appropriate benchmark runner
-5. **Pre-execution gate** — present benchmark plan, estimated duration, and model/hardware to user; ask for confirmation before executing
-6. Execute (if confirmed) — run before/after benchmarks via git worktrees, with a **20-minute hard timeout** per run
-7. Report — produce Claimed vs Measured table with CONFIRMED / NOT_CONFIRMED verdict
+**Quick check (reviewer asks contributor):**
+1. **Perf A/B** — Latency, throughput, VRAM: baseline (main) vs PR, same HW/inputs. Mean ± stddev over ≥3 runs, warmup excluded.
+2. **Accuracy A/B** — Quantitative metric or side-by-side samples. Same seeds/inputs, baseline vs PR.
+3. **Environment** — HW, software versions, model, config, exact commands.
 
-**Graceful degradation:**
+**Regression rules:** Accuracy degradation = **blocking**. VRAM > 5% regression = **blocking**. Latency > 10% regression = must explain.
 
-| Level | Condition | What happens |
-|-------|-----------|-------------|
-| Full verification | GPU available, model fits | Run before/after benchmarks |
-| Partial verification | GPU available, model needs offload | Run with `--cpu-offload-gb`, note in report |
-| Static-only | No GPU or model too large | Analyze benchmark scripts in diff for correctness, flag implausible claims |
-| Skip | No relevant perf claims | Do not activate |
-
-**Delivery:** Local report first, ask user before posting as PR comment. If verification reveals a confirmed NOT_CONFIRMED for accuracy or VRAM regression, escalate to REQUEST_CHANGES via Step 9.
+**Independent verification (when hardware available):** git worktrees (main vs PR), fresh venvs, A/B run with 20-min timeout per branch. Deliver Claimed vs Measured report locally; ask before posting to PR.
 
 ### Step 8: Evaluate Test Quality (Blocking)
 

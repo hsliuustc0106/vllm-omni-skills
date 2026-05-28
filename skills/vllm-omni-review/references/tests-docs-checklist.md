@@ -69,44 +69,68 @@ Commands: <cmd1>; <cmd2>
 Runtime: ~<N> min
 ```
 
-### 5) Performance Comparison Test Checklist
+### 5) Performance + Accuracy A/B Test Checklist
 
-**Required for:** `[Feature]` PRs that affect performance characteristics, and all `[Performance]` PRs.
+**Required for:** `[Feature]` PRs that affect performance characteristics, and all `[Performance]` / `[Perf]` PRs.
 
-Before approving, verify the PR includes performance comparison tests that measure the change against baseline (without the change).
+Before approving, verify the PR includes **A/B test results for both performance AND accuracy** — comparing PR branch vs baseline (main) on the same hardware with the same inputs. A speedup that silently degrades output quality is a blocker.
 
-**Minimum Requirements:**
+**Minimum Requirements — Performance:**
 
-- [ ] **Before/after benchmark** — Quantitative comparison on same hardware
+- [ ] **Before/after benchmark** — Quantitative comparison on same hardware (A/B: baseline main vs PR branch)
 - [ ] **Consistent environment** — Same GPU, driver, model, batch size, resolution/steps for both runs
-- [ ] **Key metrics reported:**
+- [ ] **Key metrics reported (mean ± stddev over ≥3 runs, warmup excluded):**
   - [ ] Latency (e2e generation time)
   - [ ] Throughput (requests/sec or tokens/sec, where applicable)
   - [ ] Peak memory usage (VRAM in GB)
-- [ ] **Methodology documented** — Commands, parameters, prompts/dataset used
+- [ ] **Methodology documented** — Exact commands, parameters, prompts/dataset used, software versions
+
+**Minimum Requirements — Accuracy:**
+
+- [ ] **A/B accuracy comparison** — Same inputs, same seeds, baseline vs PR
+- [ ] **Quantitative metric** where possible (PSNR, SSIM, MCD, WER, cosine similarity, etc.)
+- [ ] **Side-by-side samples** when no quantitative metric exists (visual comparison for images/video, audio clips for TTS)
+- [ ] **Tolerance explicitly stated** — what deviation is acceptable and why
+- [ ] **fp16/bf16 accuracy verified** — if mixed-precision paths are changed, compare against fp32 baseline
 
 **Evidence format to request when missing:**
 
 ```
-⚠️ **Performance Comparison Test Required**
+⚠️ **Performance + Accuracy A/B Test Required**
 
 This PR includes a [feature/performance enhancement] that may affect performance.
-Please provide benchmark comparison:
+Please provide A/B comparison (baseline main vs this PR, same hardware, same inputs):
 
-| Metric           | Baseline (w/o change) | With Change | Delta |
-|------------------|----------------------|-------------|-------|
-| Latency (e2e)    | <value> ms           | <value> ms  | +/- % |
-| Throughput       | <value> req/s        | <value>     | +/- % |
-| Peak VRAM        | <value> GB           | <value> GB  | +/- % |
+**Performance:**
 
-Test environment: <GPU model>, <CUDA version>, <model>, <batch/resolution/steps>
-Commands: <exact commands used>
+| Metric           | Baseline (main) | This PR | Delta |
+|------------------|-----------------|---------|-------|
+| Latency (e2e)    | <value> ms      | <value> ms | +/- % |
+| Throughput       | <value> req/s   | <value>    | +/- % |
+| Peak VRAM        | <value> GB      | <value> GB | +/- % |
+
+**Accuracy:**
+
+| Metric           | Baseline (main) | This PR | Delta | Tolerance |
+|------------------|-----------------|---------|-------|-----------|
+| <PSNR/SSIM/etc.> | <value>         | <value> | ±Δ    | ≤ X       |
+
+Test environment: <GPU model>, <CUDA version>, <torch version>, <vllm version>, <model>, <batch/resolution/steps>
+Commands: <exact commands used for both runs>
+Warmup: <# warmup runs excluded>, Measured runs: <# runs>, Reported as: mean ± stddev
 ```
+
+**Blocking if missing:**
+- No accuracy comparison → REQUEST_CHANGES (perf gain at quality cost is not acceptable)
+- Accuracy regression (any visible/audible degradation or metric outside tolerance) → REQUEST_CHANGES
+- Single measurement without stddev → request re-measurement
+- No warmup excluded → request re-measurement
+- Different seeds for baseline vs PR in accuracy test → request re-measurement
 
 **Exceptions:**
 - Doc-only or config-only changes without performance impact
 - Bug fixes that only correct logic without changing performance characteristics
-- Changes gated behind a new flag that defaults to disabled (document expected perf when enabled)
+- Changes gated behind a new flag that defaults to disabled (document expected perf + accuracy when enabled)
 
-**Reviewer-side verification:** For independently verifying contributor perf claims (running benchmarks yourself), see [perf-verification.md](perf-verification.md). This checklist defines what contributors must provide; that reference defines how reviewers can verify it.
+**Reviewer-side verification:** For independently verifying contributor claims (running A/B benchmarks yourself), see [perf-verification.md](perf-verification.md). That reference covers git worktree setup, A/B execution, claimed-vs-measured reporting, and regression rules.
 

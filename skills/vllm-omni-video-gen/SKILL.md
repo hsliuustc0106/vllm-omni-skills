@@ -16,6 +16,7 @@ vLLM-Omni supports video generation through diffusion transformer models, primar
 | Wan2.2-T2V-A14B | `Wan-AI/Wan2.2-T2V-A14B-Diffusers` | Text-to-video | 48 GB |
 | Wan2.2-TI2V-5B | `Wan-AI/Wan2.2-TI2V-5B-Diffusers` | Text+Image-to-video | 24 GB |
 | Wan2.2-I2V-A14B | `Wan-AI/Wan2.2-I2V-A14B-Diffusers` | Image-to-video | 48 GB |
+| HunyuanVideo-1.5 480p | `hunyuanvideo-community/HunyuanVideo-1.5-Diffusers-480p_t2v` | Text-to-video + I2V | 24 GB |
 | NextStep-1.1 | `stepfun-ai/NextStep-1.1` | Text-to-video | 24 GB |
 | daVinci-MagiHuman | `SII-GAIR/daVinci-MagiHuman-Base-1080p` | Image-to-video + audio | 24 GB |
 
@@ -103,9 +104,44 @@ Video generation is significantly more compute-intensive than image generation:
   ```
 - For multi-transformer pipelines (e.g., Wan2.2-T2V has `transformer` + `transformer-2`), the sequential offloader now offloads all other DiTs to CPU when any one is running. This allows Wan2.2-T2V to fit on 64GB GPUs with `--enable-cpu-offload --tensor-parallel-size 2`.
 
+## Multi-GPU Parallelism for Video
+
+### HunyuanVideo 1.5
+
+HunyuanVideo 1.5 supports USP (Ulysses sequence parallelism) and VAE patch parallel for both encode and decode. Combined with CFG parallel, T2V on 480p achieves ~3.4x speedup vs single GPU on B300:
+
+```bash
+# USP + VAE patch parallel
+vllm serve hunyuanvideo-community/HunyuanVideo-1.5-Diffusers-480p_t2v --omni \
+  --ulysses-degree 2 --vae-patch-parallel-size 2
+
+# Full: CFG + USP + VAEPP (4 GPUs)
+vllm serve hunyuanvideo-community/HunyuanVideo-1.5-Diffusers-480p_t2v --omni \
+  --cfg-parallel-size 2 --ulysses-degree 2 --vae-patch-parallel-size 4
+```
+
+The distributed VAE (`DistributedAutoencoderKLHunyuanVideo15`) tiles encode and decode across GPUs. When `vae_patch_parallel_size < world_size`, non-VAE ranks receive empty VAE task lists automatically.
+
+### LTX-2.3
+
+LTX-2.3 supports CFG parallel and sequence parallelism (Ulysses). Audio latents are automatically padded to be divisible by the SP size:
+
+```bash
+vllm serve Lightricks/LTX-2.3-diffusers --omni \
+  --cfg-parallel-size 2 --ulysses-degree 2
+```
+
+LTX-2.3 CFG parallel uses x0-space guidance with video and audio sigma-aware combination. Audio latent frame counts must match the SP-padded length or a `ValueError` is raised.
+
 ## Troubleshooting
 
 **Generation too slow**: Use tensor parallelism or enable TeaCache/Cache-DiT acceleration.
+
+**LTX-2.3 dummy run failure with sequence parallelism**: Fixed in #3854. Audio latents are now automatically padded to be SP-divisible. Previously `RuntimeError: Tensor size along dim 1 (1) must be >= world_size` occurred when using `--ulysses-degree 2` with audio inputs.
+
+**HunyuanVideo 1.5 slow on single GPU**: Encoder padding tokens are now automatically trimmed in non-SP paths, giving up to 68.5% total speedup with `TORCH_SDPA` backend. No configuration change needed — the optimization applies automatically. Improved in #3844.
+
+**VAE executor IndexError with mixed parallel sizes**: Fixed in #3928. When `vae_patch_parallel_size < world_size`, ranks beyond the VAE parallel size now correctly receive empty task lists instead of crashing with `IndexError`.
 
 **Out of memory**: Reduce resolution/frame count or use CPU offloading.
 

@@ -177,6 +177,10 @@ vllm serve <model> --omni --tensor-parallel-size 8
 
 **Ray worker disconnected**: Check network connectivity between nodes and ensure Ray dashboard shows all workers.
 
+**VAE executor IndexError with mixed parallel sizes**: Fixed in #3928. When `vae_patch_parallel_size < world_size` (e.g., VAE parallel=2 on 4 GPUs), ranks beyond the VAE size now correctly receive empty task lists. The guard condition was changed from `pp_size <= world_size` to `rank < pp_size`.
+
+**Sleep mode not releasing full memory for custom pipelines**: Fixed in #3818. When using `custom_pipeline` models, `sleep(level=1)` now fully reclaims GPU memory. The root cause was safetensors ≥0.20.0 using a direct-to-GPU fast path that bypassed PyTorch's caching allocator when custom pipelines were initialized under `with target_device:` context. Custom pipelines are now initialized outside the CUDA context so weights go through the caching allocator and are visible to CuMemAllocator.
+
 ## References
 
 - For disaggregation architecture details, see [references/disaggregation.md](references/disaggregation.md)

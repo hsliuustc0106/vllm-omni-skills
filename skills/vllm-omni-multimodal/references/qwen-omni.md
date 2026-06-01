@@ -83,4 +83,5 @@ vllm serve Qwen/Qwen3-Omni-30B-A3B-Instruct --omni \
 | Text output | Yes | Yes |
 | Audio output | Yes | Yes |
 | MoE | No | Yes |
+| LoRA | No | Yes |
 | Min GPUs | 1 | 2 |

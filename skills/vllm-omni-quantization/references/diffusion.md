@@ -46,6 +46,7 @@ Starting points:
 - `Qwen-Image`, `Qwen-Image-2512`: begin with `ignored_layers=["img_mlp"]`
 - `Tongyi-MAI/Z-Image-Turbo`: start with all layers quantized
 - `FLUX.1-dev`, `HunyuanImage-3`, `HunyuanVideo-1.5`: documented in current FP8 support tables
+- `Dreamid-Omni`: supports online fp8 and int8 quantization; VAEs, T5 encoder, norms, and modulation layers remain bf16; tensor parallelism is also supported
 
 Prefer dynamic activation scaling unless static calibration is explicitly required.
 

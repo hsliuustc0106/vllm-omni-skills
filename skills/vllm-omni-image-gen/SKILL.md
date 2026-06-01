@@ -21,12 +21,12 @@ vLLM-Omni supports text-to-image generation and image editing through diffusion 
 | FLUX.1-dev | `black-forest-labs/FLUX.1-dev` | Text-to-image | 40 GB |
 | FLUX.2-klein | `black-forest-labs/FLUX.2-klein-4B` | Text-to-image | 16 GB |
 | FLUX.2-dev | `black-forest-labs/FLUX.2-dev` | Text-to-image + cache_dit | 24 GB |
-| Dreamid-Omni | `bytedance/dreamid-omni` | Text-to-image (ByteDance) | 24 GB |
+| Dreamid-Omni | `bytedance/dreamid-omni` | Text-to-image (ByteDance, fp8/int8) | 24 GB |
 | SD 3.5 Medium | `stabilityai/stable-diffusion-3.5-medium` | Text-to-image | 12 GB |
 | OmniGen2 | `OmniGen2/OmniGen2` | Text-to-image | 24 GB |
 | HunyuanImage3.0 | `tencent/HunyuanImage-3.0` | Text-to-image + editing | 40 GB |
 
-Dreamid-Omni from ByteDance and FLUX.2-dev with cache_dit support are available. FLUX.2-klein supports plain string prompts (no dict wrapper needed).
+Dreamid-Omni from ByteDance supports online fp8/int8 quantization with `--quantization fp8` or `--quantization int8`. VAEs, T5 text encoder, norms, and modulation layers remain bf16. Tensor parallelism is also newly supported. FLUX.2-dev with cache_dit support is available. FLUX.2-klein supports plain string prompts (no dict wrapper needed).
 
 ## Quick Start: Offline Generation
 
@@ -129,6 +129,10 @@ vllm serve <model> --omni --cpu-offload-gb 10
 **BAGEL think mode for text2text/img2text**: BAGEL now supports reasoning/thinking mode for text-to-text and image-to-text modalities via `--think` flag. Injects `VLM_THINK_SYSTEM_PROMPT` to enable chain-of-thought output. Fixed in #2503.
 
 **Qwen-Image tiny request sizes**: Small requests (below VAE alignment) are now clamped to minimum valid dimensions instead of collapsing to zero. All Qwen-Image pipeline variants use the shared `normalize_min_aligned_size()` helper. Fixed in #2637.
+
+**Qwen-Image-Edit fits on 32GB GPUs with TP**: Qwen-Image modulation layers (`img_mod`, `txt_mod`) now use `ColumnParallelLinear` instead of `ReplicatedLinear`, sharding ~13GB of weights across TP ranks. Use `--tensor-parallel-size 8` on 32GB GPUs — P99 latency drops from ~29s to ~8s. Improved in #3875.
+
+**HunyuanImage3.0 denoise flow alignment (TP2)**: Fixed in #3857. The image KV cache management was refactored to use `gen_timestep_scatter_index` for precise timestep positioning, replacing the fragile `eoi` sentinel token heuristic. Batched 4D KV cache layout replaces the flat layout. Attention mask construction now correctly handles prefix vs. current tokens with variable batch positions. Accuracy baselines tightened: CLIP score ≥90, SSIM ≥0.26, PSNR ≥12.5 dB.
 
 ## References
 

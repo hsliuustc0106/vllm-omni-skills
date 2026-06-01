@@ -145,6 +145,10 @@ Use a reverse proxy to route by path or model name.
 
 **OOM errors produce no response**: Diffusion pipeline OOM and execution errors now return structured HTTP error responses (e.g., 507) with `request_id`, `stage_id`, and `error_type` fields instead of hanging. Uses `OmniRequestError` dataclass for end-to-end propagation. Fixed in #2638.
 
+**DiffusionWorker crash on Ctrl+C (SIGINT)**: Fixed in #3872. DiffusionWorker child processes now handle SIGINT/SIGTERM gracefully with proper NCCL and ZMQ cleanup. Signal handlers raise `SystemExit`, and cleanup is guaranteed via try/finally in the worker busy loop. Previously, interrupting the server could leave leaked shared memory or "destroy_process_group() was not called" warnings.
+
+**Sleep mode memory leak with custom pipelines**: Fixed in #3818. When using `custom_pipeline` mode, `sleep(level=1)` now fully reclaims GPU memory. The root cause was safetensors ≥0.20.0 using a direct-to-GPU fast path (bypassing PyTorch's caching allocator) when custom pipelines were initialized inside a CUDA device context. Memory measurement in sleep/wake handlers now uses `get_free_memory()` instead of `get_current_memory_usage()` for correct freed-bytes calculation.
+
 ## References
 
 - For model-specific configurations, see [references/model-configs.md](references/model-configs.md)

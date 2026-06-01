@@ -186,6 +186,14 @@ For a step-by-step guide on integrating a new TTS model into vLLM-Omni, see the 
 
 **Event loop blocking under concurrent TTS**: Blocking tokenizer operations (`_build_voxtral_prompt`, `_build_fish_speech_prompt`) now run in a shared `ThreadPoolExecutor(max_workers=1)`. This prevents `/health` latency spikes under concurrent load. Fixed in #2511.
 
+**OmniVoice "Invalid voice 'default'" error**: OmniVoice is a pure-DiT TTS model with no built-in speaker presets. Omit the `voice` field from `/v1/audio/speech` requests — when absent, auto-voice selection is used. The example client now accepts an optional `--voice` flag for uploaded custom voices. Fixed in #3829.
+
+**Qwen3-TTS voice-clone outputs truncated**: Fixed in #3940. If voice-clone outputs are too short, ensure `_first()` is not incorrectly collapsing the 2D `ref_code` tensor inside `voice_clone_prompt`. Previously this silently truncated prefill embeddings.
+
+**Qwen3-TTS Code2Wav with transformers >= 5.9.0**: Fixed in #3880. The `create_causal_mask` API changed parameter names in newer transformers versions. The call now adapts automatically via signature inspection.
+
+**Voxtral TTS loading error**: Fixed in #3951. Voxtral TTS now defaults to `bfloat16` dtype when no dtype is explicitly provided, preventing a loading error at startup.
+
 ## References
 
 - For Qwen3-TTS details and voice options, see [references/qwen-tts.md](references/qwen-tts.md)

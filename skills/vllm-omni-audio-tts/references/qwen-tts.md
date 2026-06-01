@@ -4,10 +4,10 @@
 
 Qwen3-TTS is a two-stage TTS pipeline built on the Qwen3 language model:
 
-- **Stage 0 (Code Predictor)**: Autoregressive Qwen3-based model that converts text tokens into discrete RVQ codec codes. Uses vLLM's native `Qwen3DecoderLayer` with fused `QKVParallelLinear` and PagedAttention.
+- **Stage 0 (Code Predictor)**: Autoregressive Qwen3-based model that converts text tokens into discrete RVQ codec codes. Uses vLLM's native `Qwen3DecoderLayer` with fused `QKVParallelLinear` and PagedAttention. Prompt construction is handled by `Qwen3TTSPromptEmbedsBuilder` (in `vllm_omni/model_executor/models/qwen3_tts/prompt_embeds_builder.py`), which owns chat-template helpers, audio loading, mel-spectrogram utilities, dialect resolution, and batched preprocessing.
 - **Stage 1 (Code2Wav)**: Wraps the HF SpeechTokenizer to decode codec codes into audio waveform.
 
-The 12Hz variants generate audio tokens at 12 tokens per second.
+The 12Hz variants generate audio tokens at 12 tokens per second. `tts_pad_embed` is computed once as a persistent buffer at load time rather than being recomputed per-request.
 
 ## Model Variants
 

@@ -169,6 +169,14 @@ vllm serve Qwen/Qwen3-Omni-30B-A3B-Instruct --omni \
 
 Qwen3-Omni is compatible with the v2 model runner (vllm 0.19). Uses native `launch_core_engines` instead of custom spawning. `add_streaming_update` API removed; audio output tensors are explicitly converted to float. CUDAGraph supports tuple-returning thinker model. Fixed in #2522.
 
+### LoRA Support
+
+Qwen3-Omni Thinker supports LoRA fine-tuning via the `SupportsLoRA` interface. Supported target modules: `q_proj`, `k_proj`, `v_proj`, `o_proj`, `gate_proj`, `up_proj`, `down_proj`, `attn.qkv`. Use `--enable-lora` when serving a LoRA-adapted checkpoint.
+
+### Performance Optimizations
+
+Codec codes in the talker stage now stay on GPU (avoiding per-step D2H sync stalls in streaming). The talker/code2wav stages use cheap linear position tensors instead of expensive M-RoPE computation. `_store_value` skips unnecessary CPU transfers for already-CPU tensors. Fixed in #3878.
+
 ## Troubleshooting
 
 **Slow with video input**: Video processing requires extracting and encoding frames. Shorter clips process faster.
@@ -178,6 +186,8 @@ Qwen3-Omni is compatible with the v2 model runner (vllm 0.19). Uses native `laun
 **Out of memory with multi-modal input**: Large images/videos consume significant memory. Use the validation workflow above to check file sizes before sending.
 
 **Qwen3-Omni performance**: The multi-stage pipeline optimizes CPU hidden-state copying — only copies to CPU when downstream stages need payloads. Text-only inference (without `--omni`) is supported for benchmarking via `use_omni: false`. Fixed in #3203.
+
+**Qwen3-Omni accuracy degradation with torch.compile**: Fixed in #3885. `deepstack_input_embeds` buffer now dynamically resizes instead of raising `ValueError`, preventing accuracy issues under `torch.compile` compilation.
 
 ## References
 

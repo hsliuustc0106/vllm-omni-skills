@@ -10,8 +10,8 @@ When a refactor touches the codec decoder or the vocoder, you want metrics that 
 from pesq import pesq
 import soundfile as sf
 
-ref,  sr_r = sf.read(ref_path)
-synth, sr_s = sf.read(synth_path)
+ref,  sr_r = sf.read(ref_path,   dtype="float32")  # pesq needs float32 or int16
+synth, sr_s = sf.read(synth_path, dtype="float32")
 assert sr_r == sr_s == 16000  # PESQ is 8k or 16k
 score = pesq(16000, ref, synth, "wb")  # wideband
 ```

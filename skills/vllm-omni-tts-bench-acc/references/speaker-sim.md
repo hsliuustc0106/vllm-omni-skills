@@ -18,22 +18,28 @@ Pick one and pin its revision. Comparing numbers across models is meaningless.
 
 ```python
 import torch, torchaudio
-from transformers import AutoFeatureExtractor, AutoModel
+from transformers import AutoFeatureExtractor, AutoModelForAudioXVector
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 fe   = AutoFeatureExtractor.from_pretrained("microsoft/wavlm-base-plus-sv")
-emb  = AutoModel.from_pretrained("microsoft/wavlm-base-plus-sv").to(device).eval()
+emb  = AutoModelForAudioXVector.from_pretrained("microsoft/wavlm-base-plus-sv").to(device).eval()
 
 @torch.inference_mode()
 def embed(path: str) -> torch.Tensor:
     wav, sr = torchaudio.load(path)
+    if wav.shape[0] > 1:                          # stereo -> mono
+        wav = wav.mean(dim=0, keepdim=True)
     if sr != 16000:
         wav = torchaudio.functional.resample(wav, sr, 16000)
     inputs = fe(wav.squeeze(0).numpy(), sampling_rate=16000, return_tensors="pt").to(device)
     return emb(**inputs).embeddings.squeeze(0)
 
-cos = torch.nn.functional.cosine_similarity(embed(synth), embed(ref_wavs_dir), dim=0).item()
+# `ref` is the ground-truth wav for this utterance (wavs/<utt_id>.wav),
+# not the prompt clip and not a directory.
+cos = torch.nn.functional.cosine_similarity(embed(synth), embed(ref), dim=0).item()
 ```
+
+`AutoModelForAudioXVector` resolves to `WavLMForXVector` for the `-sv` checkpoint and is what exposes `.embeddings`. `AutoModel` returns the base `WavLMModel` (only `last_hidden_state`), and `AutoModelForAudioClassification` returns logits, not X-vector embeddings.
 
 ## Reference Picking — Gotcha
 

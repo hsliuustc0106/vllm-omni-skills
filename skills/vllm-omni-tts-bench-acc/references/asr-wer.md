@@ -16,7 +16,7 @@
 ## Pipeline Sketch
 
 ```python
-import whisper, jiwer, soundfile as sf
+import whisper, jiwer
 
 asr = whisper.load_model("large-v3")
 

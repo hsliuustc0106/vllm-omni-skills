@@ -14,6 +14,8 @@ A collection of AI assistant skills for [vLLM-Omni](https://github.com/vllm-proj
 | [vllm-omni-video-gen](skills/vllm-omni-video-gen/) | Video generation (Wan2.2 T2V/I2V/TI2V) |
 | [vllm-omni-audio-tts](skills/vllm-omni-audio-tts/) | Audio generation and TTS (Qwen3-TTS, MiMo-Audio, Stable-Audio) |
 | [vllm-omni-tts-integration](skills/vllm-omni-tts-integration/) | Adding new TTS models and production speech-serving integrations |
+| [vllm-omni-tts-bench-perf](skills/vllm-omni-tts-bench-perf/) | TTS serving perf benchmarks (RTF, TTFA/TTFP, throughput, concurrency sweeps, CI baselines) |
+| [vllm-omni-tts-bench-acc](skills/vllm-omni-tts-bench-acc/) | TTS accuracy benchmarks (WER/CER, speaker SIM, UTMOS, codec/vocoder fidelity) |
 | [vllm-omni-multimodal](skills/vllm-omni-multimodal/) | End-to-end omni-modality models (Qwen-Omni) |
 | [vllm-omni-distributed](skills/vllm-omni-distributed/) | Distributed inference, disaggregation, Ray |
 | [vllm-omni-perf](skills/vllm-omni-perf/) | Performance tuning, benchmarking, TeaCache, CPU offloading |

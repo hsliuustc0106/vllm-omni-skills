@@ -10,36 +10,20 @@ pip install git+https://github.com/sarulab-speech/UTMOSv2.git
 
 The PyPI `SpeechMOS` package ships a different (older) checkpoint; numbers do not match the literature.
 
-## Folds
+## Pipeline
 
-UTMOSv2 uses a 5-fold ensemble. Pre-fetch all folds once:
-
-```bash
-python -c "
-from utmosv2 import UTMOSv2
-for fold in range(5):
-    UTMOSv2(fold=fold)
-"
-```
-
-Each fold is ~50 MB. On a fresh box, deferring the download to the first run makes the first run 5–10× slower and brittle to mirror flakes.
-
-## Pipeline Sketch
+`utmosv2.create_model(pretrained=True)` returns the 5-fold ensemble already; you do not loop folds yourself. `model.predict(input_path=...)` returns a plain float.
 
 ```python
-import torch
-from utmosv2 import UTMOSv2
+import utmosv2
 
-device = "cuda" if torch.cuda.is_available() else "cpu"
-models = [UTMOSv2(fold=i).to(device).eval() for i in range(5)]
+model = utmosv2.create_model(pretrained=True)
 
-@torch.inference_mode()
 def utmos(path: str) -> float:
-    scores = [m.predict(path).item() for m in models]
-    return sum(scores) / len(scores)
+    return model.predict(input_path=path)
 ```
 
-CPU is fine; UTMOS is small. Use GPU only if you are batching tens of thousands of files.
+The first call to `create_model(pretrained=True)` downloads the bundled checkpoint and caches it under the package's default cache dir. On a fresh box, deferring to the first scoring call makes that call ~30 s; pre-warm by calling `create_model` at script start.
 
 ## Reading Scores
 

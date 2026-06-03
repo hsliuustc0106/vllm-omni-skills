@@ -3,45 +3,57 @@
 ## Approach
 
 1. Run an ASR model on synthesized audio.
-2. Compute WER / CER against the prompt text.
+2. Compute WER / CER against the target text.
 3. Lower is better. The ASR model is your "ear".
 
-## Default Model
+## Backend Choice by Locale (Match vllm-omni CI)
 
-`openai/whisper-large-v3`. Smaller models bias the numbers:
+vllm-omni's `vllm_omni/benchmarks/data_modules/seed_tts_eval.py` uses different backends per locale, and your numbers must match that pairing to be comparable to CI:
 
-- `whisper-small` mistranscribes Chinese without language hints, producing **false** WER regressions
-- `whisper-base` is unreliable below 16 kHz output
+| Locale | ASR | Notes |
+|---|---|---|
+| `en` | `openai/whisper-large-v3` via `transformers` (16 kHz mono) | `temperature=0.0`, `condition_on_previous_text=False` |
+| `zh` | `paraformer-zh` via `funasr`, hypothesis normalised with `zhconv` to zh-cn | Whisper on Chinese disagrees with CI WER by several points — do not substitute |
 
-## Pipeline Sketch
+Install: `pip install 'vllm-omni[seed-tts-eval]'` brings both backends and `zhconv`.
+
+## Pipeline — English
 
 ```python
-import whisper, jiwer
+import jiwer, whisper
 
 asr = whisper.load_model("large-v3")
 
-def transcribe(path: str, lang: str | None = None, initial_prompt: str | None = None) -> str:
+def transcribe_en(path: str) -> str:
     return asr.transcribe(
         path,
-        language=lang,             # "zh", "en", "ja", ...
-        initial_prompt=initial_prompt,
+        language="en",
         condition_on_previous_text=False,
         temperature=0.0,
     )["text"]
 
-wer = jiwer.wer(reference_texts, [transcribe(p) for p in synth_paths])
-cer = jiwer.cer(reference_texts, [transcribe(p) for p in synth_paths])
+wer = jiwer.wer(reference_texts, [transcribe_en(p) for p in synth_paths])
+cer = jiwer.cer(reference_texts, [transcribe_en(p) for p in synth_paths])
 ```
 
-## Language-Specific Handling
+## Pipeline — Chinese
 
-| Language | Required hint | Notes |
-|---|---|---|
-| `en` | none | default settings work |
-| `zh` | `language="zh"`, `initial_prompt="以下是普通话内容。"` | without these, Chinese audio is often transcribed as pinyin or English |
-| `ja` | `language="ja"`, `initial_prompt="以下は日本語です。"` | same kanji confusion problem |
+```python
+import jiwer, zhconv
+from funasr import AutoModel
 
-When a regression is locale-specific, suspect the ASR setup before suspecting the TTS model.
+asr = AutoModel(model="paraformer-zh")
+
+def transcribe_zh(path: str) -> str:
+    res  = asr.generate(input=path, batch_size_s=300)
+    text = res[0]["text"]
+    return zhconv.convert(text, "zh-cn")
+
+# Character-level CER is the standard for Chinese
+cer = jiwer.cer(reference_texts, [transcribe_zh(p) for p in synth_paths])
+```
+
+When a regression is locale-specific, suspect the ASR backend before suspecting the TTS model.
 
 ## Text Normalization
 

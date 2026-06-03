@@ -25,7 +25,7 @@ Open the resulting trace in `chrome://tracing` or perfetto. Look for:
 
 ## 2. Client-side bench profile
 
-`bench_tts.py --profile` collects request-side timings. Useful when server timings look fine but TTFP regresses — usually means tokenizer cost, ref-audio I/O, or HTTP framing.
+Drive `vllm bench serve --profile ...` directly (the `bench_tts.py` wrapper does not expose a `--profile` flag of its own). Useful when server timings look fine but TTFP regresses — usually means tokenizer cost, ref-audio I/O, or HTTP framing.
 
 ## 3. GPU-kernel layer: nsys → NCU
 

@@ -29,15 +29,16 @@ TTS serving has streaming-audio metrics that text-generation benchmarks do not r
 vllm serve Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice --omni --port 8000
 ```
 
-For models requiring `trust_remote_code` under vllm 0.22+, pass it explicitly — `bench_tts.py` forwards extra args after `--` to the underlying client. See [references/vllm-022-trust-remote-code.md](references/vllm-022-trust-remote-code.md).
+For models requiring `trust_remote_code` under vllm 0.22+, see [references/vllm-022-trust-remote-code.md](references/vllm-022-trust-remote-code.md).
 
 ### 2. Run a concurrency sweep
 
+`bench_tts.py` picks the task ↔ model mapping from `benchmarks/tts/model_configs.yaml`. The `-CustomVoice` checkpoints only support `default_voice` and `voice_design` (they lack the speaker encoder); `voice_clone` is supported by `-Base` and by VoxCPM2.
+
 ```bash
 python benchmarks/tts/bench_tts.py \
-  --model Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice \
+  --model Qwen/Qwen3-TTS-12Hz-1.7B-Base \
   --task voice_clone \
-  --dataset-name seed-tts \
   --dataset-path linyueqian/seed-tts-eval-subset \
   --concurrency 1 4 8 16 \
   --num-prompts 20 80 128 128 \
@@ -109,7 +110,7 @@ Three layers, escalate as needed:
 | Layer | Tool | Use for |
 |---|---|---|
 | Server-side | `VLLM_TORCH_PROFILER_DIR=...` + `/start_profile` HTTP hook | Per-step Stage 1 / Stage 2 breakdown |
-| Client-side | `bench_tts.py --profile` | Tokenization / I/O cost |
+| Client-side | `vllm bench serve --profile` (drive directly, not via `bench_tts.py`) | Tokenization / I/O cost |
 | GPU kernels | nsys, then NCU for hot kernels | Attention/RMSNorm regressions |
 
 See [references/profiling.md](references/profiling.md) for the exact recipes.
@@ -120,9 +121,9 @@ See [references/profiling.md](references/profiling.md) for the exact recipes.
 |---|---|---|
 | `c=8+` numbers fluctuate ±30% | Inductor cold cache + adjacent-GPU runs | Sequential same-GPU runs, ≥3 reps, drop first |
 | `audio_throughput` flat across concurrencies | Server bottleneck before benchmark saturates | Increase `--num-prompts`, recheck `nvidia-smi` utilization |
-| `audio_ttfp_ms` baseline keeps regressing | First-request graph capture counted in median | Warm-up phase: discard first N requests, or set `--num-warmup` |
+| `audio_ttfp_ms` baseline keeps regressing | First-request graph capture counted in median | Warm-up phase: discard first N requests, or set `--num-warmups` |
 | `bench` returns 500s | Zombie server / engine dead | Pre-bench hygiene above |
-| Base TTS variants reject the request instantly | Base task needs `ref_audio` | Use `voice_clone` with seed-tts, not `tts` |
+| `CustomVoice` model + `voice_clone` instantly errors | `-CustomVoice` lacks speaker encoder | Use `-Base` for `voice_clone`; use `-CustomVoice` for `default_voice` / `voice_design` |
 
 ## References
 

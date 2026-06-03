@@ -2,7 +2,14 @@
 
 ## Approach
 
-Embed reference audio and synthesized audio in a speaker-embedding space, then take cosine similarity. For voice cloning, the synthesized clip should land close to the **ground-truth** clip (`wavs/`), not to the **prompt** clip (`prompt-wavs/`).
+Embed reference audio and synthesized audio in a speaker-embedding space, then take cosine similarity.
+
+Two conventions exist in the literature:
+
+- **SIM-o** (output vs prompt): the same speaker prompt that was fed in is used as the reference. This is what vllm-omni's built-in `seed_tts_eval.py` reports, and what Seed-TTS-eval uses. The reference path is `<locale>/prompt-wavs/<utt_id>.wav` (== `seed_tts_ref_wav_path` in the dataset record).
+- **SIM-r** (output vs ground truth): a separately recorded ground-truth take of the same target text is the reference.
+
+For parity with vllm-omni CI, use SIM-o. For absolute quality claims in a paper, SIM-r is more meaningful.
 
 ## Model Choices
 
@@ -34,18 +41,22 @@ def embed(path: str) -> torch.Tensor:
     inputs = fe(wav.squeeze(0).numpy(), sampling_rate=16000, return_tensors="pt").to(device)
     return emb(**inputs).embeddings.squeeze(0)
 
-# `ref` is the ground-truth wav for this utterance (wavs/<utt_id>.wav),
-# not the prompt clip and not a directory.
+# For SIM-o (vllm-omni CI parity): ref = the prompt wav (seed_tts_ref_wav_path,
+# typically <locale>/prompt-wavs/<utt_id>.wav)
+# For SIM-r: ref = a separately curated ground-truth recording for this utt_id
 cos = torch.nn.functional.cosine_similarity(embed(synth), embed(ref), dim=0).item()
 ```
 
 `AutoModelForAudioXVector` resolves to `WavLMForXVector` for the `-sv` checkpoint and is what exposes `.embeddings`. `AutoModel` returns the base `WavLMModel` (only `last_hidden_state`), and `AutoModelForAudioClassification` returns logits, not X-vector embeddings.
 
-## Reference Picking — Gotcha
+## Reference Picking — Two Conventions
 
-For voice cloning the **reference for SIM** is the ground-truth recording (`wavs/<utt_id>.wav`), not the prompt audio (`prompt-wavs/<utt_id>.wav`). The prompt is the input; the ground truth is the target.
+SIM-o and SIM-r answer different questions:
 
-Using the prompt as both input and reference will give SIM ≈ 0.99 across the board and mask real regressions.
+- SIM-o (output vs prompt) — does the synthesised voice sound like the speaker we prompted with? This is what vllm-omni's `seed_tts_eval.py:647-655` computes against `seed_tts_ref_wav_path` (== the `prompt-wavs/` clip).
+- SIM-r (output vs ground truth) — does the synthesised audio match a separately recorded take of the target sentence? Stronger as an absolute quality claim, but requires a curated reference set.
+
+Use SIM-o for CI parity. Document SIM-r runs as such when you use them.
 
 ## Typical Numbers
 

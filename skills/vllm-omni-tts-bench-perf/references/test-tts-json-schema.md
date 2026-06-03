@@ -23,15 +23,15 @@ Each top-level entry defines a test that the perf CI runs end-to-end: start serv
 
 | Field | Required | Notes |
 |---|---|---|
-| `task` | yes | `voice_clone`, `voice_design`, `tts` |
-| `eval_phase` | yes | `latency`, `throughput`, `quality` |
-| `dataset_name` | yes | `seed-tts` for the standard subset |
+| `task` | yes | `voice_clone` (Base / VoxCPM2), `default_voice` / `voice_design` (CustomVoice) |
+| `eval_phase` | yes | `latency`, `throughput`, `quality`, `stress` |
+| `dataset_name` | yes | `seed-tts` (cloning), `seed-tts-text` (default voice), `seed-tts-design` (voice design) |
 | `backend` | yes | `openai-audio-speech` for the standard `/v1/audio/speech` endpoint |
 | `endpoint` | yes | typically `/v1/audio/speech` |
 | `dataset_path` | yes | HF id, e.g. `linyueqian/seed-tts-eval-subset` |
 | `num_prompts` | yes | parallel array, indexed with `max_concurrency` |
 | `max_concurrency` | yes | parallel array, indexed with `num_prompts` |
-| `seed_tts_locale` | when `dataset_name=seed-tts` | `en` or `zh` |
+| `seed_tts_locale` | when `dataset_name=seed-tts*` | `en` or `zh` |
 | `percentile-metrics` | yes | comma list, e.g. `ttft,e2el,audio_rtf,audio_ttfp,audio_duration` |
 | `baseline` | yes for CI | see below |
 | `enabled` | optional | set `false` to skip without deleting |
@@ -62,6 +62,7 @@ Arrays are positional and must have the same length as `max_concurrency`.
 |---|---|---|
 | `latency` | `[1]` | Cold-state user-perceived latency |
 | `throughput` | `[8, 16, 64]` | Saturation behaviour |
+| `stress` | `[128, 256, ...]` | Beyond-saturation degradation envelope |
 | `quality` | optional, disabled in perf CI | Set `enabled=false`; route accuracy benchmarks through the accuracy skill |
 
 ## Adding a New Cell — Checklist

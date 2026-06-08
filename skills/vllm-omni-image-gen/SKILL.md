@@ -120,13 +120,17 @@ vllm serve <model> --omni --cpu-offload-gb 10
 
 **Slow generation**: Enable TeaCache for 1.5-2x speedup (see vllm-omni-perf skill). Multi-thread weight loading (enabled by default for diffusion models) also reduces startup time significantly.
 
-**HunyuanImage3.0 garbage output in offline inference**: Fixed in #3243. The AR stage now uses the Instruct chat template (`User:`/`Assistant:` framing) instead of the pretrain format. Trigger tags (`💭`, `<recaption>`) must go *after* `Assistant:`, not before the user prompt. Use `build_prompt_tokens()` from `vllm_omni.diffusion.models.hunyuan_image3.prompt_utils` for segment-by-segment tokenization that avoids cross-segment BPE merges. MoE routing now runs in fp32 (matching HF). VAE pixel values must stay fp32 through preprocessing — do not pre-cast to bf16.
+**HunyuanImage3.0 garbage output in offline inference**: Fixed in #3243. The AR stage now uses the Instruct chat template (`User:`/`Assistant:` framing) instead of the pretrain format. Trigger tags (`💭`, `<recaption>`) must go *after* `Assistant:`, not before the user prompt. Use `build_prompt_tokens()` from `vllm_omni.diffusion.models.hunyuan_image3.prompt_utils` for segment-by-segment tokenization that avoids cross-segment BPE merges. MoE routing now runs in fp32 (matching HF). VAE pixel values must stay fp32 through preprocessing — do not pre-cast to bf16. Fused RMSNorm is enabled for ~6% faster generation on compatible hardware (uses `vllm_omni.diffusion.layers.norm`). Fixed in #3959.
 
 **HunyuanImage3.0 load_weights error**: Fixed in #1598. Ensure you are using the latest vllm-omni.
 
 **GLM-Image filepath errors**: Fixed in #1609. Models with `model_subdir` or `tokenizer_subdir` now resolve paths correctly.
 
+**SD3/SD3.5 crash on long prompts**: Fixed device mismatch in T5 truncation check. Long prompts (>256 T5 tokens) no longer cause RuntimeError from CPU/CUDA tensor comparison. Fixed in #3949.
+
 **BAGEL think mode for text2text/img2text**: BAGEL now supports reasoning/thinking mode for text-to-text and image-to-text modalities via `--think` flag. Injects `VLM_THINK_SYSTEM_PROMPT` to enable chain-of-thought output. Fixed in #2503.
+
+**BAGEL VAE memory at high resolution**: Use `vae_patch_parallel_size: 2` with `vae_use_tiling: true` for ~15% GPU memory reduction at 1024×1024 with no latency regression. VAE decode is distributed across TP ranks. Fixed in #3982.
 
 **Qwen-Image tiny request sizes**: Small requests (below VAE alignment) are now clamped to minimum valid dimensions instead of collapsing to zero. All Qwen-Image pipeline variants use the shared `normalize_min_aligned_size()` helper. Fixed in #2637.
 

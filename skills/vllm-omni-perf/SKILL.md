@@ -155,6 +155,8 @@ curl http://localhost:8091/metrics
 
 **Latency regression with TP**: For small models, the communication overhead of tensor parallelism may exceed the compute savings. Use TP only for models that saturate a single GPU.
 
+**HunyuanImage3.0**: Fused RMSNorm (`vllm_omni.diffusion.layers.norm`) is enabled for ~6% faster generation on compatible hardware (NPU). Fixed in #3959.
+
 ## References
 
 - For TeaCache configuration details, see [references/teacache.md](references/teacache.md)

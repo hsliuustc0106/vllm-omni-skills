@@ -17,9 +17,13 @@ vLLM-Omni supports video generation through diffusion transformer models, primar
 | Wan2.2-TI2V-5B | `Wan-AI/Wan2.2-TI2V-5B-Diffusers` | Text+Image-to-video | 24 GB |
 | Wan2.2-I2V-A14B | `Wan-AI/Wan2.2-I2V-A14B-Diffusers` | Image-to-video | 48 GB |
 | NextStep-1.1 | `stepfun-ai/NextStep-1.1` | Text-to-video | 24 GB |
+| Cosmos3-Nano | `nvidia/Cosmos3-Nano-7B-Video2World` | T2V, I2V, V2V | 48 GB |
+| Cosmos3-Super | `nvidia/Cosmos3-Super-14B-Video2World` | T2V, I2V, V2V | 80 GB |
 | daVinci-MagiHuman | `SII-GAIR/daVinci-MagiHuman-Base-1080p` | Image-to-video + audio | 24 GB |
 
 daVinci-MagiHuman is an image-to-video model that also generates audio (44100 Hz, 25 fps). Use `--enable-diffusion-pipeline-profiler` to get per-stage timing (`stage_durations`) and peak memory (`peak_memory_mb`) in video responses (async poll JSON or sync HTTP headers).
+
+Cosmos3-Nano and Cosmos3-Super support text-to-video, image-to-video, and video-to-video (V2V) generation. V2V accepts a `video_reference` input video alongside a text prompt and optional image reference. Inverse dynamics action prediction is available for robotics use cases.
 
 ## Quick Start: Text-to-Video
 
@@ -102,6 +106,8 @@ Video generation is significantly more compute-intensive than image generation:
   vllm serve <model> --omni --cpu-offload-gb 20
   ```
 - For multi-transformer pipelines (e.g., Wan2.2-T2V has `transformer` + `transformer-2`), the sequential offloader now offloads all other DiTs to CPU when any one is running. This allows Wan2.2-T2V to fit on 64GB GPUs with `--enable-cpu-offload --tensor-parallel-size 2`.
+- LTX-2.3 supports distributed tiled VAE decoding (`vae-decode-parallel`), splitting the video decoder across multiple GPUs for faster output.
+- DreamZero-DROID is platform-agnostic — supports CUDA, XPU, ROCm, and other backends via `current_omni_platform.synchronize()`.
 
 ## Troubleshooting
 

@@ -146,6 +146,8 @@ vllm serve Wan-AI/Wan2.2-T2V-A14B-Diffusers --omni \
 
 This accelerates video/image generation by parallelizing the diffusion computation.
 
+LTX-2.3 supports distributed tiled VAE decoding, splitting the video decoder across multiple GPUs using `DistributedAutoencoderKLLTX2Video`. Configure via `vae-decode-parallel` in the pipeline config.
+
 ## Configuration Examples
 
 ### Small model, single GPU

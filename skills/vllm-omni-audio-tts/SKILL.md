@@ -26,7 +26,7 @@ vLLM-Omni supports text-to-speech (TTS), text-to-audio (sound effects, music), a
 | VoxCPM2 | `openbmb/VoxCPM2` | TTS (native AR, 30+ languages) | 8 GB |
 | Stable-Audio-Open | `stabilityai/stable-audio-open-1.0` | Text-to-audio (music/effects) | 8 GB |
 
-OmniVoice supports voice cloning via `ref_audio` + `ref_text` (requires transformers>=5.3). VoxCPM2 is a 2B tokenizer-free native AR TTS model producing 48kHz audio in 30+ languages (requires `pip install voxcpm`).
+OmniVoice supports voice cloning via `ref_audio` + `ref_text` (requires transformers>=5.3). OmniVoice/Higgs Audio v3 ships two deploy profiles: `higgs_multimodal_qwen3.yaml` (high-throughput default) and `higgs_multimodal_qwen3_low_latency.yaml` (CUDA-graph accelerated for concurrency 1-4). Use `--deploy-config` to select. VoxCPM2 is a 2B tokenizer-free native AR TTS model producing 48kHz audio in 30+ languages (requires `pip install voxcpm`).
 
 ## Model Architectures
 
@@ -150,7 +150,31 @@ For batch mode (no streaming), use `qwen3_tts_batch.yaml`.
 
 Fish Speech uses `fish_speech_s2_pro.yaml` with similar knobs. Its DAC codec outputs at 44.1 kHz (vs Qwen3-TTS's 24 kHz).
 
+MOSS-TTS codec decoder supports CUDA Graph acceleration when `enforce_eager: false` in the stage config. Capture sizes are configured via `decode_cudagraph_capture_sizes` in the connector's `extra` config (default: `[4, 8, 16, 25, 32, 50, 64, 100, 128, 200, 256]`). Inputs are bucket-matched to the smallest pre-captured size, replaying the graph with right zero-padding.
+
 Note: CosyVoice3 does not support async_chunk streaming yet - use `cosyvoice3.yaml` (batch mode only).
+
+CosyVoice3 supports optional TensorRT acceleration (`COSYVOICE3_TRT=1`, default on) for the campplus speaker embedding and flow-decoder estimator engines. Requires TensorRT >= 10. Disable with `COSYVOICE3_TRT=0` if TensorRT is unavailable. When enabled, TTFP improves significantly (e.g., ~2800ms → ~200ms at concurrency=1 on H100).
+
+## Qwen3-TTS `non_streaming_mode`
+
+The `non_streaming_mode` parameter (bool | null) overrides the model's streaming-mode prompt construction for Qwen3-TTS. It does NOT affect HTTP/WebSocket response streaming or async-chunk pipelining.
+
+- **`null` (default)**: VoiceDesign defaults to `true`; Base and CustomVoice use model defaults.
+- **`true`**: Force non-streaming prompt construction for any task type (useful for Base models where streaming-mode prompts may degrade quality).
+- **`false`**: Force streaming-mode prompt construction.
+
+Accepted by `/v1/audio/speech`, `/v1/audio/speech/batch`, and WebSocket session config. Example:
+
+```bash
+curl -s http://localhost:8091/v1/audio/speech \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
+    "input": "Hello world",
+    "non_streaming_mode": true
+  }' --output speech.wav
+```
 
 ## Streaming Audio
 
@@ -185,6 +209,8 @@ For a step-by-step guide on integrating a new TTS model into vLLM-Omni, see the 
 **Fish Speech voice cloning latency**: Uploaded voices via `/v1/audio/voice/upload` now auto-cache DAC-encoded reference audio. First request encodes the reference; subsequent requests reuse the cached codes for faster TTFP. Fixed in #2609.
 
 **Event loop blocking under concurrent TTS**: Blocking tokenizer operations (`_build_voxtral_prompt`, `_build_fish_speech_prompt`) now run in a shared `ThreadPoolExecutor(max_workers=1)`. This prevents `/health` latency spikes under concurrent load. Fixed in #2511.
+
+**Qwen3-TTS voice corruption at concurrency > 1**: Cross-request reference codec frame leakage caused audible timbre deformation in batched voice-clone requests. Fixed in #4373. Ensure per-request multimodal output payloads use batch-aligned lists (one entry per request).
 
 ## References
 

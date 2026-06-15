@@ -66,6 +66,10 @@ curl -s http://localhost:8091/v1/images/generations \
 # If PSNR < 25 dB or visual artifacts appear, check references/diffusion.md
 ```
 
+### Blackwell FP8 GEMM (quack)
+
+On Blackwell GPUs (SM 100+), install `pip install vllm-omni[quack]` to enable fused-bias FP8 GEMM via CuteDSL (`quack-kernels`). This is auto-detected with no flag needed. Override with `VLLM_OMNI_USE_QUACK_FP8=0`. The JIT compile cache lives at `~/.cache/vllm_omni/quack`. Hopper/Ada use CUTLASS FP8 and are unaffected.
+
 ## Common Mistakes
 
 | Symptom | Likely Cause | Fix |
@@ -80,6 +84,7 @@ curl -s http://localhost:8091/v1/images/generations \
 | offline text_to_image fails | quantization config conflicts with diffusion pipeline init | fixed in #1515, update vllm-omni |
 | OmniDiffusion init crash | `pipeline_class` variable not initialized during quantized load | fixed in #1562, update vllm-omni |
 | HunyuanImage3.0 load_weights error | weight loading fails with quantized HunyuanImage3.0 | fixed in #1598, update vllm-omni |
+| HunyuanVideo-1.5 I2V ignores quantization | I2V pipeline didn't propagate `quant_config` to transformer (T2V worked correctly) | fixed in #4245, update vllm-omni |
 
 ## References
 

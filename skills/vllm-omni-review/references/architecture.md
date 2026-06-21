@@ -227,6 +227,26 @@ async def process_batch(requests: list[Request]) -> list[Response]:
 
 ---
 
+### Deferred Output Materialization
+
+**When to inspect:** PRs that move `OmniModelRunnerOutput`, connector output, full-payload accumulation, token/logprob bookkeeping, or multimodal CPU conversion into background threads, async wrappers, or delayed builders.
+
+**Review checklist:**
+- Snapshot all per-step runner and connector state synchronously before launching deferred work. Do not call drain/clear getters from background code after the next `execute_model()` step can start.
+- Treat nested mutable containers and device tensors as live until copied with explicit lifetime/stream ownership. Shallow copies are insufficient if later steps can reuse list, dict, or tensor contents.
+- Handle non-CUDA accelerators explicitly when using stream/event copy code; CUDA-only snapshots can leave XPU/NPU tensors live.
+- Keep stateful accumulation (`_pending_full_payload_send`, chunk-ready sets, finished/kv signal sets) on the owning step, or guard it with cycle-owned state/locks.
+- Bound or serialize background builders; one daemon thread/task per step can race shared state and add GIL/resource pressure.
+- Preserve reset/shutdown cleanup for async resources: close clients, cancel and await tasks, and acquire session locks before mutating or dropping session state.
+
+**Blocking examples:**
+- Connector signals attach to the wrong step or are cleared before the right output consumes them.
+- Full-payload rows are dropped, duplicated, or reordered under overlap.
+- CPU copies race with source-buffer reuse because source tensors/buffers were not retained or synchronized.
+- Reset or shutdown drops state while an in-flight request/task continues using it.
+
+---
+
 ### Distributed Execution Patterns
 
 **When complexity is justified:**

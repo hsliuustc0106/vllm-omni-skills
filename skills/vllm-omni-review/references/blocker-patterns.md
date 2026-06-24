@@ -40,6 +40,24 @@ for item in items:
 
 ---
 
+### Pattern: Overly Broad except Clause
+```python
+# BLOCKER: catches every exception type, including ones you didn't think of
+try:
+    evt = build_event(...)
+    return evt
+except Exception:
+    return None
+```
+
+**Why dangerous:** Too flexible. If you catch an exception type you don't expect, it is almost always an unhandled edge case that should surface and be *fixed* — not be swallowed into `None`/`pass`. Real clusters: `vllm_omni/metrics/stats.py` (`except Exception: return None` ×4), `vllm_omni/metrics/{modality,utils}.py`.
+
+**Required fix:** Catch the **specific** types you actually expect (`ValueError`, `KeyError`, `OSError`, `torch.cuda.OutOfMemoryError`, `msgspec.ValidationError`, …). At a genuine top-level / best-effort boundary (metrics, signal handlers), at minimum log; never swallow into `pass`/`return None` on a path that should fail loudly (init, config validation, weight loading, request handling). The repo backs this with ruff `BLE001` (currently suppressed in `vllm_omni/patch.py` via `# noqa: BLE001`) — prefer fixing over suppressing.
+
+**Cross-ref:** See [Error Handling Pattern](architecture.md#error-handling-pattern) for proper exception handling with logging.
+
+---
+
 ### Pattern: Uninitialized Variable
 ```python
 result = obj.method().nested.value  # potential AttributeError
@@ -129,6 +147,40 @@ def process(data):
 **Why dangerous:** Hides bugs, makes debugging impossible.
 
 **Required fix:** Add explicit None check and log a warning. Better: `return None`.
+
+**Cross-ref:** See [Input Validation Pattern](architecture.md#input-validation-pattern) for validation guidance.
+
+---
+
+## Type Safety
+
+### Pattern: kwargs String-Lookup Passthrough
+```python
+# BLOCKER-prone: raw dict + string keys duplicated across files
+def forward(self, **kwargs):
+    if "runtime_additional_information" in kwargs and \
+       "model_intermediate_buffer" not in kwargs:
+        ...
+```
+
+**Why dangerous:** The compiler can't see a missing or misspelled key, so failures are silent; unknown keys are silently dropped. This exact guard is copy-pasted across `cosyvoice3`, `indextts2` (×3), `qwen3_tts`, and `qwen3_omni` — each copy is a new place for the strings to drift.
+
+**Required fix:** Prefer explicit typed params. The repo already has the right primitive: `msgspec.Struct` with `forbid_unknown_fields=True` rejects unknown keys instead of silently dropping them (see `_StructBase` in `vllm_omni/data_entry_keys.py`, `MoriPullRequest` in the mori connector). A `@dataclass` or `TypedDict` works too. If `**kwargs` is unavoidable (vLLM base-class compat), centralize the key strings as module constants behind one typed accessor.
+
+**Cross-ref:** See [Input Validation Pattern](architecture.md#input-validation-pattern) for validation guidance.
+
+---
+
+### Pattern: Any-Typed Signature / Wrong Annotation
+```python
+# BLOCKER-prone: Any disables the checker for that position
+def _extract_mm_output(engine_outputs: Any) -> dict[str, Any]:
+    ...
+```
+
+**Why dangerous:** `Any` disables type checking for that position, so typos and wrong shapes pass silently. It is often leaked from tests: `SimpleNamespace` fakes force the consuming production code to be typed `Any`, which then propagates outward into public signatures. Wrong annotations (e.g. `-> bool` returning `Optional[bool]`) are worse — actively misleading.
+
+**Required fix:** Replace `Any` with the concrete type, a `Protocol`, or a `Union`; if a type is genuinely dynamic, prefer `object` + `isinstance` narrowing over `Any`. In tests, replace `SimpleNamespace` with the real class, a small `@dataclass`/`TypedDict`, or a `Protocol` + fake so the system under test stays typed.
 
 **Cross-ref:** See [Input Validation Pattern](architecture.md#input-validation-pattern) for validation guidance.
 

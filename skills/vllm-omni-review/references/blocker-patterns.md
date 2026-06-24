@@ -158,8 +158,10 @@ def process(data):
 ```python
 # BLOCKER-prone: raw dict + string keys duplicated across files
 def forward(self, **kwargs):
-    if "runtime_additional_information" in kwargs and \
-       "model_intermediate_buffer" not in kwargs:
+    if (
+        "runtime_additional_information" in kwargs
+        and "model_intermediate_buffer" not in kwargs
+    ):
         ...
 ```
 

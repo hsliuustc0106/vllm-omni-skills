@@ -1,5 +1,5 @@
 ---
-name: add-diffusion-model
+name: vllm-omni-add-diffusion-model
 description: Add a new diffusion model (text-to-image, text-to-video, image-to-video, text-to-audio, image editing) to vLLM-Omni, including Cache-DiT acceleration and parallelism support (TP, SP/USP, CFG-Parallel, HSDP). Use when integrating a new diffusion model, porting a diffusers pipeline or a custom model repo to vllm-omni, creating a new DiT transformer adapter, adding diffusion model support, or enabling multi-GPU parallelism and cache acceleration for an existing model.
 ---
 
@@ -325,41 +325,7 @@ Check logs for "Cache-dit enabled successfully on xxx". If it works, skip to Ste
 
 #### 9c. Custom architectures — write a custom enabler
 
-For multi-block-list or dual-transformer models, write a custom enabler function:
-
-```python
-from cache_dit import BlockAdapter, ForwardPattern, ParamsModifier, DBCacheConfig
-
-def enable_cache_for_your_model(pipeline, cache_config):
-    db_cache_config = DBCacheConfig(
-        num_inference_steps=None,
-        Fn_compute_blocks=cache_config.Fn_compute_blocks,
-        Bn_compute_blocks=cache_config.Bn_compute_blocks,
-        max_warmup_steps=cache_config.max_warmup_steps,
-        max_cached_steps=cache_config.max_cached_steps,
-        max_continuous_cached_steps=cache_config.max_continuous_cached_steps,
-        residual_diff_threshold=cache_config.residual_diff_threshold,
-    )
-
-    cache_dit.enable_cache(
-        BlockAdapter(
-            transformer=pipeline.transformer,
-            blocks=[
-                pipeline.transformer.transformer_blocks,
-                pipeline.transformer.single_transformer_blocks,
-            ],
-            forward_pattern=[ForwardPattern.Pattern_1, ForwardPattern.Pattern_1],
-            params_modifiers=[ParamsModifier(...)],
-        ),
-        cache_config=db_cache_config,
-    )
-
-    def refresh_cache_context(pipeline, num_inference_steps, verbose=True):
-        cache_dit.refresh_context(
-            pipeline.transformer, num_inference_steps=num_inference_steps, verbose=verbose
-        )
-    return refresh_cache_context
-```
+For multi-block-list or dual-transformer models, write a custom enabler using `BlockAdapter` (with `ForwardPattern`, `ParamsModifier`, `DBCacheConfig`) plus a `refresh_cache_context` helper. Full code and the `ForwardPattern` selection table are in [references/cache-dit-patterns.md](references/cache-dit-patterns.md) (Multi-Block-List and Dual-Transformer patterns).
 
 #### 9d. Register the custom enabler
 
@@ -411,19 +377,7 @@ Shards DiT linear layers across GPUs. Requires code changes in the transformer.
 2. Update `load_weights()` to handle QKV fusion with `stacked_params_mapping`
 3. Use `self.to_qkv.num_heads` (local heads) instead of total heads for split sizes
 
-```python
-from vllm.model_executor.layers.linear import (
-    QKVParallelLinear, RowParallelLinear, ColumnParallelLinear,
-)
-
-# Attention: QKV → RowParallel output
-self.to_qkv = QKVParallelLinear(dim, head_dim, num_heads, num_kv_heads)
-self.to_out = RowParallelLinear(dim, dim, input_is_parallel=True)
-
-# FFN: ColumnParallel → RowParallel
-self.w1 = ColumnParallelLinear(dim, ffn_dim)
-self.w2 = RowParallelLinear(ffn_dim, dim, input_is_parallel=True)
-```
+Layer-replacement patterns and full code (MLP up-down, attention QKV-out, `load_weights` QKV fusion via `stacked_params_mapping`): see [references/parallelism-patterns.md](references/parallelism-patterns.md).
 
 **Constraints**: `num_heads % tp_size == 0` and `num_kv_heads % tp_size == 0`.
 

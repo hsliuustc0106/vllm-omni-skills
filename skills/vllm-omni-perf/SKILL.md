@@ -15,6 +15,7 @@ vLLM-Omni provides multiple optimization levers for both autoregressive and diff
 |-----------|-----------|---------|----------------|
 | TeaCache | Diffusion models | 1.5-2.0x | Minimal |
 | Cache-DiT | Diffusion models | 1.3-1.8x | Minimal |
+| Async Omni Output | Multi-stage omni models | Lower TTFA | None |
 | Quantization | All models | 1.2-1.5x | Slight |
 | Tensor Parallelism | All models | Near-linear | None |
 | Sequence Parallelism | DiT models | Near-linear | None |
@@ -52,6 +53,12 @@ vllm serve <model> --omni --enable-cache-dit
 Can be combined with TeaCache, but test independently first to measure impact.
 
 TeaCache and CPU Offload hooks are compatible — use them simultaneously with `--enable-teacache --enable-cpu-offload` (or `--cpu-offload-gb`). The HookRegistry sorts hooks alphabetically and ensures the forward-overriding hook (TeaCache) runs last in the pre-process chain. Only one forward-overriding hook is allowed at a time. Fixed in #2689.
+
+## Async Omni Output
+
+For multi-stage omni models (e.g., Qwen3-Omni), async output materialization builds Omni output in a background thread, allowing the GPU to proceed to the next decode step without waiting for D2H copies. Enabled by default on supported models via `use_async_omni_output=True`. Talker stages set `eager_omni_postprocess_before_async_output=True` and `omni_pooler_payload_include_hidden=False` to skip hidden-state copies when only codec codes are needed.
+
+Requirements: `use_async_scheduling=True`, `speculative_config=None`, `omni_prefix_cache=None`. Incompatible with prefix caching — disable `enable_prefix_caching` in multi-stage YAML.
 
 ## Quantization
 

@@ -16,10 +16,13 @@ vLLM-Omni supports video generation through diffusion transformer models, primar
 | Wan2.2-T2V-A14B | `Wan-AI/Wan2.2-T2V-A14B-Diffusers` | Text-to-video | 48 GB |
 | Wan2.2-TI2V-5B | `Wan-AI/Wan2.2-TI2V-5B-Diffusers` | Text+Image-to-video | 24 GB |
 | Wan2.2-I2V-A14B | `Wan-AI/Wan2.2-I2V-A14B-Diffusers` | Image-to-video | 48 GB |
+| Wan2.2-VACE-Fun-A14B | `Pyros13/Wan2.2-VACE-Fun-A14B-Diffusers` | T2V/I2V/R2V/V2V/inpainting | 48 GB |
 | NextStep-1.1 | `stepfun-ai/NextStep-1.1` | Text-to-video | 24 GB |
 | daVinci-MagiHuman | `SII-GAIR/daVinci-MagiHuman-Base-1080p` | Image-to-video + audio | 24 GB |
 
 daVinci-MagiHuman is an image-to-video model that also generates audio (44100 Hz, 25 fps). Use `--enable-diffusion-pipeline-profiler` to get per-stage timing (`stage_durations`) and peak memory (`peak_memory_mb`) in video responses (async poll JSON or sync HTTP headers).
+
+Wan2.2-VACE-Fun-A14B uses a two-expert MoE architecture with `boundary_ratio` (default 0.875) switching between `transformer` (high-noise) and `transformer_2` (low-noise). Cache-DiT wraps the main denoising `blocks` while VACE `vace_blocks` are recomputed each step for control signal fidelity. Serve with `--model-class-name Wan22VACEPipeline --vae-use-tiling --enforce-eager`.
 
 ## Quick Start: Text-to-Video
 
@@ -102,6 +105,29 @@ Video generation is significantly more compute-intensive than image generation:
   vllm serve <model> --omni --cpu-offload-gb 20
   ```
 - For multi-transformer pipelines (e.g., Wan2.2-T2V has `transformer` + `transformer-2`), the sequential offloader now offloads all other DiTs to CPU when any one is running. This allows Wan2.2-T2V to fit on 64GB GPUs with `--enable-cpu-offload --tensor-parallel-size 2`.
+
+### VAE Parallelism
+
+VAE parallelism distributes VAE decode/encode work across GPUs. Two strategies:
+
+| Mode | `--vae-parallel-mode` | Scope | Requirements |
+|------|-----------------------|-------|--------------|
+| Tile/patch parallel | `tile` (default) | All models; encode+decode | `--vae-patch-parallel-size N` |
+| Spatial-shard (Wan only) | `spatial_shard_height` / `spatial_shard_width` | Wan VAE decode only | `--vae-patch-parallel-size` must match DiT group size |
+
+```bash
+vllm serve <Wan-model> --omni --vae-patch-parallel-size 2 --vae-parallel-mode spatial_shard_width
+```
+
+Spatial-shard shards decoder feature maps with P2P halo exchange between neighboring ranks — result matches single-GPU decode within numerical tolerance. Falls back to tile-parallel if sizes don't match.
+
+### Wan2.2-S2V HSDP
+
+HSDP is supported on Wan2.2-S2V (`--use-hsdp`). The audio encoder automatically unshards/reshards root-managed params. CPU offload is auto-skipped when HSDP is active:
+
+```bash
+vllm serve Wan-AI/Wan2.2-S2V-14B --omni --use-hsdp --hsdp-shard-size 4
+```
 
 ## Troubleshooting
 

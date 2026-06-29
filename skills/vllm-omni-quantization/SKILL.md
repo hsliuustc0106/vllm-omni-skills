@@ -66,6 +66,8 @@ curl -s http://localhost:8091/v1/images/generations \
 # If PSNR < 25 dB or visual artifacts appear, check references/diffusion.md
 ```
 
+Cosmos3-Super (`nvidia/Cosmos3-Super`) also supports online FP8 quantization (no calibration needed). VRAM drops from ~83 GB to ~55 GB per GPU (2-GPU, 720p). Quality is BF16-level, though T2V composition may shift at the same seed.
+
 ## Common Mistakes
 
 | Symptom | Likely Cause | Fix |
@@ -80,6 +82,7 @@ curl -s http://localhost:8091/v1/images/generations \
 | offline text_to_image fails | quantization config conflicts with diffusion pipeline init | fixed in #1515, update vllm-omni |
 | OmniDiffusion init crash | `pipeline_class` variable not initialized during quantized load | fixed in #1562, update vllm-omni |
 | HunyuanImage3.0 load_weights error | weight loading fails with quantized HunyuanImage3.0 | fixed in #1598, update vllm-omni |
+| Qwen3-Omni NVFP4 weight loading shape mismatch | lm_head expects BF16 `[vocab_size, 2048]` but gets FP4-packed `[vocab_size, 1024]` | Fixed in #4528. The thinker `lm_head` prefix now matches ModelOpt's NVFP4 exclude-list pattern `*.lm_head`. Update vllm-omni. |
 
 ## References
 

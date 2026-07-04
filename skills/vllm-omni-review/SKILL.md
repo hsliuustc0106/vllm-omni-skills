@@ -57,6 +57,12 @@ Inspired by common PR-review skill patterns (e.g. explicit modes + tool choice);
 - Fetching PR metadata / diff → direct (small, needed in main context)
 - Verifying function signatures, return types, class hierarchies → subagent
 
+**Maintainability review checklist:**
+- File-level comments should define the file's functional scope, core classes, and key functions.
+- Class and function comments should clearly define purpose and parameters; avoid vague `**kwargs`, `Any`, or equivalent types unless they are unavoidable and justified.
+- Shared utility logic should be reusable instead of duplicated as large private helper blocks inside feature files.
+- Key class methods should fit the class responsibility and have enough design context; avoid adding ad hoc methods that make the class bloated or unclear.
+
 ## Which reference to load (do not load everything)
 
 | Situation | Open |

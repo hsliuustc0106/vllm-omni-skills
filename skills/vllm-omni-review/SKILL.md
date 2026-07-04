@@ -290,6 +290,7 @@ Track recurring patterns over time:
 - missing tests or docs patterns
 - repo-specific conventions that changed
 - reviewer feedback that should update this skill
+- places where the comment budget is consistently under- or over-used
 
 When the same issue appears repeatedly, update the skill text or reference docs rather than relying on reviewer memory alone.
 

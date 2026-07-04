@@ -24,9 +24,29 @@ A good review is:
 
 If a concern cannot be supported with evidence, do not present it as blocking.
 
+### Optimization goals
+
+When reviewing, optimize for:
+
+- fewer false positives
+- fewer missed blockers
+- stronger evidence requirements
+- better separation of blockers vs suggestions
+- tighter alignment with maintainer judgment
+- stable behavior across PR types and repo changes
+
 ## Usage modes
 
 Inspired by common PR-review skill patterns (e.g. explicit modes + tool choice); **repo is always `vllm-project/vllm-omni`** unless the user says otherwise.
+
+### Uncertainty handling
+
+If a concern is plausible but not well supported:
+
+- do not call it blocking
+- phrase it as a question or suggestion
+- ask for the missing evidence needed to decide
+- avoid escalating uncertainty into certainty
 
 | Mode | What to do |
 |------|------------|
@@ -242,6 +262,15 @@ Be explicit in review comments. Treat "manual verification only" as insufficient
 
 **Delivery:** Local assessment first, ask user before posting. Convert worst 1-2 findings to inline comments (counts against comment budget). If D-grade dimension or code bug found, escalate to REQUEST_CHANGES via Step 9.
 
+### Comment budget discipline
+
+Prefer 1–5 comments for most PRs. Cap normal reviews at 5 inline comments and never exceed 6.
+
+- Merge related issues into one comment when possible
+- Skip low-confidence speculation
+- If higher-impact concerns exist, drop stylistic nits
+- For tiny or clean diffs, no comments is acceptable
+
 ### Step 9: Incremental Posting + Final Verdict
 
 **Post inline comments directly to GitHub as you find them.** Do not accumulate comments for a batch post at the end. Each `gh api` call posts one or more comments immediately. If context runs out mid-review, the comments already posted are safe on GitHub.
@@ -312,6 +341,34 @@ A review is high quality if it catches important issues, avoids noise, and match
 ## Review Heuristics
 
 Trust PR description and CI evidence before demanding new tests. Prefer regression tests for `[Bugfix]`, contract tests for API changes, and scan engine → connectors → stages → entrypoints before peripheral files. Skip style nits unless they mask correctness.
+
+## Maintenance memory
+
+Track recurring patterns over time:
+
+- repeated PR mistakes
+- recurring false positives
+- missing tests or docs patterns
+- repo-specific conventions that changed
+- reviewer feedback that should update this skill
+- places where the comment budget is consistently under- or over-used
+
+When the same issue appears repeatedly, update the skill text or reference docs rather than relying on reviewer memory alone.
+
+## How to evaluate this skill
+
+Periodically sample recent reviews and score them on:
+
+- correctness
+- severity calibration
+- actionability
+- evidence quality
+- conciseness
+- domain routing accuracy
+- false positive rate
+- missed blocker rate
+
+A review is high quality if it catches important issues, avoids noise, and matches maintainer expectations.
 
 ## When to Fetch More Context
 

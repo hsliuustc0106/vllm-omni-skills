@@ -176,9 +176,9 @@ specific to <category> PRs.
 
 ## References
 
-- [Review Checklist](references/review-checklist.md)
-- [Common Issues](references/common-issues.md)
-- [Review Examples](references/review-examples.md)
+- Review Checklist (references/review-checklist.md)
+- Common Issues (references/common-issues.md)
+- Review Examples (references/review-examples.md)
 ```
 
 ### Step 6: Update Review Router (Optional)

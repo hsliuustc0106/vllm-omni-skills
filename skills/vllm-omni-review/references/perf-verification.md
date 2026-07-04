@@ -48,6 +48,27 @@ If no quantitative metric exists (e.g., image quality), provide side-by-side vis
 - Exact commands used for both baseline and PR runs
 - Seed fixed for accuracy comparisons
 
+**5. Baseline profiling (kernel-level):**
+
+When the PR claims a performance increase, the contributor must provide profiling traces for both baseline (main) and the PR branch to show *where* the improvement comes from, not just that end-to-end numbers improved.
+
+Required profiling dimensions for both sides:
+
+| Dimension | Tool | What to show |
+|-----------|------|-------------|
+| **Kernel execution timeline** | `torch.profiler.profile()` + Chrome trace, or `nsys` | Top 10-20 ops by CUDA time for both baseline and PR. The improvement should be visible in the traces — e.g., a fused kernel replacing multiple ops, or reduced kernel launch overhead. |
+| **Memory** | `torch.cuda.memory_stats()` or `torch.cuda.memory_summary()` | Peak VRAM and memory breakdown for both sides |
+| **Operator-level breakdown** | `torch.profiler.profile()` (CPU + CUDA time per op) | Before/after comparison of the critical path ops |
+
+**Format:** Side-by-side profiling comparison showing:
+1. Chrome trace screenshots or timeline summaries (top ops by CUDA time) for baseline vs PR
+2. Brief explanation of which ops changed and why
+3. Confirmation that the improvement observed in the profiler matches the claimed end-to-end gain
+
+If the profiling reveals the improvement is from an unrelated source (e.g., different CUDA version, different torch version), flag it — the claimed improvement must be attributable to the code change.
+
+**Why:** End-to-end numbers alone don't prove the change is responsible for the improvement. A faster torch or CUDA version, different hardware state, or measurement noise can all produce misleading gains. Kernel-level profiling makes the causal chain visible.
+
 ---
 
 ## Regression Rules
@@ -144,3 +165,4 @@ Verdict: PASS / NOT_CONFIRMED (explain discrepancy)
 - Hardware/software versions not documented
 - Cherry-picked best run rather than average
 - Accuracy measured with different seeds for baseline vs PR
+- No kernel-level profiling (torch.profiler / nsys traces) — end-to-end numbers only, no visibility into where the improvement comes from

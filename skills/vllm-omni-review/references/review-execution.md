@@ -596,4 +596,4 @@ For PRs that require deeper automated verification beyond the standard blocker s
 
 - **Perf/Accuracy claim verification:** [perf-verification.md](perf-verification.md) — Detects quantitative claims in PR body, checks hardware feasibility, runs before/after benchmarks via git worktrees, produces Claimed vs Measured comparison. Graceful degradation to static-only when hardware is insufficient. Used in Step 6 of the main workflow.
 
-- **Test quality evaluation:** [test-quality-evaluation.md](test-quality-evaluation.md) — Evaluates test assertion quality, anti-patterns, marker compliance, and edge case coverage. Runs affected tests with hardware-aware filtering. Produces internal quality assessment (not posted to PR). Used in Step 7 of the main workflow.
+- **Test quality evaluation:** [test-quality-evaluation.md](test-quality-evaluation.md) — Evaluates test assertion quality, anti-patterns, marker compliance, and edge case coverage. Runs affected tests with hardware-aware filtering. Produces internal quality assessment (not posted to PR). Used in Step 8 of the main workflow.

@@ -43,15 +43,7 @@ Inspired by common PR-review skill patterns (e.g. explicit modes + tool choice);
 - **Focus on what automation doesn’t prove** — Design, API contracts, stage/connector invariants, test adequacy for omni paths, breaking behavior. Do not re-argue formatting or issues **pre-commit / CI already failed** (point at the gate instead).
 - **Structured notes** — If you produce a multi-section writeup for the **user**, **omit sections with no findings** (no “No issues” padding).
 
-**Parallel investigation:** Large diffs or multiple subsystems (e.g. `entrypoints/` + `engine/` + `diffusion/`) → split by directory or concern and investigate **in parallel** when subagents exist.
-
-**Subagent context compression:** Never fetch a 500-line source file into your main context. Instead, delegate to a subagent with a specific question (e.g. "What does `_resolve_ref_audio` return?") and get back a compact summary. This is the single biggest token saver — a subagent burns its own context, you get back a paragraph.
-
-**When to use subagents vs direct fetch:**
-- Reading surrounding code to verify a pattern → subagent (returns summary)
-- Reading a reference file you need for the blocker scan → direct (you need the full patterns)
-- Fetching PR metadata / diff → direct (small, needed in main context)
-- Verifying function signatures, return types, class hierarchies → subagent
+**Parallel investigation & subagent compression:** Large diffs or multiple subsystems (`entrypoints/` + `engine/` + `diffusion/`) → split by concern and investigate **in parallel**. Never pull a 500-line source file into main context — delegate a specific question to a subagent ("What does `_resolve_ref_audio` return?") and get back a paragraph; this is the biggest token saver. **Direct-fetch only:** reference files you need for the blocker scan, and PR metadata/diff (small, needed in main context). Everything else (surrounding code, signatures, class hierarchies) → subagent.
 
 ## Which reference to load (do not load everything)
 
@@ -66,6 +58,7 @@ Inspired by common PR-review skill patterns (e.g. explicit modes + tool choice);
 | New model / omni pipeline PRs (TTS, audio, multimodal) | [references/model-addition-checklist.md](references/model-addition-checklist.md) — **profiling + baseline comparison (blocking gate)**, dead-code scan, description/diff integrity, copy-paste detection, registry consistency |
 | High-risk change; need coverage matrix / docs sync | [references/tests-docs-checklist.md](references/tests-docs-checklist.md) |
 | Calibrating phrasing from real maintainers | [references/maintainer-style-study.md](references/maintainer-style-study.md) |
+| Multi-pass review discipline, comment/test hygiene | [references/review-discipline.md](references/review-discipline.md) |
 
 **Legacy paths (do not load — content merged):** `pitfalls.md` → [blocker-patterns.md](references/blocker-patterns.md) **Part 2**; `code-patterns.md` → [architecture.md](references/architecture.md) **Code patterns for review**; `python-style-guide.md` → [review-execution.md](references/review-execution.md) **Python style (review flags)**; batch/CI triage → [review-execution.md](references/review-execution.md) (Batch / CI sections).
 
@@ -146,6 +139,8 @@ BLOCKER scan:
 
 For detailed anti-patterns with code examples, see [references/blocker-patterns.md](references/blocker-patterns.md).
 
+**Iterate:** Run multiple passes over each hunk until a full pass finds nothing new, then run the second-pass checklist — see [references/review-discipline.md](references/review-discipline.md).
+
 **If blockers found:** Track issues internally (category + file + line). Do not paste structured `BLOCKING ISSUES:` templates into the review body.
 
 **If no blockers:** List non-blocking suggestions and proceed to Step 3.
@@ -212,6 +207,7 @@ Be explicit in review comments. Treat "manual verification only" as insufficient
 1. **Perf A/B** — Latency, throughput, VRAM: baseline (main) vs PR, same HW/inputs. Mean ± stddev over ≥3 runs, warmup excluded.
 2. **Accuracy A/B** — Quantitative metric or side-by-side samples. Same seeds/inputs, baseline vs PR.
 3. **Environment** — HW, software versions, model, config, exact commands.
+4. **Baseline profiling** — `torch.profiler` or `nsys` traces for both baseline and PR. Side-by-side op breakdown showing where the improvement comes from. End-to-end numbers alone are insufficient for perf claims.
 
 **Regression rules:** Accuracy degradation = **blocking**. VRAM > 5% regression = **blocking**. Latency > 10% regression = must explain.
 
@@ -348,3 +344,4 @@ All paths are under `skills/vllm-omni-review/references/`. There is **no** `pitf
 - [Diffusion checklist](references/diffusion-checklist.md) — Diffusion PR dimensions, PR body template, Quick Red Flags
 - [Tests & docs checklist](references/tests-docs-checklist.md) — High-risk coverage matrix and docs sync
 - [Maintainer style study](references/maintainer-style-study.md) — Example maintainer phrasing
+- [Review discipline](references/review-discipline.md) — Multi-pass + second-pass checklist, strictness-by-area, comment & test hygiene (Python)

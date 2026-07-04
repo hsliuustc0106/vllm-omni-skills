@@ -161,11 +161,9 @@ Or adapt:
 - `/root/vllm-workspace/analyze_profiling.py`
 - `examples/offline_inference/image_to_video/analyse.py`
 
-For NPU artifact interpretation, read:
-- `references/npu-workflow.md`
+For NPU artifact interpretation, read [references/npu-workflow.md](references/npu-workflow.md).
 
-For common bottlenecks and likely fixes, read:
-- `references/known-hotspots.md`
+For common bottlenecks and likely fixes, read [references/known-hotspots.md](references/known-hotspots.md).
 
 ## Fast Diagnostic Questions
 

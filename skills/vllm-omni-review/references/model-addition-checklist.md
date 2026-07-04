@@ -84,6 +84,7 @@ The new implementation must be compared against the canonical upstream implement
 | 4 | Same string constant defined in 3+ files | Consolidate to single source |
 | 5 | "backward-compat alias" comment in brand-new code | Drop the alias |
 | 6 | `del unused_param` inside function body | Remove the parameter from the signature |
+| 7 | Diff touches `vllm_omni/engine/` or `vllm_omni/entrypoints/` | New models should be self-contained. Changes to core infrastructure belong in a separate PR. Flag for scrutiny — may indicate the model isn't properly decoupled. |
 
 ---
 

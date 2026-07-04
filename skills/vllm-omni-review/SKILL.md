@@ -7,9 +7,22 @@ description: Review PRs on vllm-project/vllm-omni by routing to the right domain
 
 ## Overview
 
-Review PRs like a real maintainer — direct, selective, and focused on high-signal issues. Prioritize 2-3 real problems per PR over exhaustive coverage. Most PRs should get 1-5 short comments; some just get an empty APPROVE.
+Review PRs like a real maintainer — direct, selective, and focused on high-signal issues. Prioritize the smallest set of meaningful findings per PR over exhaustive coverage. Most PRs should get 1-5 short comments; some should get no comments at all.
 
 Use this skill as a router for `vllm-project/vllm-omni` pull request reviews. Keep the default context small, load only the references that match the diff, and prioritize high-confidence findings over coverage theater.
+
+## Quality contract
+
+A good review is:
+
+- **Correct** — it flags real issues, not speculation
+- **Prioritized** — it focuses on blockers and high-signal concerns
+- **Actionable** — each comment tells the author what to fix or verify
+- **Evidence-based** — comments are grounded in code, tests, docs, or measurements
+- **Concise** — comments are short and easy to act on
+- **Calibrated** — severity matches actual impact
+
+If a concern cannot be supported with evidence, do not present it as blocking.
 
 ## Usage modes
 
@@ -98,24 +111,26 @@ Execute this scan before any other review activity. For each category, explicitl
 BLOCKER scan:
 | Category            | Result                                  |
 |---------------------|-----------------------------------------|
-| Correctness         | PASS / ISSUES: (list)                   |
-| Reliability/Safety  | PASS / ISSUES: (list)                   |
-| Breaking Changes    | PASS / (check PR description first)     |
-| Test Coverage       | PASS / (check PR desc for evidence) / needs tests |
-| Documentation       | PASS / ISSUES: (list)                   |
-| Security            | PASS / ISSUES: (list)                   |
+| Correctness         | PASS / ISSUES                            |
+| Reliability/Safety  | PASS / ISSUES                            |
+| Breaking Changes    | PASS / CHECK PR DESCRIPTION              |
+| Test Coverage       | PASS / NEEDS TESTS / EVIDENCE INSUFFICIENT |
+| Documentation       | PASS / ISSUES                            |
+| Security            | PASS / ISSUES                            |
 ```
+
+**Blocker calibration:** only mark an issue as blocking when it is likely to cause incorrect behavior, regression, compatibility breakage, missing validation for a new contract, or a real reliability/security risk. If the concern is plausible but weakly supported, treat it as a non-blocking suggestion unless evidence confirms impact.
 
 **Blocker categories:**
 
 | Category | Flag These Patterns |
 |----------|---------------------|
-| **Correctness** | Silent exception swallows, uninitialized variables, off-by-one errors, logic inversions, missing returns |
-| **Reliability/Safety** | Unclosed resources, race conditions, missing None checks, hardcoded timeouts, silent fallbacks |
-| **Breaking Changes** | Signature changes without compat, removed public APIs, changed defaults, config removals |
-| **Test Coverage** | Bug fix without regression test, new API without tests, performance claims without benchmarks |
-| **Documentation** | New public API without docs, breaking changes without migration guide, new config without docs |
-| **Security** | Hardcoded secrets, user input in eval/format strings, insecure deserialization |
+| **Correctness** | Silent exception swallows, uninitialized variables, off-by-one errors, logic inversions, missing returns, contract mismatches |
+| **Reliability/Safety** | Unclosed resources, race conditions, missing None checks, hardcoded timeouts, silent fallbacks, lifecycle leaks |
+| **Breaking Changes** | Signature changes without compat, removed public APIs, changed defaults, config removals, behavior changes without migration path |
+| **Test Coverage** | Bug fix without regression test, new API without tests, performance claims without benchmarks, risky behavior change without evidence |
+| **Documentation** | New public API without docs, breaking changes without migration guide, new config without docs, changed usage without examples |
+| **Security** | Hardcoded secrets, user input in eval/format strings, insecure deserialization, unsafe shell use, privilege or data exposure |
 
 **Evidence standard:** Code inspection suffices for code-level blockers. For test coverage, require CI logs or PR description evidence.
 
@@ -127,7 +142,7 @@ BLOCKER scan:
 | Doc-only PRs | Skip categories 1-4 and 6, proceed to 5 (Documentation) |
 | Config-only PRs | Focus on Breaking Changes + Documentation |
 | Test-only PRs | Focus on Correctness of test logic |
-| Draft PRs | Do not block; add a single non-blocking comment: "Ready for full review when draft status removed. Preliminary scan available on request." |
+| Draft PRs | Do not block; add a single non-blocking comment: "Ready for full review when draft status is removed." |
 
 For detailed anti-patterns with code examples, see [references/blocker-patterns.md](references/blocker-patterns.md).
 
@@ -236,6 +251,19 @@ Posting strategy:
 - As domain review surfaces issues, post each comment right away
 - Minor style nits can be batched (up to 3) in a single review call if they're on the same file
 - If you find yourself past ~60% context, stop investigating and post whatever you have
+### Final self-check before posting
+
+Before posting comments, ask:
+
+- Did I verify the issue with evidence?
+- Is this a blocker or a suggestion?
+- Would the author understand the fix from my comment?
+- Did I avoid low-value style comments?
+- Did I stay within the comment budget?
+- Did I miss any more important issue in the same area?
+
+If the answer to any of these is no, revise or drop the comment.
+
 ### Final Verdict
 
 Do **not** submit a review event (APPROVE / COMMENT / REQUEST_CHANGES) — leave the verdict decision to the user.
@@ -252,6 +280,33 @@ Recommended verdict mapping:
 - `REQUEST_CHANGES` — genuine blocking issues only (crashes, data loss, security, policy gates).
 
 For tone and inline style, see [references/review-execution.md](references/review-execution.md). For maintainer phrasing samples, see [references/maintainer-style-study.md](references/maintainer-style-study.md).
+
+## Maintenance memory
+
+Track recurring patterns over time:
+
+- repeated PR mistakes
+- recurring false positives
+- missing tests or docs patterns
+- repo-specific conventions that changed
+- reviewer feedback that should update this skill
+
+When the same issue appears repeatedly, update the skill text or reference docs rather than relying on reviewer memory alone.
+
+## How to evaluate this skill
+
+Periodically sample recent reviews and score them on:
+
+- correctness
+- severity calibration
+- actionability
+- evidence quality
+- conciseness
+- domain routing accuracy
+- false positive rate
+- missed blocker rate
+
+A review is high quality if it catches important issues, avoids noise, and matches maintainer expectations.
 
 ## Review Heuristics
 

@@ -14,9 +14,14 @@ jobs:
     permissions:
       pull-requests: write
       contents: read
+    env:
+      TESSL_TOKEN_AVAILABLE: ${{ secrets.TESSL_API_TOKEN != '' || secrets.TESSL_TOKEN != '' }}
     steps:
       - uses: actions/checkout@v4
       - uses: tesslio/skill-review@main
-      # Optional quality gate (off by default — do not enable unless user asked):
-      # with:
-      #   fail-threshold: 70
+        if: env.TESSL_TOKEN_AVAILABLE == 'true'
+        with:
+          tessl-token: ${{ secrets.TESSL_API_TOKEN || secrets.TESSL_TOKEN }}
+      - name: Skip Tessl Skill Review
+        if: env.TESSL_TOKEN_AVAILABLE != 'true'
+        run: echo "::notice::Skipping Tessl Skill Review because neither TESSL_API_TOKEN nor TESSL_TOKEN is configured."

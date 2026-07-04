@@ -24,6 +24,8 @@ A good review is:
 
 If a concern cannot be supported with evidence, do not present it as blocking.
 
+Optimize for fewer false positives, fewer missed blockers, stronger evidence, clear blocker/suggestion separation, and stable behavior across PR types.
+
 ## Usage modes
 
 Inspired by common PR-review skill patterns (e.g. explicit modes + tool choice); **repo is always `vllm-project/vllm-omni`** unless the user says otherwise.
@@ -36,6 +38,8 @@ Inspired by common PR-review skill patterns (e.g. explicit modes + tool choice);
 | **Pre-filled prompt** | If the prompt already includes PR title/body, checks, or thread summaries (e.g. from GitHub), **do not re-fetch metadata** unless something is missing; still obtain the **diff** if not present (`gh pr diff` or `git diff` against merge base). |
 
 **Depth:** **Default** = maintainer-style brevity ([comment budget](references/review-execution.md)). If the user asks for **detailed** / **in-depth** / **line-by-line**, add a **Specific comments** list with `path:line` items; do not duplicate those points as long prose in the review body. Still respect the usual inline ceiling unless the user explicitly wants an audit-style pass.
+
+**Uncertainty:** If a concern is plausible but not well supported, phrase it as a question or suggestion, ask for the missing evidence, and do not call it blocking.
 
 ## What to prioritize (CI-complement)
 
@@ -52,6 +56,12 @@ Inspired by common PR-review skill patterns (e.g. explicit modes + tool choice);
 - Reading a reference file you need for the blocker scan → direct (you need the full patterns)
 - Fetching PR metadata / diff → direct (small, needed in main context)
 - Verifying function signatures, return types, class hierarchies → subagent
+
+**Maintainability review checklist:**
+- File-level comments should define the file's functional scope, core classes, and key functions.
+- Class and function comments should clearly define purpose and parameters; avoid vague `**kwargs`, `Any`, or equivalent types unless they are unavoidable and justified.
+- Shared utility logic should be reusable instead of duplicated as large private helper blocks inside feature files.
+- Key class methods should fit the class responsibility and have enough design context; avoid adding ad hoc methods that make the class bloated or unclear.
 
 ## Which reference to load (do not load everything)
 
@@ -221,7 +231,7 @@ Be explicit in review comments. Treat "manual verification only" as insufficient
 
 **When to activate:** PR adds or modifies test files, or PR touches core code (`engine/`, `stages/`, `connectors/`) without adding tests, or PR is test-only.
 
-**Load** [references/test-quality-evaluation.md](references/test-quality-evaluation.md).
+**Load** [references/tests-docs-checklist.md](references/tests-docs-checklist.md).
 
 **Workflow:**
 
@@ -251,6 +261,9 @@ Posting strategy:
 - As domain review surfaces issues, post each comment right away
 - Minor style nits can be batched (up to 3) in a single review call if they're on the same file
 - If you find yourself past ~60% context, stop investigating and post whatever you have
+- Keep most reviews to 1-5 inline comments; never exceed 6 without explicit user request
+- Merge related issues, skip low-confidence speculation, and drop stylistic nits when higher-impact concerns exist
+
 ### Final self-check before posting
 
 Before posting comments, ask:
@@ -290,6 +303,7 @@ Track recurring patterns over time:
 - missing tests or docs patterns
 - repo-specific conventions that changed
 - reviewer feedback that should update this skill
+- places where the comment budget is consistently underused or overused
 
 When the same issue appears repeatedly, update the skill text or reference docs rather than relying on reviewer memory alone.
 
@@ -305,6 +319,7 @@ Periodically sample recent reviews and score them on:
 - domain routing accuracy
 - false positive rate
 - missed blocker rate
+- comment budget discipline
 
 A review is high quality if it catches important issues, avoids noise, and matches maintainer expectations.
 

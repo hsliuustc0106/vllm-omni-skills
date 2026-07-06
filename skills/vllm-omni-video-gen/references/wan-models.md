@@ -76,3 +76,15 @@ Examples:
 - Enable TeaCache for 1.5-2x speedup
 - Use sequence parallelism for faster denoising
 - CPU offloading helps fit 14B models on smaller GPUs
+
+## LTX-2.3
+
+- **HF ID**: `dg845/LTX-2.3-Diffusers`
+- **Min VRAM**: 80 GB
+- **Capabilities**: Text-to-video and image-to-video with optional 48kHz audio
+
+Requires a Diffusers-format checkpoint; the upstream `Lightricks/LTX-2.3` raw safetensors repo is not directly loadable. Use `--model-class-name LTX23Pipeline` for T2V or `--model-class-name LTX23ImageToVideoPipeline` for I2V. Resolution dimensions should be multiples of 32; frame counts work best with `8k + 1`.
+
+```bash
+vllm serve dg845/LTX-2.3-Diffusers --omni --port 8091
+```

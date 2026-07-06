@@ -24,9 +24,10 @@ vLLM-Omni supports text-to-speech (TTS), text-to-audio (sound effects, music), a
 | MiMo-V2.5-ASR | `XiaomiMiMo/MiMo-V2.5-ASR` | ASR (speech-to-text) | 24 GB |
 | OmniVoice | `nvidia/OmniVoice` | TTS + voice cloning (HiggsAudioV2) | 8 GB |
 | VoxCPM2 | `openbmb/VoxCPM2` | TTS (native AR, 30+ languages) | 8 GB |
+| MOSS-TTS-Local-v1.5 | `fnlp/MOSS-TTS-Local-v1.5` | TTS (dual AR, streaming) | 16 GB |
 | Stable-Audio-Open | `stabilityai/stable-audio-open-1.0` | Text-to-audio (music/effects) | 8 GB |
 
-OmniVoice supports voice cloning via `ref_audio` + `ref_text` (requires transformers>=5.3). VoxCPM2 is a 2B tokenizer-free native AR TTS model producing 48kHz audio in 30+ languages (requires `pip install voxcpm`).
+OmniVoice supports voice cloning via `ref_audio` + `ref_text` (requires transformers>=5.3). VoxCPM2 is a 2B tokenizer-free native AR TTS model producing 48kHz audio in 30+ languages (requires `pip install voxcpm`). MOSS-TTS-Local-v1.5 is a dual-AR model supporting streaming with 80ms first-audio latency; it uses raw codec async chunk processing with `initial_codec_chunk_frames=1` and `codec_stream_slots=8`.
 
 ## Model Architectures
 
@@ -152,15 +153,26 @@ Fish Speech uses `fish_speech_s2_pro.yaml` with similar knobs. Its DAC codec out
 
 Note: CosyVoice3 does not support async_chunk streaming yet - use `cosyvoice3.yaml` (batch mode only).
 
+VoxCPM2 supports unified decode graph optimization (`enable_unified_decode_graph: true` in deploy config), which batches multiple decode requests into a single CUDA graph replay for higher throughput. Increase `max_num_seqs` to 8 for best results.
+
 ## Streaming Audio
 
-For real-time TTS streaming:
+`stream=true` now defaults to SSE-based streaming (`speech.audio.*` events). For raw PCM/WAV byte streaming, explicitly set `stream_format="audio"`.
 
 ```python
+# SSE streaming (default with stream=true)
 response = client.chat.completions.create(
     model="Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice",
     messages=[{"role": "user", "content": "A long paragraph of text to stream..."}],
     stream=True,
+)
+
+# Raw audio byte streaming (explicit opt-in)
+response = client.audio.speech.create(
+    model="Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice",
+    input="Stream this as raw audio bytes",
+    stream=True,
+    extra_body={"stream_format": "audio"},
 )
 ```
 
@@ -175,6 +187,8 @@ For a step-by-step guide on integrating a new TTS model into vLLM-Omni, see the 
 **Qwen3-TTS code predictor crash**: Fixed in #1619. If you encounter a crash in the code predictor stage, update to the latest vllm-omni.
 
 **Qwen3-TTS NaN on fp16-only GPUs**: The code predictor auto-upcasts to float32 for numerical stability on GPUs without bf16 support (Turing, Volta). No manual override needed. Fixed in #3253.
+
+**Qwen3-TTS slow generation with explicit seeds**: Seeded MTP (multi-token prediction) requests were previously forced to run one-at-a-time, harming throughput. Fixed in #4889. Seeds now use per-row generators so batched forwards stay deterministic.
 
 **Qwen3-TTS speaker_embedding dimension error**: Speaker embedding dimensions must match the model's talker hidden_size (2048 for 1.7B, 1024 for 0.6B). Mismatched dimensions return HTTP 400. Fixed in #3191.
 

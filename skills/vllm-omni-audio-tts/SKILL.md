@@ -184,7 +184,9 @@ For a step-by-step guide on integrating a new TTS model into vLLM-Omni, see the 
 
 **Fish Speech voice cloning latency**: Uploaded voices via `/v1/audio/voice/upload` now auto-cache DAC-encoded reference audio. First request encodes the reference; subsequent requests reuse the cached codes for faster TTFP. Fixed in #2609.
 
-**Event loop blocking under concurrent TTS**: Blocking tokenizer operations (`_build_voxtral_prompt`, `_build_fish_speech_prompt`) now run in a shared `ThreadPoolExecutor(max_workers=1)`. This prevents `/health` latency spikes under concurrent load. Fixed in #2511.
+**Qwen3-TTS empty audio / HTTP 400 / CUDA assert crash**: When `min_tokens >= 1`, the codec talker head (3072-token vocabulary) received the text EOS token (id 151645) as a stop ID, causing an out-of-bounds CUDA assert in `MinTokensLogitsProcessor`. Codec EOS may also be sampled on the first frame for some checkpoints, returning empty audio. Fixed in #4971 — default configs now set `min_tokens: 2` in the talker stage, and the runner automatically drops unreachable stop IDs. For custom stage configs, add `talker_sampling_params.min_tokens: 2`.
+
+**Ming-TTS MoE performance**: Ming-TTS Stage-0 flow-head now uses fused QKV linear, cached RoPE, and opt-in `torch.compile` on the CFM DiT. Deploy configs default to `enforce_eager: false` with `compilation_config.cudagraph_mode: PIECEWISE`. If you had `enforce_eager: true` for stability, you can now try `false`. Torch.compile failure is caught and logged as a warning — graceful fallback. Fixed in #4942.
 
 ## References
 

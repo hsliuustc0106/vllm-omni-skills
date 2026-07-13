@@ -179,6 +179,16 @@ Qwen3-Omni is compatible with the v2 model runner (vllm 0.19). Uses native `laun
 
 **Qwen3-Omni performance**: The multi-stage pipeline optimizes CPU hidden-state copying — only copies to CPU when downstream stages need payloads. Text-only inference (without `--omni`) is supported for benchmarking via `use_omni: false`. Fixed in #3203.
 
+**Qwen-Omni use_audio_in_video crash (StopIteration)**: When `use_audio_in_video=True` is used without explicit `media_io_kwargs.video.fps`, a second request could fail with `StopIteration` in `replace_multimodal_special_tokens` — the mm-cache partially hit (audio cached, video re-processed without audio). Fixed in #4959. To work around this on older versions, always set explicit fps:
+```json
+{
+  "extra_body": {
+    "use_audio_in_video": true,
+    "media_io_kwargs": {"video": {"fps": 1, "num_frames": 128}}
+  }
+}
+```
+
 ## References
 
 - For Qwen-Omni architecture and advanced config, see [references/qwen-omni.md](references/qwen-omni.md)

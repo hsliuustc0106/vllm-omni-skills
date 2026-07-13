@@ -36,6 +36,17 @@ Diffusion models benefit from multi-thread weight loading (enabled by default), 
 
 `/v1/images/generations` supports client-side request cancellation via `AbortController` (or `client.cancel()` in the openai Python SDK). `--max-generated-image-size` is enforced on both `/v1/images/generations` and `/v1/images/edits` (returns HTTP 400 for oversized requests).
 
+## Endpoint Restrictions
+
+Some models block specific endpoints that don't match their architecture:
+
+| Endpoint | Blocked by | Reason |
+|----------|-----------|--------|
+| `/v1/completions` | Qwen3-Omni | Requires chat template for thinker-talker handoff. Use `/v1/chat/completions` instead. |
+| `/v1/chat/completions/batch` | All models | Not yet supported by vLLM-Omni. |
+
+Blocked endpoints return HTTP 400 with a model-specific reason message.
+
 ## Chat Completions (Universal)
 
 The chat completions endpoint handles all modalities through the message format:

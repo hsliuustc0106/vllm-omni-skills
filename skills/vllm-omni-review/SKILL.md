@@ -123,6 +123,51 @@ Group changes by **kind** (runtime code, tests, docs, configs) to see where risk
 
 Do not fetch broad extra context unless the diff leaves real ambiguity.
 
+#### Apply topic labels if missing
+
+Lightweight housekeeping — do this once during Step 1, non-blocking. Only adds **topic labels** that clearly match the PR; never add CI-trigger, priority, or process labels (those need maintainer judgment or cost CI resources).
+
+> **CI-trigger labels are off-limits — never add, remove, or otherwise touch them.** This includes `ready`, `nightly-test`, `merge-test`, `omni-test`, `tts-test`, `diffusion-x2iat-test`, `diffusion-x2v-test`, `weekly-test`, and `npu-test`. Adding one triggers a Buildkite run; removing one can cancel or break a required pipeline. Leave them to the maintainer.
+
+1. Fetch existing labels first:
+   ```bash
+   gh pr view <pr_number> --repo vllm-project/vllm-omni --json labels --jq '.labels[].name'
+   ```
+
+2. Derive candidate topic labels from the title prefix and changed directories (label names are case-sensitive — match the repo's `gh label list` exactly):
+
+   | Signal | Label |
+   |--------|-------|
+   | `[Bug]` / `[Bugfix]` | `bug` |
+   | `[Feature]` / `[Enhancement]` | `enhancement` |
+   | `[Doc]` / `[Docs]` (or doc-only diff) | `documentation` |
+   | `[Refactor]` | `refactor` |
+   | `[RFC]` | `RFC` |
+   | `[Model]` / `[New Model]`, new model under `vllm_omni/model_executor/models/` | `new model` |
+   | `[Image]` / `[ImageGen]` / `[Video]` / `[VideoGen]` / `[Diffusion]`, `vllm_omni/diffusion/` | `diffusion` |
+   | `[Audio]` / `[TTS]`, TTS paths | `tts` |
+   | `[Multimodal]` / omni-pipeline paths | `omni` |
+   | `[API]`, `vllm_omni/entrypoints/` | `frontend` |
+   | `[Quantization]` | `quantization` |
+   | `[Distributed]`, `vllm_omni/engine/` / scheduler / cache | `core` |
+   | `[CI]`, `.buildkite/` or CI config | `CI/CD` |
+   | VLA model paths | `VLA` |
+   | RL model paths | `RL` |
+
+3. Add only the labels **not already present** (comma-separated, no spaces after commas):
+   ```bash
+   gh pr edit <pr_number> --repo vllm-project/vllm-omni --add-label "new model,diffusion"
+   ```
+
+   Skip the command entirely if every candidate label is already on the PR.
+
+**Out of scope — never auto-add:**
+- **Priority labels** (`high priority`, `medium priority`, `low priority`, `critical`) — maintainer judgment
+- **Process labels** (`needs-rebase`, `ci-failure`, `help wanted`, `good first issue`)
+- **Hardware labels** (`ROCm`, `NPU`, `xpu`, `Hardware Plugin`) — only if the PR is specifically about that hardware, and even then prefer a comment over a label
+
+(CI-trigger labels are covered by the rule above — never touch them, in either direction.)
+
 ### Step 2: Blocker Scan (Required First)
 
 Execute this scan before any other review activity. For each category, explicitly mark PASS or list blocking issues found.

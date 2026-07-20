@@ -109,6 +109,7 @@ Not all models are supported on every backend. Check the support matrix:
 | Wan2.2 | Yes | Yes | Yes | No |
 | FLUX | Yes | Yes | Yes | No |
 | Qwen3-TTS | Yes | Yes | Yes | No |
+| Fish Speech S2 Pro | Yes | No | No | Yes (Arc B60) |
 | Stable-Diffusion-3 | Yes | Yes | No | No |
 | Stable-Audio | Yes | No | No | No |
 
@@ -133,6 +134,10 @@ Out-of-tree hardware backends can customize the diffusion engine without forking
 
 Use `OmniPlatformEnum.OOT` with `is_out_of_tree()` for platform detection. Register custom diffusion pipelines via `register_diffusion_model(model_arch, module_name, class_name)` in `vllm_omni.diffusion.registry`. Defaults preserve existing behavior for CUDA, ROCm, NPU, XPU, and MUSA.
 **NPU LaserAttention unsupported error**: On Ascend NPU with mindiesd, selecting `FLASH_ATTN` as the diffusion attention backend (`--diffusion-attn-backend FLASH_ATTN`) auto-imports `mindiesd` to configure `ASCEND_CUSTOM_OPP_PATH`. The internal environment variable `MINDIE_SD_FA_TYPE` is set to `ascend_laser_attention` automatically. Fixed in #2674.
+
+## Component-Level CPU Offloading (Cosmos3)
+
+For split models like Cosmos3 where the UND (reasoner) and GEN (generator) pathways are mutually exclusive, enable component-level CPU offloading via `enable_omni_model_cpu_offload()` on the pipeline. This swaps exactly one component GPU-resident at a time (keeping the VAE pinned), coexisting with layerwise offloading where each component declares its own `_layerwise_offload_blocks_attrs`. Useful for fitting Cosmos3 and similar dual-pathway models on memory-constrained GPUs.
 
 ## References
 

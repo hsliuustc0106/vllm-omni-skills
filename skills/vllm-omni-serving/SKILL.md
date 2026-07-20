@@ -106,6 +106,18 @@ vllm serve <model> --omni \
   --pipeline-parallel-size 2
 ```
 
+### Replica Data Parallelism
+
+Run N independent diffusion engine replicas (one per GPU) to scale request throughput near-linearly without changing single-request latency. Configure via stage YAML:
+
+```yaml
+runtime:
+  num_replicas: 4
+  devices: [0, 1, 2, 3]
+```
+
+Each request is routed to a single replica. Throughput scales ~96-98% linearly with replica count. Use the Wan2.2-TI2V-5B example at `examples/online_serving/replica_data_parallel/` (includes YAML config, shell driver, and benchmark script). For more details see the Replica DP recipe in the [recipes repository](https://github.com/vllm-project/recipes).
+
 ## Production Deployment Checklist
 
 - [ ] Set `--host 0.0.0.0` for external access

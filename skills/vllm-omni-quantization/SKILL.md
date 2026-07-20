@@ -1,6 +1,6 @@
 ---
 name: vllm-omni-quantization
-description: Use when working on vLLM-Omni quantization for autoregressive, diffusion, or multi-stage omni models, choosing methods such as `awq`, `gptq`, `fp8`, `int8`, `gguf`, or ModelOpt checkpoints, adding quantized model support, or debugging memory, loader, quality, or performance issues.
+description: Use when working on vLLM-Omni quantization for autoregressive, diffusion, or multi-stage omni models, choosing methods such as `awq`, `gptq`, `fp8`, `int8`, `gguf`, `bitsandbytes`, or ModelOpt checkpoints, adding quantized model support, or debugging memory, loader, quality, or performance issues.
 ---
 
 # vLLM-Omni Quantization
@@ -21,9 +21,10 @@ Core principle: keep generic quantization infrastructure in upstream `vllm`. Kee
 |------|-----|
 | Quantize Qwen-Omni, Qwen-TTS, or another AR-backed model | `references/methods.md` and `references/modality-compat.md` |
 | Use `build_quant_config()` or per-component quantization | `references/methods.md` |
-| Quantize diffusion transformer weights with `fp8`, `int8`, or `gguf` | `references/diffusion.md` |
+| Quantize diffusion transformer weights with `fp8`, `int8`, `gguf`, or `bitsandbytes` | `references/diffusion.md` |
 | Add quantization support to a new diffusion model | `references/adding-models.md` |
 | Add a new quantization method such as `nvfp4` or a new ModelOpt path | `references/diffusion.md` and `references/adding-models.md` |
+| Use `bitsandbytes` W4 online quantization for DiT models | `references/diffusion.md` |
 | Unsure whether a change belongs in `vllm` or `vllm-omni` | `references/diffusion.md` |
 
 ## When to Use
@@ -38,7 +39,7 @@ Core principle: keep generic quantization infrastructure in upstream `vllm`. Kee
 ## AR vs Diffusion Boundary
 
 - AR and general quantization usually mean upstream `vllm` methods such as `awq`, `gptq`, `fp8`, and KV-cache FP8.
-- Diffusion quantization means `vllm-omni` DiT-specific integration on top of the unified framework and should not duplicate upstream `vllm` kernels or config semantics.
+- Diffusion quantization means `vllm-omni` DiT-specific integration on top of the unified framework and should not duplicate upstream `vllm` kernels or config semantics. For online W4 quantization of DiT models from BF16/FP16 checkpoints, use `bitsandbytes` (NF4/FP4, CUDA SM 75+, ~30% VRAM reduction).
 - Multi-stage omni quantization often means pre-quantized checkpoints whose scope must be constrained to the intended component, such as the thinker `language_model`.
 
 Rule: if a new method is missing generic kernels, loader behavior, or config classes, fix upstream `vllm` first. `vllm-omni` should add thin wrappers, component routing, and model-specific wiring, not a private quantization stack.
@@ -81,6 +82,11 @@ curl -s http://localhost:8091/v1/images/generations \
 | offline text_to_image fails | quantization config conflicts with diffusion pipeline init | fixed in #1515, update vllm-omni |
 | OmniDiffusion init crash | `pipeline_class` variable not initialized during quantized load | fixed in #1562, update vllm-omni |
 | HunyuanImage3.0 load_weights error | weight loading fails with quantized HunyuanImage3.0 | fixed in #1598, update vllm-omni |
+| FP8 Quack GEMM crash with torch.compile/inference_mode | Quack FP8 GEMM incompatible with `torch.inference_mode()` + `torch.compile()` | Fixed in #5153, update vllm-omni |
+| Component quantization base state not initialized | `component_quant_config` missing base state for per-component quant | Fixed in #5103, update vllm-omni |
+| HSDP fails with packed/uint8 quantized weights | FSDP2 cannot shard NVFP4 `uint8` packed weights or scalar scales | Fixed in #5088; `_unshardable_parameters()` auto-detects and excludes these from FSDP2 wrapping |
+| ModelOpt NVFP4 scale tensor mismatch | NVFP4 `input_global_scale` scalar not handled by loader | Fixed in #5087; adapter now remaps `uint8` scales correctly |
+| ModelOpt FP8 Cosmos3 checkpoint fails to load | `process_weights_after_loading` not called for Cosmos3 FP8 path | Fixed in #5076; pipeline now calls post-load quantization processing |
 
 ## References
 

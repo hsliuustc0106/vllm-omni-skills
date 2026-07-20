@@ -5,6 +5,7 @@ The local `vllm-omni` diffusion quantization methods are:
 - `fp8`
 - `int8`
 - `gguf`
+- `bitsandbytes` (online W4 NF4/FP4 for DiT, CUDA SM 75+, ~30% VRAM reduction)
 
 Use this file when working on DiT quantization, the unified quantization framework, adding a new method such as `nvfp4`, or debugging loader, mapping, quality, or performance issues.
 
@@ -77,6 +78,20 @@ Implementation rules:
 - Guard fused QKV and KV rewrites so `to_qkv` or `add_kv_proj` are not rewritten twice
 - GGUF linear methods expect 2D input; flatten and restore shape around matmul
 - Prefer eager mode and `fp16` unless measurement says otherwise
+
+### BitsAndBytes (W4 Online)
+
+- Online weight-only W4 quantization from BF16/FP16 checkpoints using `bitsandbytes` CUDA kernels
+- No pre-quantized checkpoint needed — quantizes at load time
+- Supported quantization types: `nf4` (recommended), `fp4`
+- New `DiffusionBitsAndBytesConfig` class and `BnBOnlineLinearMethod` in the quantization factory
+- Parameters: `quant_type` (`"nf4"` or `"fp4"`), `compress_statistics` (default `True`), `ignored_layers` (layer name patterns to keep in BF16/FP16)
+- CUDA SM 75+ only; non-CUDA platforms raise upfront
+- Tested on: Z-Image-Turbo, Qwen-Image, Wan2.2
+
+```bash
+vllm serve Tongyi-MAI/Z-Image-Turbo --omni --quantization bitsandbytes
+```
 
 ## Adding a New Method
 

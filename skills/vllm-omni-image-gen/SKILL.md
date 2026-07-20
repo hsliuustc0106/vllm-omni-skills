@@ -22,11 +22,14 @@ vLLM-Omni supports text-to-image generation and image editing through diffusion 
 | FLUX.2-klein | `black-forest-labs/FLUX.2-klein-4B` | Text-to-image | 16 GB |
 | FLUX.2-dev | `black-forest-labs/FLUX.2-dev` | Text-to-image + cache_dit | 24 GB |
 | Dreamid-Omni | `bytedance/dreamid-omni` | Text-to-image (ByteDance) | 24 GB |
+| Cosmos3-Nano | `nvidia/Cosmos3-Nano` | World model (T2I, I2V, T2W) | 24 GB |
+| Cosmos3-Edge | `nvidia/Cosmos3-Edge` | World model w/ ReLU² UND backbone | 40 GB |
+| Cosmos3-Distilled | `nvidia/Cosmos3-Distilled` | Distilled world model (fewer steps) | 40 GB |
 | SD 3.5 Medium | `stabilityai/stable-diffusion-3.5-medium` | Text-to-image | 12 GB |
 | OmniGen2 | `OmniGen2/OmniGen2` | Text-to-image | 24 GB |
 | HunyuanImage3.0 | `tencent/HunyuanImage-3.0` | Text-to-image + editing | 40 GB |
 
-Dreamid-Omni from ByteDance and FLUX.2-dev with cache_dit support are available. FLUX.2-klein supports plain string prompts (no dict wrapper needed).
+Dreamid-Omni from ByteDance and FLUX.2-dev with cache_dit support are available. FLUX.2-klein supports plain string prompts (no dict wrapper needed). Cosmos3-Edge models use a Nemotron dense UND backbone with ReLU² MLP and export per-layer K/V to the GEN diffusion decoder. Cosmos3-Distilled models are detected automatically from the checkpoint scheduler and fix guidance_scale to 1.0.
 
 ## Quick Start: Offline Generation
 
@@ -139,6 +142,10 @@ vllm serve <model> --omni --cpu-offload-gb 10
 **BAGEL think mode for text2text/img2text**: BAGEL now supports reasoning/thinking mode for text-to-text and image-to-text modalities via `--think` flag. Injects `VLM_THINK_SYSTEM_PROMPT` to enable chain-of-thought output. Fixed in #2503.
 
 **Qwen-Image tiny request sizes**: Small requests (below VAE alignment) are now clamped to minimum valid dimensions instead of collapsing to zero. All Qwen-Image pipeline variants use the shared `normalize_min_aligned_size()` helper. Fixed in #2637.
+
+**Cosmos3 model-level CPU offloading**: Cosmos3 now supports component-level CPU offloading where the UND (reasoner) and GEN (generator) pathways swap in/out of GPU memory one at a time (`enable_omni_model_cpu_offload` on the pipeline). This coexists with layerwise offloading — each component declares its own `_layerwise_offload_blocks_attrs`. Fixed in #4695.
+
+**HunyuanImage3 CFG parallel**: When using `cfg_size=2`, positive-prefix KV is now correctly shared between CFG ranks. The `CycleGroupCoordinator` always uses `self.device_group` for send/recv (per-device alternating is only for `RingGroupCoordinator`). Fixed in #4752.
 
 ## References
 

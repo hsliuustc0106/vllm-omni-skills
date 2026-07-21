@@ -64,6 +64,7 @@ Inspired by common PR-review skill patterns (e.g. explicit modes + tool choice);
 | System layout + **code-pattern review** (async, connectors, validation, …) | [references/architecture.md](references/architecture.md) — includes “Code patterns for review” at the end |
 | Diffusion / image / video model PRs | [references/diffusion-checklist.md](references/diffusion-checklist.md) |
 | New model / omni pipeline PRs (TTS, audio, multimodal) | [references/model-addition-checklist.md](references/model-addition-checklist.md) — **profiling + baseline comparison (blocking gate)**, dead-code scan, description/diff integrity, copy-paste detection, registry consistency |
+| Worker / model-runner PRs (`vllm_omni/worker/*`) | [references/worker-runner-checklist.md](references/worker-runner-checklist.md) — Priority-0 blocker patterns, upstream-vs-omni fork drift, base↔AR divergent duplicates, model-specific logic → `OmniModelState`, wrapper-vs-raw model access, async/threading (deferred-builder), capture==replay, model→feature + capability-probe maps |
 | High-risk change; need coverage matrix / docs sync | [references/tests-docs-checklist.md](references/tests-docs-checklist.md) |
 | Calibrating phrasing from real maintainers | [references/maintainer-style-study.md](references/maintainer-style-study.md) |
 

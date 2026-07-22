@@ -74,7 +74,7 @@ Cross-cutting: `platforms/`, cache, quantization, metrics, and profilers
 | Module contract | Primary paths | Ownership and review focus | Validation paths |
 |---|---|---|---|
 | Entrypoints | `vllm_omni/entrypoints/**` | Adapt public protocols; validate and convert requests; preserve streaming identity; do not own cross-stage routing or model-specific policy | `tests/entrypoints/**` |
-| Configuration | `vllm_omni/config/**`, `vllm_omni/deploy/**`, `vllm_omni/model_executor/stage_configs/**` | Validate topology and incompatible options before startup; make parsed config the runtime source of truth | `tests/config/**` |
+| Configuration | `vllm_omni/config/**`, `vllm_omni/deploy/**` | Validate topology and incompatible options before startup; make parsed config the runtime source of truth | `tests/config/**` |
 | I/O and modality contracts | `vllm_omni/inputs/**`, `vllm_omni/outputs/**`, `vllm_omni/request.py`, `vllm_omni/data_entry_keys.py`, `vllm_omni/errors.py` | Preserve request identity and explicit modality across conversion, transfer, streaming, cancellation, and errors | `tests/inputs/**`, affected integration tests |
 | Engine orchestration | `vllm_omni/engine/**`, `vllm_omni/distributed/omni_coordinator/**`, `vllm_omni/distributed/ray_utils/**` | Own cross-stage routing, lifecycle, ordering, cancellation, failure propagation, startup, and shutdown | `tests/engine/**`, `tests/distributed/omni_coordinator/**` |
 | OmniConnector | `vllm_omni/distributed/omni_connectors/**`, `vllm_omni/platforms/*/omni_connectors/**` | Transport and synchronize data without choosing stages or model policy; define completion, timeout, backpressure, and cleanup | `tests/distributed/omni_connectors/**` |

@@ -139,7 +139,7 @@ BLOCKER scan:
 **Special cases:**
 | PR Type | Action |
 |---------|--------|
-| Doc-only PRs | Skip categories 1-4 and 6, proceed to 5 (Documentation) |
+| Doc-only PRs | Skip categories 1-4 and 6 for ordinary docs. For `docs/design/**`, also check architectural compatibility, migration/redirect safety, and consistency with code and tests. |
 | Config-only PRs | Focus on Breaking Changes + Documentation |
 | Test-only PRs | Focus on Correctness of test logic |
 | Draft PRs | Do not block; add a single non-blocking comment: "Ready for full review when draft status is removed." |
@@ -174,7 +174,7 @@ Use **only** the files in this table. Older docs may mention `references/pitfall
 
 | Diff Area                                                                                 | Load                                                       |
 | ----------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
-| `vllm_omni/engine/`, `vllm_omni/stages/`, `vllm_omni/connectors/`, `vllm_omni/diffusion/` | [blocker-patterns.md](references/blocker-patterns.md) **Part 2** (common pitfalls) |
+| `vllm_omni/engine/`, `vllm_omni/core/`, `vllm_omni/worker/`, `vllm_omni/distributed/omni_connectors/`, `vllm_omni/distributed/omni_coordinator/`, `vllm_omni/diffusion/` | [blocker-patterns.md](references/blocker-patterns.md) **Part 2** (common pitfalls) and map the diff through [architecture.md](references/architecture.md) |
 | New model under `vllm_omni/model_executor/models/` (`[Model]` or un-prefixed new-model PR) | [model-addition-checklist.md](references/model-addition-checklist.md) — **blocking gate: profiling + baseline comparison**, then dead-code, copy-paste, registry/config consistency |
 | Async, distributed coordination, validation, connector behavior                           | [architecture.md](references/architecture.md) — section **Code patterns for review** (at end of file) |
 | Scheduler, stage boundaries, execution model, critical paths                              | [Architecture](references/architecture.md) (full)          |
@@ -219,7 +219,7 @@ Be explicit in review comments. Treat "manual verification only" as insufficient
 
 ### Step 8: Evaluate Test Quality (Blocking)
 
-**When to activate:** PR adds or modifies test files, or PR touches core code (`engine/`, `stages/`, `connectors/`) without adding tests, or PR is test-only.
+**When to activate:** PR adds or modifies test files, or PR touches core code (`engine/`, `core/`, `worker/`, `distributed/omni_connectors/`, `distributed/omni_coordinator/`, or diffusion runtime paths) without adding tests, or PR is test-only.
 
 **Load** [references/test-quality-evaluation.md](references/test-quality-evaluation.md).
 
@@ -310,7 +310,7 @@ A review is high quality if it catches important issues, avoids noise, and match
 
 ## Review Heuristics
 
-Trust PR description and CI evidence before demanding new tests. Prefer regression tests for `[Bugfix]`, contract tests for API changes, and scan engine → connectors → stages → entrypoints before peripheral files. Skip style nits unless they mask correctness.
+Trust PR description and CI evidence before demanding new tests. Prefer regression tests for `[Bugfix]` and contract tests for API changes. Trace changed behavior through entrypoints and I/O/config boundaries, engine/coordinator ownership, scheduler and worker/runtime execution, model integration, connectors, and terminal cleanup. Skip style nits unless they mask correctness.
 
 ## When to Fetch More Context
 

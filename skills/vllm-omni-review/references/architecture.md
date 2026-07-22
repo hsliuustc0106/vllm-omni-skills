@@ -1,52 +1,92 @@
 # vLLM-Omni Architecture
 
+## Contents
+
+- [Source of truth](#source-of-truth)
+- [Ownership and execution flow](#ownership-and-execution-flow)
+- [Module map](#module-map)
+- [Critical boundaries](#critical-boundaries)
+- [Architecture review workflow](#architecture-review-workflow)
+- [Code patterns for review](#code-patterns-for-review)
+
+## Source of truth
+
+Use this file as a compact routing map, not as a second architecture contract.
+When the reviewed branch contains `docs/design/module/**`, map changed paths to
+the matching module document by its `primary_code_paths` and
+`related_code_paths` metadata, then apply these rules:
+
+- `status: normative` — treat its invariants as review requirements.
+- `status: draft` — treat its invariants as candidate guidance and verify them
+  against code, tests, and module-owner discussion before blocking a PR.
+- Missing module document — use this map, inspect adjacent code and tests, and
+  flag the documentation gap for architecture-affecting changes.
+
+Do not copy detailed class behavior into this reference. Link review findings
+to the owning module document and stable invariant ID when available.
+
 ## Overview
 
-vLLM-Omni extends vLLM for omni-modal (multi-modal) model serving, supporting text, image, video, and audio generation. It provides a unified inference engine with OpenAI-compatible APIs for both LLM and diffusion models.
+vLLM-Omni extends vLLM with multi-stage and multi-modality execution for text,
+image, video, and audio workloads. It has two runtime families: autoregressive
+execution built on vLLM scheduler and worker contracts, and a diffusion runtime
+with its own scheduler, executors, workers, and model pipelines.
 
 **Key Differentiators from vLLM:**
-- Multi-stage pipeline architecture (e.g., Thinker → Talker → Code2Wav)
-- Diffusion Transformer (DiT) model support
-- Inter-stage communication via shared memory connectors
-- Stage-level concurrency control
+- Multi-stage orchestration across heterogeneous runtime families
+- Explicit input, output, and modality contracts across stage boundaries
+- Inter-stage transport through pluggable OmniConnector implementations
+- Hardware-specific execution isolated under `vllm_omni/platforms/`
+- Cross-cutting cache, quantization, observability, and profiling modules
 
 ---
 
-## Five-Layer Architecture
+## Ownership and execution flow
 
 ```
-┌─────────────────────────────────────────────────────┐
-│  1. User Interface Layer                            │
-│     OpenAI-compatible API, CLI, Python SDK          │
-├─────────────────────────────────────────────────────┤
-│  2. Orchestration Layer                             │
-│     Omni, AsyncOmni - coordinates stages            │
-├─────────────────────────────────────────────────────┤
-│  3. Engine Layer                                    │
-│     ModelExecutor, Scheduler, KV cache management   │
-├─────────────────────────────────────────────────────┤
-│  4. Execution Layer                                 │
-│     Workers (GPUARWorker, GPUGenerationWorker)      │
-├─────────────────────────────────────────────────────┤
-│  5. Model Layer                                     │
-│     OmniLLM, OmniDiffusion, model implementations   │
-└─────────────────────────────────────────────────────┘
+Public API / CLI
+`vllm_omni/entrypoints/`
+        │
+        ├── normalize through config and I/O contracts
+        │   `config/`, `inputs/`, `outputs/`
+        ▼
+Cross-stage orchestration
+`engine/`, `distributed/omni_coordinator/`, `distributed/ray_utils/`
+        │
+        ├── autoregressive path ── `core/sched/` → `worker/`
+        │
+        └── diffusion path ─────── `diffusion/sched/` →
+                                    `diffusion/executor/` and
+                                    `diffusion/worker/`
+        │
+        ├── model execution ────── `model_executor/` or
+        │                           `diffusion/models/`
+        │
+        └── inter-stage transfer ─ `distributed/omni_connectors/`
+
+Cross-cutting: `platforms/`, cache, quantization, metrics, and profilers
 ```
 
 ---
 
-## Key Directories
+## Module map
 
-| Directory | Purpose | Critical? | Review Focus |
-|-----------|---------|-----------|--------------|
-| `vllm_omni/entrypoints/` | API server, CLI | High | Input validation, error handling |
-| `vllm_omni/engine/` | Engine, scheduler | **Critical** | Concurrency, state management |
-| `vllm_omni/model_executor/` | Model execution | **Critical** | Weight loading, memory |
-| `vllm_omni/diffusion/` | Diffusion support | High | Latent cache, generation |
-| `vllm_omni/connectors/` | Inter-stage IPC | High | Shared memory, cleanup |
-| `vllm_omni/stages/` | Stage definitions | High | Lifecycle, state |
-| `vllm_omni/config/` | Configuration | Medium | Validation, defaults |
-| `vllm_omni/utils/` | Utilities | Low | Test coverage |
+| Module contract | Primary paths | Ownership and review focus | Validation paths |
+|---|---|---|---|
+| Entrypoints | `vllm_omni/entrypoints/**` | Adapt public protocols; validate and convert requests; preserve streaming identity; do not own cross-stage routing or model-specific policy | `tests/entrypoints/**` |
+| Configuration | `vllm_omni/config/**`, `vllm_omni/deploy/**`, `vllm_omni/model_executor/stage_configs/**` | Validate topology and incompatible options before startup; make parsed config the runtime source of truth | `tests/config/**` |
+| I/O and modality contracts | `vllm_omni/inputs/**`, `vllm_omni/outputs/**`, `vllm_omni/request.py`, `vllm_omni/data_entry_keys.py`, `vllm_omni/errors.py` | Preserve request identity and explicit modality across conversion, transfer, streaming, cancellation, and errors | `tests/inputs/**`, affected integration tests |
+| Engine orchestration | `vllm_omni/engine/**`, `vllm_omni/distributed/omni_coordinator/**`, `vllm_omni/distributed/ray_utils/**` | Own cross-stage routing, lifecycle, ordering, cancellation, failure propagation, startup, and shutdown | `tests/engine/**`, `tests/distributed/omni_coordinator/**` |
+| OmniConnector | `vllm_omni/distributed/omni_connectors/**`, `vllm_omni/platforms/*/omni_connectors/**` | Transport and synchronize data without choosing stages or model policy; define completion, timeout, backpressure, and cleanup | `tests/distributed/omni_connectors/**` |
+| Autoregressive runtime | `vllm_omni/core/**`, `vllm_omni/worker/**` | Preserve upstream scheduling semantics; schedulers own request state; workers execute assigned work and do not route stages | `tests/core/**`, `tests/worker/**` |
+| Model integration | `vllm_omni/model_executor/**`, `vllm_omni/model_extras/**`, `vllm_omni/plugins/**` | Register and load models through explicit selection boundaries; keep model-specific code out of orchestration | `tests/model_executor/**`, affected model tests |
+| Diffusion runtime | `vllm_omni/diffusion/diffusion_engine.py`, `vllm_omni/diffusion/sched/**`, `vllm_omni/diffusion/executor/**`, `vllm_omni/diffusion/worker/**`, `vllm_omni/diffusion/ipc.py` | Keep one scheduler-owned request lifecycle; executors and workers follow scheduler output; release all request resources on terminal paths | `tests/diffusion/**` |
+| Diffusion model integration | `vllm_omni/diffusion/models/**`, `model_loader/**`, `hooks/**`, `layers/**`, `postprocess/**`, `attention/**`, `lora/**`, `registry.py` | Select pipelines through the registry; keep admission, batching, cancellation, and scheduling out of model code | `tests/diffusion/models/**`, `tests/diffusion/model_loader/**`, affected subsystem tests |
+| Execution platforms | `vllm_omni/platforms/**`, related `vllm_omni/attention/**` | Isolate hardware capability detection and overrides; keep portable modules free of direct vendor imports | `tests/platforms/**` plus device-specific tests |
+| Cache management | `vllm_omni/core/prefix_cache.py`, `vllm_omni/experimental/ar_diffusion/kv_cache/**`, `vllm_omni/diffusion/cache/**`, connector KV transfer | Define complete cache identity, ownership, validity, eviction, and terminal cleanup; preserve a correct disabled path | `tests/core/**`, `tests/diffusion/cache/**`, connector tests |
+| Quantization | `vllm_omni/quantization/**`, `vllm_omni/diffusion/quantization/**`, `vllm_omni/platforms/*/quant/**` | Validate checkpoint, method, layer, and device compatibility; never silently fall back to another precision | `tests/quantization/**`, `tests/diffusion/quantization/**` |
+| Observability | `vllm_omni/metrics/**`, `vllm_omni/logger.py` | Preserve metric meaning and request correlation; keep labels bounded and user payloads out of logs | `tests/metrics/**` |
+| Profiling and benchmarking | `vllm_omni/profiler/**`, `vllm_omni/diffusion/profiler/**`, `vllm_omni/benchmarks/**`, `vllm_omni/entrypoints/cli/benchmark/**`, `benchmarks/**` | Keep profiling opt-in and semantics-preserving; make benchmarks reproducible and correctness-aware | `tests/profile/**`, `tests/benchmarks/**`, `tests/dfx/perf/**` |
 
 ---
 
@@ -70,18 +110,23 @@ outputs = await llm.generate("Hello")
 
 ### Stage Types
 
-| Type | Worker Classes | Use Case |
-|------|---------------|----------|
-| `llm` | `GPUARWorker`, `GPUGenerationWorker` | Text generation, multimodal understanding |
-| `diffusion` | Diffusion-specific workers | Image/video generation |
-| `audio` | Audio workers | TTS, audio synthesis |
+| Runtime family | Main scheduler / engine | Execution boundary |
+|---|---|---|
+| Autoregressive | `OmniARScheduler`, `OmniARAsyncScheduler` | `GPUARWorker` and model runners under `model_executor/` |
+| One-step generation | `OmniGenerationScheduler` | `GPUGenerationWorker` and model runners under `model_executor/` |
+| Diffusion | `DiffusionEngine` and `diffusion/sched/**` | `diffusion/executor/**`, `diffusion/worker/**`, and registered pipelines |
 
 ### Connectors
 
-| Connector | Use Case | Performance |
-|-----------|----------|-------------|
-| `OmniShmConnector` | Same-machine inter-process | Fastest |
-| `OmniZmqConnector` | Distributed/multi-node | Network-capable |
+All implementations derive from `OmniConnectorBase`. Current implementations
+include `SharedMemoryConnector`, `MooncakeStoreConnector`,
+`MooncakeTransferEngineConnector`, `MoriTransferEngineConnector`, and
+`YuanrongConnector`, with hardware-specific connectors under
+`vllm_omni/platforms/*/omni_connectors/`.
+
+Review the interface and producer/consumer contract, not just the selected
+backend. Verify identity, shape, dtype, placement, ownership, completion,
+timeout, cancellation, error propagation, and cleanup at both ends.
 
 ---
 
@@ -113,83 +158,116 @@ stages:
 
 ---
 
-## Data Flow
+## Critical boundaries
 
 ```
-Request → API Layer → AsyncOmni/Omni
-                         │
-                         ▼
-                    Stage Coordinator
-                    (YAML config)
-                         │
-          ┌──────────────┼──────────────┐
-          ▼              ▼              ▼
-      Stage 1        Stage 2        Stage N
-      (Worker)       (Worker)       (Worker)
-          │              │              │
-          └──────────────┴──────────────┘
-                         │
-                    OmniConnector
-                    (Shm/Zmq)
-                         │
-                         ▼
-                    Response
+Entrypoint ──validated request──▶ Orchestrator ──stage assignment──▶ Runtime
+     ▲                                  │                              │
+     │                                  └── routing and lifecycle      │
+     │                                                                 ▼
+Public response ◀──output conversion── Stage output ◀──execution── Worker/model
+                                             │
+                                      OmniConnector transfer
 ```
 
----
+Review these boundaries before local implementation details:
 
-## Memory Management
+1. **Entrypoint → internal contract:** validate once; do not leak protocol or
+   model-specific policy into orchestration.
+2. **Orchestrator → runtime:** the orchestrator owns routing and stage
+   lifecycle; schedulers own admitted request state.
+3. **Scheduler → worker/model:** execution follows scheduler output; workers and
+   models do not choose downstream stages.
+4. **Producer → connector → consumer:** both ends agree on data and completion
+   semantics; connectors do not own routing policy.
+5. **Terminal path:** success, cancellation, failure, and shutdown converge on
+   complete cleanup and monotonic terminal state.
+
+## Architecture review workflow
+
+1. Map every changed production path to one primary module and any
+   cross-cutting modules in `docs/design/module/**`.
+2. Read each matched module's boundary, dependencies, invariants, and
+   validation paths. Record the invariant IDs checked.
+3. Trace the changed behavior through every producer-consumer boundary; inspect
+   both sides of connector, serialization, registry, and config changes.
+4. Verify ownership has not moved silently. A boundary change requires explicit
+   design agreement and synchronized module documentation.
+5. Require evidence from the mapped validation paths. For lifecycle changes,
+   cover success, cancellation, failure, and shutdown; for distributed changes,
+   cover the affected rank topology and a supported single-rank path.
+6. Report architecture findings as: violated boundary or invariant, concrete
+   failure mode, required evidence or design decision, and next action.
+
+## Cross-cutting state
 
 ### KV Cache (LLM Stages)
-- Paged attention inherited from vLLM
-- Block-based memory allocation
-- Prefix caching for repeated contexts
+- Preserve upstream vLLM allocation and request-state semantics unless the PR
+  explicitly changes the contract.
+- Keep allocation, reuse, transfer, eviction, and cleanup ownership explicit.
+- Include every correctness-affecting input in cache identity.
 
 ### Diffusion Latent Cache
-- Intermediate latent storage
-- Timestep-based scheduling
-- Memory-pressure aware
+- Preserve a correct cache-disabled path.
+- Never reuse state across incompatible requests, timesteps, models, dtypes,
+  devices, or parallel layouts.
+- Release request-scoped entries on every terminal path.
 
 ---
 
-## Supported Models
+## Model selection boundaries
 
-### Omni-Modal Models
-- Qwen3-Omni
-- Qwen2.5-Omni
-- Qwen3-TTS (CustomVoice, VoiceDesign, Base)
-- MiMo-Audio
-- Bagel
+Do not maintain a model list in this reference; it becomes stale quickly.
+Inspect the registries on the reviewed branch:
 
-### Diffusion Models
-- Z-Image
-- Qwen-Image
-- Wan2.2 (video)
-- FLUX
+- Autoregressive and omni models:
+  `vllm_omni/model_executor/models/registry.py`
+- Diffusion pipelines: `vllm_omni/diffusion/registry.py`
+
+Registration is the selection boundary. Verify that configuration, registry,
+exports, loader, processor, and tests agree, and that model code does not route
+or schedule requests.
 
 ---
 
 ## Review Considerations
 
 ### Critical Paths (High Impact)
-- `vllm_omni/engine/` — scheduler changes affect all workloads
-- `vllm_omni/model_executor/` — model loading bugs break inference
-- `vllm_omni/connectors/` — communication bugs cause hangs/crashes
+- `vllm_omni/engine/` and `distributed/omni_coordinator/` — routing,
+  cancellation, ordering, startup, and shutdown affect multi-stage workloads.
+- `vllm_omni/core/` and `vllm_omni/worker/` — scheduler and worker changes can
+  violate upstream request-state and execution contracts.
+- `vllm_omni/distributed/omni_connectors/` — transfer mismatches and incomplete
+  cleanup cause corruption, hangs, and leaks.
+- `vllm_omni/diffusion/{sched,executor,worker}/` and
+  `diffusion_engine.py` — lifecycle or batching changes affect every diffusion
+  pipeline.
+- `vllm_omni/inputs/`, `outputs/`, `request.py`, and `data_entry_keys.py` —
+  contract drift breaks stage and public API boundaries.
+- `vllm_omni/config/` and stage configs — invalid topology or precedence must
+  fail before managed processes start.
 
 ### High-Risk Patterns
 1. **Stage coordination changes** — can break multi-stage pipelines
 2. **Memory management in connectors** — shared memory leaks
-3. **Worker lifecycle changes** — affect tensor parallelism
-4. **Input validation gaps** — engine crashes instead of 400 errors
+3. **Scheduler or worker lifecycle changes** — can strand request or cache state
+4. **Producer-consumer contract changes** — can corrupt cross-stage payloads
+5. **Input validation gaps** — engine crashes instead of actionable client errors
+6. **Platform imports in portable modules** — break non-target backends
+7. **Model-specific routing outside registries and processors** — duplicates
+   orchestration policy
 
 ### Testing Requirements
 | Component | Test Requirement |
 |-----------|------------------|
-| LLM stages | Actual model inference |
-| Diffusion stages | Generation quality |
-| Connectors | Load testing, memory leak check |
-| Multi-stage | End-to-end pipeline |
-| API endpoints | Input validation, error responses |
+| Entrypoints and I/O | Success, invalid input, serialization, streaming, cancellation, and error mapping |
+| Engine and coordinator | Routing, ordering, lifecycle, failure propagation, startup, and shutdown |
+| AR scheduler and workers | Affected unit tests plus representative inference; preserve upstream semantics |
+| Diffusion runtime | Scheduler/executor tests, output correctness, cancellation, cleanup, and representative generation |
+| Connectors | Both endpoints, timeout, cancellation, failure, multi-rank behavior, and leak/cleanup checks |
+| Model integration | Registry, loading, input conversion, baseline correctness, and representative inference |
+| Platform-specific code | Common import path plus affected device tests in a fresh `uv` environment |
+| Cache or quantization | Disabled/reference path, correctness or accuracy comparison, memory evidence, and incompatible-input rejection |
 
 ---
 

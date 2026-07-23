@@ -14,9 +14,19 @@ jobs:
     permissions:
       pull-requests: write
       contents: read
+    env:
+      TESSL_TOKEN_AVAILABLE: ${{ secrets.TESSL_API_TOKEN != '' || secrets.TESSL_TOKEN != '' }}
     steps:
       - uses: actions/checkout@v4
-      - uses: tesslio/skill-review@main
-      # Optional quality gate (off by default — do not enable unless user asked):
-      # with:
-      #   fail-threshold: 70
+      # Pinned to a commit SHA (not the mutable `main` branch) so a compromise
+      # of the upstream action cannot silently exfiltrate `tessl-token`.
+      # Update intentionally by bumping to a newer reviewed SHA.
+      - uses: tesslio/skill-review@c9357d3848c862bfe750e89c1c42599f3f45d483  # main @ 2026-06-30
+        if: env.TESSL_TOKEN_AVAILABLE == 'true'
+        with:
+          tessl-token: ${{ secrets.TESSL_API_TOKEN || secrets.TESSL_TOKEN }}
+      - name: Skip Tessl Skill Review
+        if: env.TESSL_TOKEN_AVAILABLE != 'true'
+        run: >-
+          echo "::notice::Skipping Tessl Skill Review because neither
+          TESSL_API_TOKEN nor TESSL_TOKEN is configured."

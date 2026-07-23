@@ -3,6 +3,7 @@
 ## Contents
 
 - [Source of truth](#source-of-truth)
+- [Layered configuration architecture](#layered-configuration-architecture)
 - [Ownership and execution flow](#ownership-and-execution-flow)
 - [Module map](#module-map)
 - [Critical boundaries](#critical-boundaries)
@@ -24,6 +25,126 @@ the matching module document by its `primary_code_paths` and
 
 Do not copy detailed class behavior into this reference. Link review findings
 to the owning module document and stable invariant ID when available.
+
+## Layered configuration architecture
+
+This is the target contract for configuration changes. It gives each concern
+one owner and one transition boundary. Treat compatibility code as transitional:
+it must converge on this flow rather than create another resolution or
+materialization path.
+
+Treat this target as normative for configuration refactors, even while a
+matching module design document is draft. A divergent change needs an explicit
+design decision and a synchronized module-document update.
+
+```mermaid
+flowchart TB
+    authoring["Layer 1: authoring inputs"]
+    resolution["Layer 2: OmniConfigResolveRequest → resolve_omni_config()"]
+    control["Layer 3: transport-safe VllmOmniConfig"]
+    runtime["Layer 4: runtime-only StageRuntime launch planning"]
+    materialize["Layer 5: owning-process engine materialization"]
+
+    authoring --> resolution --> control --> runtime --> materialize
+```
+
+### Layer 1: Authoring inputs
+
+Authoring inputs describe intent; they do not allocate runtime resources or
+construct engine objects.
+
+| Input | Owns |
+|---|---|
+| `PipelineConfig` | Frozen stage topology, execution types, model capabilities, and stage relationships |
+| `DeployConfig` | Placement, replicas, devices, environment, deploy-time defaults, and connector definitions |
+| CLI or Python overrides | Explicit caller overrides that participate in documented precedence |
+| HF or diffusion model metadata | Model facts used during resolution |
+| Legacy YAML adapter | Migration-only input for models that have not reached `PipelineConfig` + `DeployConfig` parity |
+
+Do not add new model behavior to the legacy YAML adapter. Remove it once every
+model has typed-config parity.
+
+### Layer 2: Unique resolution boundary
+
+`OmniConfigResolveRequest` is the sole input to `resolve_omni_config()`. The
+resolver selects exactly one source path, loads model metadata once, applies
+precedence and per-stage overrides once, resolves connectors, requests,
+runtime placement, and engine specifications, then validates the complete
+pipeline before any managed runtime process starts.
+
+No entrypoint, runtime, worker, connector, or model loader may independently
+reinterpret raw authoring input. A compatibility adapter may construct an
+`OmniConfigResolveRequest`; it may not bypass the resolver or perform a second
+merge.
+
+### Layer 3: Resolved, transport-safe control-plane config
+
+`resolve_omni_config()` returns a complete `VllmOmniConfig` that can cross the
+orchestrator/process boundary without device-local state:
+
+```text
+VllmOmniConfig
+├── pipeline_config: PipelineConfig
+├── orchestrator_config: VllmOmniOrchestratorConfig
+└── stage_configs: tuple[VllmOmniStageConfig, ...]
+    ├── stage_pipeline_config: StagePipelineConfig
+    ├── runtime_config: OmniStageRuntimeConfig
+    ├── connector_config: OmniStageConnectorConfig
+    ├── request_config: OmniStageRequestConfig
+    └── engine_spec
+        ├── EngineArgs for LLM_AR and LLM_GENERATION
+        └── un-enriched OmniDiffusionConfig for DIFFUSION
+```
+
+This layer owns resolved intent, not process-local objects. It must not contain
+`VllmConfig`, loaded model metadata, device handles, worker state, or
+`ReplicaInitPlan`. Keep a diffusion `OmniDiffusionConfig` un-enriched until
+the owning process materializes it.
+
+### Layer 4: Runtime-only launch planning
+
+`StageRuntime` consumes resolved stage configuration to expand replicas,
+allocate devices, and choose local or remote launch. It owns launch mechanics,
+not precedence or raw input interpretation. If retained, `ReplicaInitPlan` is
+private runtime state and must not become a field of `VllmOmniConfig` or cross
+a control-plane transport boundary.
+
+### Layer 5: Owning-process materialization
+
+Only `materialize_engine_config(stage)` in the owning process may turn an
+engine specification into a runtime engine configuration:
+
+| Stage type | Transport-safe engine spec | Owning-process result |
+|---|---|---|
+| `LLM_AR`, `LLM_GENERATION` | `EngineArgs` | `VllmConfig`, then a vLLM-backed engine |
+| `DIFFUSION` | Un-enriched `OmniDiffusionConfig` | Enriched `OmniDiffusionConfig`, then a diffusion engine |
+
+Do not materialize a `VllmConfig` before process ownership is known, serialize
+an enriched diffusion config, or provide a second engine-construction helper
+outside this boundary.
+
+### Configuration review invariants
+
+Review configuration changes against these invariants:
+
+1. One pipeline construction uses one `OmniConfigResolveRequest` and one call
+   to `resolve_omni_config()`.
+2. Model metadata is loaded once by the resolver; downstream code consumes the
+   resolved result.
+3. Precedence, stage overrides, connector selection, request configuration,
+   and placement are resolved once and validated together.
+4. `VllmOmniConfig` remains complete and safe to transport; runtime plans and
+   engine instances stay out of it.
+5. `StageRuntime` owns replica expansion and launch placement only.
+6. The owning process alone materializes `VllmConfig` or enriches an
+   `OmniDiffusionConfig`.
+7. Legacy YAML is migration-only and has a deletion condition: typed-config
+   parity for every supported model.
+
+Require focused evidence for changes to this flow: precedence conflicts,
+single metadata loading, invalid topology before launch, resolved-config
+serialization, per-stage connector and placement resolution, and AR/diffusion
+materialization in the owning process.
 
 ## Overview
 
@@ -74,7 +195,7 @@ Cross-cutting: `platforms/`, cache, quantization, metrics, and profilers
 | Module contract | Primary paths | Ownership and review focus | Validation paths |
 |---|---|---|---|
 | Entrypoints | `vllm_omni/entrypoints/**` | Adapt public protocols; validate and convert requests; preserve streaming identity; do not own cross-stage routing or model-specific policy | `tests/entrypoints/**` |
-| Configuration | `vllm_omni/config/**`, `vllm_omni/deploy/**` | Validate topology and incompatible options before startup; make parsed config the runtime source of truth | `tests/config/**` |
+| Configuration | `vllm_omni/config/**`, `vllm_omni/deploy/**`, `vllm_omni/entrypoints/utils.py`, `vllm_omni/engine/stage_runtime.py` | Preserve the layered configuration contract: resolve authoring inputs once into transport-safe `VllmOmniConfig`; keep replica planning runtime-private and materialize engine config only in the owning process | `tests/config/**`, affected launch tests |
 | I/O and modality contracts | `vllm_omni/inputs/**`, `vllm_omni/outputs/**`, `vllm_omni/request.py`, `vllm_omni/data_entry_keys.py`, `vllm_omni/errors.py` | Preserve request identity and explicit modality across conversion, transfer, streaming, cancellation, and errors | `tests/inputs/**`, affected integration tests |
 | Engine orchestration | `vllm_omni/engine/**`, `vllm_omni/distributed/omni_coordinator/**`, `vllm_omni/distributed/ray_utils/**` | Own cross-stage routing, lifecycle, ordering, cancellation, failure propagation, startup, and shutdown | `tests/engine/**`, `tests/distributed/omni_coordinator/**` |
 | OmniConnector | `vllm_omni/distributed/omni_connectors/**`, `vllm_omni/platforms/*/omni_connectors/**` | Transport and synchronize data without choosing stages or model policy; define completion, timeout, backpressure, and cleanup | `tests/distributed/omni_connectors/**` |

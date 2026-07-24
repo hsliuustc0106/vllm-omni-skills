@@ -281,17 +281,29 @@ Recommended verdict mapping:
 
 For tone and inline style, see [references/review-execution.md](references/review-execution.md). For maintainer phrasing samples, see [references/maintainer-style-study.md](references/maintainer-style-study.md).
 
-## Maintenance memory
+## Feedback-driven evolution
 
-Track recurring patterns over time:
+Treat user guidance about review behavior as an input to improve the workflow.
 
-- repeated PR mistakes
-- recurring false positives
-- missing tests or docs patterns
-- repo-specific conventions that changed
-- reviewer feedback that should update this skill
+1. Apply clear guidance to the current review immediately unless it conflicts with a safety, evidence, or repository rule; state any conflict.
+2. Classify the guidance before persisting it:
+   - **Task-local** — a preference or one-off constraint; do not change the skill.
+   - **Candidate** — a repeatable improvement with concrete evidence; draft the smallest SKILL.md or reference change.
+   - **Upstream-ready** — broadly applicable, supported by two independent examples or explicit maintainer direction, non-conflicting, and expressible as a testable instruction.
+3. In the review summary, report the classification, evidence, and recommended next action. Do not turn one unverified outcome into a permanent rule.
 
-When the same issue appears repeatedly, update the skill text or reference docs rather than relying on reviewer memory alone.
+### Upstream contribution decision
+
+Canonical upstream: `hsliuustc0106/vllm-omni-skills`.
+
+For an upstream-ready improvement:
+
+- Check the upstream contribution instructions and current skill content before editing.
+- Make a narrow patch, validate `python scripts/validate_all.py skills/vllm-omni-review/`, and explain the triggering feedback and why it generalizes.
+- Decide: **no change**, **prepare draft**, or **submit PR**.
+- Choose **no change** for contradictory, user-specific, or weakly evidenced guidance.
+- Choose **prepare draft** when the change is durable but upstream submission is not authorized.
+- Submit a PR only when the user explicitly authorizes upstream submission for the current session or has supplied a standing policy that covers this change. Never silently rewrite the installed skill or publish a PR.
 
 ## How to evaluate this skill
 

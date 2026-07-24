@@ -53,6 +53,12 @@ Inspired by common PR-review skill patterns (e.g. explicit modes + tool choice);
 - Fetching PR metadata / diff → direct (small, needed in main context)
 - Verifying function signatures, return types, class hierarchies → subagent
 
+**Independent-review decision:** After diff triage, choose `solo`,
+`independent`, or `manual-dual` (when agents are unavailable). Default to solo;
+use independent review only for two distinct, falsifiable questions. Diff size
+alone is not a risk signal. The lead reconciles evidence and is the only agent
+that posts review comments. See [review routing](references/review-routing.md).
+
 ## Which reference to load (do not load everything)
 
 | Situation | Open |
@@ -178,6 +184,7 @@ Use **only** the files in this table. Older docs may mention `references/pitfall
 | New model under `vllm_omni/model_executor/models/` (`[Model]` or un-prefixed new-model PR) | [model-addition-checklist.md](references/model-addition-checklist.md) — **blocking gate: profiling + baseline comparison**, then dead-code, copy-paste, registry/config consistency |
 | Async, distributed coordination, validation, connector behavior                           | [architecture.md](references/architecture.md) — section **Code patterns for review** (at end of file) |
 | Scheduler, stage boundaries, execution model, critical paths                              | [Architecture](references/architecture.md) (full)          |
+| Async/request state, counters, queues, or lifecycle accounting                            | [references/async-state-accounting.md](references/async-state-accounting.md) |
 | High-risk changes (core logic, configs/params, error handling, concurrency/distributed, I/O) or `[Feature]` / `[Bugfix]` PRs | [references/tests-docs-checklist.md](references/tests-docs-checklist.md) |
 
 Pick the narrowest references that match the diff; avoid loading every row by default.

@@ -32,6 +32,9 @@ Read the added/modified test files and check:
   [tests-docs-checklist.md](tests-docs-checklist.md) for the coverage matrix.
 - **Edge-case coverage** — batch > 1, empty input, max length, error/abort paths, and the specific
   regression the PR fixes (a `[Bugfix]` PR without a test that fails before the fix is a blocker).
+  For changed state fields, identify the first downstream consumer. A test that
+  stops at mutation is incomplete when that consumer exists; async or lifecycle
+  paths should cover a stale/error event followed by the first valid event.
 
 ### 2. Detect hardware
 

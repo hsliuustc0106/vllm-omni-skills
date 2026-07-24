@@ -52,6 +52,32 @@ Review concerns:
 - hardcoded device assumptions
 - memory handling that differs across platforms
 
+## Independent Review Decision
+
+After diff triage, the lead reviewer chooses one mode:
+
+- **solo** — one review path is enough to establish the contract;
+- **independent** — a second perspective can answer a distinct question;
+- **manual-dual** — no subagents are available, so the lead performs both
+  focused traces.
+
+Default to `solo`. Choose `independent` when the diff changes async or
+distributed state, mutable request/counter/queue state, lifecycle ownership,
+or an override/upstream-compatibility path; it is also appropriate when a
+changed regression test reaches a mutator but not its downstream consumer.
+Before delegating, name two falsifiable questions. Do not use diff size alone
+as a risk signal.
+
+Use at most two reviewers:
+
+1. Trace producers, consumers, units, ordering, MRO, and upstream parity.
+2. Trace the regression path, stale/error/cancellation paths, and test reach.
+
+Give each reviewer the raw diff and its scoped question, not the lead's
+suspected finding. Reviewers return local evidence only; the lead verifies and
+reconciles it before posting. If independent review is unavailable, perform
+both traces locally.
+
 ## Delegation Triggers
 
 Treat specialized reviewers as optional integrations. If the runtime has no `Agent(...)` or subagent tool, do the same checks manually and do not block on delegation.
@@ -68,7 +94,7 @@ Delegation limits:
 
 - Max 2 delegated reviewers per PR
 - Skip delegation for docs-only PRs
-- Skip delegation for small PRs unless the risk is unusually high
+- Do not use diff size as the only risk signal; small state transitions can be high-risk
 - Delegated findings still count against the total comment budget
 
 If no delegation tool exists:

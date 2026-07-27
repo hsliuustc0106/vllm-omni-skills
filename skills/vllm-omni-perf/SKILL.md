@@ -55,6 +55,12 @@ Supported models: FLUX.2-dev, Helios-Distilled, Wan2.2, and others using `Forwar
 
 TeaCache and CPU Offload hooks are compatible — use them simultaneously with `--enable-teacache --enable-cpu-offload` (or `--cpu-offload-gb`). The HookRegistry sorts hooks alphabetically and ensures the forward-overriding hook (TeaCache) runs last in the pre-process chain. Only one forward-overriding hook is allowed at a time.
 
+## Model-Specific Optimizations
+
+- **Ming-TTS**: Stage-0 flow-head DiT uses fused QKV weight matmul (RoPE/QKV fusion avoids redundant `F.linear` calls) and opt-in `torch.compile` with PIECEWISE cudagraph mode. Enable via `enforce_eager: false` + `cudagraph_mode: PIECEWISE`.
+- **MOSS-TTS**: Streaming codec decoder supports CUDA graph acceleration (`codec_streaming: true`, `streaming_cudagraph_capture_sizes` for graph buckets). Eliminates kernel-launch overhead on fixed-size decode steps.
+- **Cosmos3**: Component-level CPU offloading swaps UND and GEN pathways in/out of GPU memory using `enable_omni_model_cpu_offload()`, coexisting with layerwise offloading per component.
+
 ## Quantization
 
 For full quantization guidance (method selection, AWQ/GPTQ workflows, FP8 KV cache, quality verification), see the dedicated **[vllm-omni-quantization](../vllm-omni-quantization/SKILL.md)** skill.

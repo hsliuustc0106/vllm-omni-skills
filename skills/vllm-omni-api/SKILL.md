@@ -31,8 +31,7 @@ Diffusion models benefit from multi-thread weight loading (enabled by default), 
 | `/health` | GET | Server health check |
 | `/v1/models` | GET | List loaded models |
 
-`/v1/audio/voice/upload` endpoint restored. `/v1/audio/speech` supports `response_format: "wav"` with streaming.
-`/v1/audio/speech` supports `response_format: "wav"` with streaming.
+`/v1/audio/voice/upload` endpoint restored. `/v1/audio/speech` supports `response_format: "wav"` with streaming. Chat completion audio output supports `wav`, `pcm` (use `pcm16` in request), `flac`, `mp3`, and `opus` formats. Unsupported formats (including `aac`) now return HTTP 400 — they were previously silently ignored and downgraded to WAV.
 
 `/v1/images/generations` supports client-side request cancellation via `AbortController` (or `client.cancel()` in the openai Python SDK). `--max-generated-image-size` is enforced on both `/v1/images/generations` and `/v1/images/edits` (returns HTTP 400 for oversized requests).
 

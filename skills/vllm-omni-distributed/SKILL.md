@@ -183,6 +183,10 @@ vllm serve <model> --omni --tensor-parallel-size 8
 
 **SHM connector `test_chunk_transfer_adapter` failures**: Fixed in #3650. Updated test assertions for connector transfer adapter protocol changes.
 
+**HSDP with quantized models**: FSDP2 cannot shard non-floating-point or scalar parameters (e.g., NVFP4 `uint8` packed weights, scalar scales). These are automatically detected by `_unshardable_parameters()`, kept replicated on the target device, and excluded from `fully_shard`. Quantization post-processing (`process_weights_after_loading`) runs *before* HSDP wrapping so ops like `torch.unique` work on plain tensors. The load order is: `load_weights → process_weights_after_loading → prepare_fp8_layers_for_fsdp → apply_hsdp_to_model`.
+
+**CycleGroupCoordinator send/recv**: `CycleGroupCoordinator` always uses `self.device_group` for send/recv. Per-device alternating between groups is only for `RingGroupCoordinator`. Using the wrong pattern causes CFG KV reuse failures in Hunyuan image pipelines.
+
 ## References
 
 - For disaggregation architecture details, see [references/disaggregation.md](references/disaggregation.md)

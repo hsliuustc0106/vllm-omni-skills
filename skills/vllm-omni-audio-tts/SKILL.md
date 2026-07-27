@@ -184,7 +184,7 @@ response = client.chat.completions.create(
 
 ## Adding a New TTS Model
 
-For a step-by-step guide on integrating a new TTS model into vLLM-Omni, see the [TTS model developer guide](https://github.com/vllm-project/vllm-omni/blob/main/docs/contributing/model/adding_tts_model.md). Offline examples are consolidated under `examples/offline_inference/text_to_speech/<model>/end2end.py`, and online serving examples under `examples/online_serving/text_to_speech/<model>/`.
+For a step-by-step guide on integrating a new TTS model into vLLM-Omni, see the [TTS model developer guide](https://github.com/vllm-project/vllm-omni/blob/main/docs/contributing/model/adding_tts_model.md). Offline examples are consolidated under `examples/offline_inference/text_to_speech/<model>/end2end.py`, and online serving examples under `examples/online_serving/text_to_speech/<model>/`. Fish Speech S2 Pro now supports Intel XPU (Arc B60) via the `fish_qwen3_omni.yaml` platform override deploy config with reduced memory/token limits.
 
 ## Troubleshooting
 
@@ -203,6 +203,12 @@ For a step-by-step guide on integrating a new TTS model into vLLM-Omni, see the 
 **Fish Speech voice cloning latency**: Uploaded voices via `/v1/audio/voice/upload` now auto-cache DAC-encoded reference audio. First request encodes the reference; subsequent requests reuse the cached codes for faster TTFP. Fixed in #2609.
 
 **Event loop blocking under concurrent TTS**: Blocking tokenizer operations (`_build_voxtral_prompt`, `_build_fish_speech_prompt`) now run in a shared `ThreadPoolExecutor(max_workers=1)`. This prevents `/health` latency spikes under concurrent load. Fixed in #2511.
+
+**MOSS-TTS streaming codec performance**: Enable CUDA graph acceleration for the streaming vocoder decoder with `codec_streaming: true` and `enforce_eager: false` in the connector config. Set `streaming_cudagraph_capture_sizes` to control graph buckets. Eliminates kernel-launch overhead on repeated fixed-size decode steps. Fixed in #4929.
+
+**Ming-TTS speed**: Stage-0 flow-head DiT now uses fused QKV matmul (single `_qkv_w` tensor), cached/concatenation-free RoPE, and opt-in `torch.compile` with PIECEWISE cudagraph mode. Enable via `enforce_eager: false` + `cudagraph_mode: PIECEWISE` in YAML config. Fixed in #4942.
+
+**MOSS-TTS OOM on 80GB GPUs**: A single-80GB deploy config is available (`moss_tts_80gb.yaml`) with tuned memory limits. Fixed in #4761.
 
 ## References
 

@@ -18,7 +18,12 @@ vLLM-Omni supports video generation through diffusion transformer models, primar
 | Wan2.2-I2V-A14B | `Wan-AI/Wan2.2-I2V-A14B-Diffusers` | Image-to-video | 48 GB |
 | NextStep-1.1 | `stepfun-ai/NextStep-1.1` | Text-to-video | 24 GB |
 | Helios-Distilled | `naver-ai/Helios-Distilled` | Text-to-video | 24 GB |
+| Cosmos3-Nano | `nvidia/Cosmos3-Nano` | World model (T2V, I2V) | 24 GB |
+| Cosmos3-Edge | `nvidia/Cosmos3-Edge` | World model (T2V, I2V) w/ ReLU² UND | 40 GB |
+| Cosmos3-Distilled | `nvidia/Cosmos3-Distilled` | Distilled world model (fewer steps) | 40 GB |
 | daVinci-MagiHuman | `SII-GAIR/daVinci-MagiHuman-Base-1080p` | Image-to-video + audio | 24 GB |
+
+Cosmos3-Edge models use a Nemotron dense UND backbone with ReLU² MLP and export per-layer K/V to the GEN diffusion decoder. Cosmos3-Distilled is auto-detected and fixes guidance_scale to 1.0. Cosmos3 also supports component-level CPU offloading where UND and GEN pathways swap in/out of GPU memory separately.
 
 daVinci-MagiHuman is an image-to-video model that also generates audio (44100 Hz, 25 fps). Use `--enable-diffusion-pipeline-profiler` to get per-stage timing (`stage_durations`) and peak memory (`peak_memory_mb`) in video responses (async poll JSON or sync HTTP headers).
 
@@ -98,6 +103,7 @@ Video generation is significantly more compute-intensive than image generation:
 - Multi-GPU tensor parallelism strongly recommended for 14B models
 - Multi-thread weight loading (enabled by default) significantly reduces cold-start time for Wan2.2 models
 - Enable TeaCache for diffusion acceleration (see vllm-omni-perf skill)
+- For throughput scaling, use replica data parallelism: `runtime.num_replicas` in stage YAML (see `examples/online_serving/replica_data_parallel/wan2_2_ti2v_dp.yaml`)
 - CPU offloading can help fit larger models:
   ```bash
   vllm serve <model> --omni --cpu-offload-gb 20

@@ -25,6 +25,10 @@ vLLM-Omni supports text-to-image generation and image editing through diffusion 
 | SD 3.5 Medium | `stabilityai/stable-diffusion-3.5-medium` | Text-to-image | 12 GB |
 | OmniGen2 | `OmniGen2/OmniGen2` | Text-to-image | 24 GB |
 | HunyuanImage3.0 | `tencent/HunyuanImage-3.0` | Text-to-image + editing | 40 GB |
+| Krea 2 Turbo | `krea/Krea-2-Turbo` | Text-to-image (distilled, few-step) | 30 GB |
+| Krea 2 Raw | `krea/Krea-2-Raw` | Text-to-image (high quality) | 30 GB |
+
+Krea 2 uses a single-stream MMDiT pipeline with Qwen3-VL text encoding. Turbo is few-step distilled (2048×2048, ~8 steps, `guidance_scale=0`). Raw uses standard diffusion (1024×1024, ~28 steps, `guidance_scale=4.5`). The CFG convention is `velocity = cond + gs*(cond-uncond)` — set `guidance_scale=0` for Turbo (no negative). Supports LoRA, Cache-DiT, HSDP, CPU offload, and VAE patch-parallel decode. Not supported: TP, SP, CFG-Parallel. Krea 2 Turbo example: `--height 2048 --width 2048 --num-inference-steps 8 --guidance-scale 0.0`. Krea 2 Raw example: `--num-inference-steps 28 --guidance-scale 4.5`.
 
 Dreamid-Omni from ByteDance and FLUX.2-dev with cache_dit support are available. FLUX.2-klein supports plain string prompts (no dict wrapper needed).
 
@@ -100,6 +104,24 @@ for i, out in enumerate(outputs):
 ```
 
 Note: diffusion pipeline `max_batch_size` defaults to 1. Input lists are processed sequentially unless you modify stage configs to increase batch size.
+
+## LoRA Adapters
+
+Diffusion models support LoRA adapters for fine-tuned styles and concepts:
+
+```python
+from vllm_omni.entrypoints.omni import Omni
+
+omni = Omni(model="Tongyi-MAI/Z-Image-Turbo")
+outputs = omni.generate(
+    prompt="a dragon in a cyberpunk city",
+    lora_request="path/to/lora/adapter",
+    lora_scale=0.8,
+)
+outputs[0].request_output[0].images[0].save("lora_output.png")
+```
+
+Set `lora_request` and `lora_scale` directly on `diffusion_params` — do NOT use `extra_args["lora_request"]` (that path silently fails). For Krea 2, a community LoRA is available: `NagaSaiAbhinay/Krea-2-vllm-darkbrush-LoRA` (trigger: "monochrome ink wash style").
 
 ## Choosing a Model
 

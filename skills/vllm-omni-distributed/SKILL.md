@@ -135,6 +135,53 @@ vllm serve <model> --omni \
   --port 8091
 ```
 
+## Composable Parallel Strategies
+
+vLLM-Omni supports declarative YAML-based parallel strategy overlay for fine-grained control over how each model stage is sharded and replicated:
+
+```bash
+vllm serve Qwen/Qwen2.5-Omni-7B --omni \
+  --strategy-config strategy_tp2.yaml \
+  --omni-lb-policy round_robin
+```
+
+### Strategy YAML Format
+
+Map `model_stage` names (e.g., `thinker`, `talker`, `codec`) to axis declarations:
+
+```yaml
+thinker:
+  - axis: tp
+    size: 2
+talker:
+  - axis: stage_replica
+    size: 2
+    routing: round_robin
+```
+
+### Supported Axes
+
+| Axis | Description | Common Use |
+|------|-------------|-----------|
+| `tp` | Tensor parallelism | Split model weights across GPUs |
+| `dp` | Data parallelism | Replicate for throughput (supports `routing: least_queue`) |
+| `ep` | Expert parallelism | Split MoE experts (size = tp × dp) |
+| `pp` | Pipeline parallelism | Sequential stage groups |
+| `stage_replica` | Stage replication with load balancing | Scale out a bottleneck stage (supports `routing: round_robin / random / least_queue`) |
+
+### Overrides and Precedence
+
+CLI overrides can layer on top of strategies:
+
+```bash
+vllm serve <model> --omni \
+  --strategy-config strategy_tp2.yaml \
+  --stage-overrides '{"thinker":{"devices":"0,1"},"talker":{"devices":"2"}}' \
+  --omni-lb-policy least_queue
+```
+
+Precedence: CLI overrides > Strategy YAML > Deploy YAML > defaults. Reserved axes (not yet wired): `sp_ulysses`, `sp_ring`, `cfg`, `vae_pp`, `hsdp`, `stage_pp`, `cp`.
+
 ## Sequence Parallelism for Diffusion
 
 For DiT models, sequence parallelism splits the denoising sequence across GPUs:
@@ -144,7 +191,7 @@ vllm serve Wan-AI/Wan2.2-T2V-A14B-Diffusers --omni \
   --tensor-parallel-size 4
 ```
 
-This accelerates video/image generation by parallelizing the diffusion computation.
+This accelerates video/image generation by parallelizing the diffusion computation. OmniGen2 supports Ulysses-style SP via `--sequence-parallel-size N` with automatic boundary reset for CFG branches (no additional user flags required).
 
 ## Configuration Examples
 

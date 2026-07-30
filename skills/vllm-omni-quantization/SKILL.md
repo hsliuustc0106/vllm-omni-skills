@@ -10,7 +10,7 @@ description: Use when working on vLLM-Omni quantization for autoregressive, diff
 Use this skill for `vllm-omni` quantization work. The current codebase has a unified quantization framework centered on `vllm_omni.quantization.build_quant_config()`, but the runtime integration still splits into distinct patterns:
 
 - AR and general quantization inherited from upstream `vllm`
-- diffusion quantization for DiT models in `vllm-omni`, currently `fp8`, `int8`, and `gguf`
+- diffusion quantization for DiT models in `vllm-omni`, currently `fp8` and `int8`; GGUF is out-of-tree: `pip install vllm-gguf-plugin>=0.0.3`
 - multi-stage omni quantization using scoped pre-quantized checkpoints such as Qwen3-Omni thinker ModelOpt checkpoints
 
 Core principle: keep generic quantization infrastructure in upstream `vllm`. Keep `vllm-omni` focused on unified config routing, component scoping, diffusion-specific model wiring, adapter logic, and verification.
@@ -74,7 +74,7 @@ curl -s http://localhost:8091/v1/images/generations \
 | unified config behaves unexpectedly | per-component dict, default routing, or method override is misunderstood | check `references/methods.md` and `references/diffusion.md` |
 | AR model quality drops too much | aggressive 4-bit setup or wrong method | check calibration and method tradeoffs in `references/methods.md` |
 | diffusion method works on one image only | no baseline comparison, no LPIPS gate, or no `ignored_layers` tuning | use the verification flow in `references/diffusion.md` and `references/adding-models.md` |
-| GGUF mapping fails | missing architecture-specific adapter | add explicit adapter logic, do not rely on generic fallback |
+| GGUF mapping fails | GGUF is now an OOT plugin. Install `vllm-gguf-plugin>=0.0.3` and use `--quantization_config '{"method":"gguf","gguf_model":"/path/to/model.gguf"}'`. The `--gguf-model` flag and `--quantization gguf` choice are removed. |
 | new quantization method design keeps growing | unified framework boundary is unclear | re-check ownership before touching model code |
 | multi-stage omni checkpoint loads but wrong stages get quantized | component scope is not constrained correctly | check component routing and model config normalization |
 | diffusion FA uses wrong KV-cache dtype when `--kv-cache-dtype` is passed | vLLM's `--kv-cache-dtype` leaked into diffusion config | use `--diffusion-kv-cache-dtype` instead (#3596) |

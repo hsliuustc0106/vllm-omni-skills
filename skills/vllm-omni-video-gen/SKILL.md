@@ -16,6 +16,7 @@ vLLM-Omni supports video generation through diffusion transformer models, primar
 | Wan2.2-T2V-A14B | `Wan-AI/Wan2.2-T2V-A14B-Diffusers` | Text-to-video | 48 GB |
 | Wan2.2-TI2V-5B | `Wan-AI/Wan2.2-TI2V-5B-Diffusers` | Text+Image-to-video | 24 GB |
 | Wan2.2-I2V-A14B | `Wan-AI/Wan2.2-I2V-A14B-Diffusers` | Image-to-video | 48 GB |
+| LTX-2.3 | `dg845/LTX-2.3-Diffusers` | Text-to-video, Image-to-video | 80 GB |
 | NextStep-1.1 | `stepfun-ai/NextStep-1.1` | Text-to-video | 24 GB |
 | Helios-Distilled | `naver-ai/Helios-Distilled` | Text-to-video | 24 GB |
 | daVinci-MagiHuman | `SII-GAIR/daVinci-MagiHuman-Base-1080p` | Image-to-video + audio | 24 GB |

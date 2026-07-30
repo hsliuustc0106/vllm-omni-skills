@@ -157,6 +157,10 @@ curl http://localhost:8091/metrics
 
 **Latency regression with TP**: For small models, the communication overhead of tensor parallelism may exceed the compute savings. Use TP only for models that saturate a single GPU.
 
+**Orchestrator saturation under multi-modal load**: Large multimodal payloads can clog the orchestrator's poll loop. Fixed in #4527 — inter-stage connector outputs are now partitioned off the critical path. Enable the orchestrator monitor (`--enable-orchestrator-monitor`) to diagnose poll-loop duty cycle at shutdown.
+
+**Sensenova-U1 generation speed**: The fused RMSNorm+3D-RoPE Triton kernel (#4669) eliminates multiple kernel launches per attention projection by fusing Q/K normalization and rotary position embeddings into a single pass. Enable automatically when Triton is installed; falls back to PyTorch reference otherwise.
+
 ## References
 
 - For TeaCache configuration details, see [references/teacache.md](references/teacache.md)

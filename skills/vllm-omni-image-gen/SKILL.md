@@ -140,6 +140,8 @@ vllm serve <model> --omni --cpu-offload-gb 10
 
 **Qwen-Image tiny request sizes**: Small requests (below VAE alignment) are now clamped to minimum valid dimensions instead of collapsing to zero. All Qwen-Image pipeline variants use the shared `normalize_min_aligned_size()` helper. Fixed in #2637.
 
+**Qwen-Image-Layered `layers=2` rejected**: The valid layers range was incorrectly restricted to 3-10. Fixed in #4777. `layers=2` is now accepted (valid range: 2-10).
+
 ## References
 
 - For FLUX model details, see [references/flux-models.md](references/flux-models.md)

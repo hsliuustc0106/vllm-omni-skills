@@ -316,9 +316,9 @@ def append_markdown_rows_for_nightly_job(
 
     summ_short = md_cell((summary or "")[:260])
     if fails or errors:
-        hint = "本 step 含失败/错误用例；详见下列各行。"
+        hint = "This step has failed/error cases; see rows below."
     elif agg_result in ("failed", "error", "failed/error"):
-        hint = "构建状态为失败，但未从日志中解析到 FAILED/ERROR 行（可能截断或非 pytest）。"
+        hint = "Build state is failed, but no FAILED/ERROR lines were parsed from the log (possibly truncated or non-pytest)."
     else:
         hint = em_dash
 

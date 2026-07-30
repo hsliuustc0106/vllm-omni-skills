@@ -663,7 +663,7 @@ def _collect_excerpt(
     return "\n".join(buf).strip()
 
 
-_REASON_SINGLE_LINE_FALLBACK = "(未能从日志中提取单行原因，见下方片段)"
+_REASON_SINGLE_LINE_FALLBACK = "(Could not extract a single-line reason from the log; see excerpt below)"
 
 
 def _line_stripping_pytest_e_prefix(s: str) -> str:
@@ -743,49 +743,49 @@ def _reason_from_excerpt(excerpt: str, inline: str) -> str:
 
 
 def analyze_failure_cn(reason: str, excerpt: str) -> str:
-    """Heuristic, short analysis in zh-CN for operators."""
+    """Heuristic, short analysis for operators."""
     blob = f"{reason}\n{excerpt}".lower()
     if "assertionerror" in blob or "assertion error" in blob:
         return (
-            "归类：断言失败。通常是期望值与实际运行结果不一致，请核对测试逻辑、边界条件与数据准备是否正确。"
+            "Category: assertion failure. Expected vs actual mismatch — check test logic, edge cases, and data setup."
         )
     if "timeouterror" in blob or "timeout" in blob and ("deadline" in blob or "pytest" in blob):
-        return "归类：超时。可能是用例或环境过慢、死锁或等待外部资源过久，可检查超时设置与依赖服务状态。"
+        return "Category: timeout. Case or environment may be slow, deadlocked, or waiting on external resources — check timeout settings and dependencies."
     if "cuda out of memory" in blob or "out of memory" in blob and (
         "gpu" in blob or "cuda" in blob
     ):
         return (
-            "归类：显存/内存不足。可尝试减小 batch、模型规模或并行度，或检查是否有未释放的张量/缓存。"
+            "Category: GPU/memory OOM. Try smaller batch, model size, or parallelism; check for unreleased tensors/cache."
         )
     if "oom" in blob and ("kill" in blob or "memory" in blob):
-        return "归类：疑似 OOM 或被系统终止。请关注进程内存与 GPU 显存峰值。"
+        return "Category: suspected OOM or process kill. Watch process memory and GPU peak usage."
     if "importerror" in blob or "modulenotfounderror" in blob:
         return (
-            "归类：导入失败。多为依赖未安装、PYTHONPATH 或环境不一致，请对照 CI 镜像与本地依赖列表。"
+            "Category: import failure. Often missing deps, PYTHONPATH, or env mismatch — compare CI image and local deps."
         )
     if "filenotfounderror" in blob or "no such file" in blob:
-        return "归类：文件缺失。检查数据路径、权限或构建产物是否未生成/未挂载。"
+        return "Category: missing file. Check data paths, permissions, or build artifacts not generated/mounted."
     if "connection" in blob and ("refused" in blob or "error" in blob or "reset" in blob):
-        return "归类：网络连接问题。可能是下游服务未就绪、端口或 DNS 配置错误。"
+        return "Category: network connection. Downstream service may be down, or port/DNS misconfigured."
     if "permission denied" in blob:
-        return "归类：权限问题。检查文件/目录权限或容器的用户与挂载选项。"
+        return "Category: permission denied. Check file/dir permissions or container user and mount options."
     if "keyboardinterrupt" in blob:
-        return "归类：被中断。构建或运行被手动/系统中断，非被测逻辑本身失败。"
+        return "Category: interrupted. Build/run stopped manually or by the system — not necessarily a test logic failure."
     if "xfail" in blob or "skip" in blob and "reason" in blob:
-        return "归类：与跳过/预期失败相关。请确认 marker 与测试意图是否符合当前版本。"
+        return "Category: skip/xfail related. Confirm markers match intended behavior for this version."
     if "fixture" in blob and "error" in blob:
-        return "归类：Fixture/setup 阶段出错。失败可能发生在具体用例逻辑之前，优先检查 conftest 与资源初始化。"
+        return "Category: fixture/setup error. Failure may occur before test logic — check conftest and resource init first."
     if "error during collection" in blob or (
         "collecting" in blob and ("error" in blob or "import" in blob or "traceback" in blob)
     ):
         return (
-            "归类：收集阶段（collection）失败。"
-            "「原因」列已尽量直接从 ERRORS 段/Traceback 摘取具体异常；完整栈见下方片段或原始日志。"
+            "Category: collection phase failure. "
+            "The Reason column pulls from ERRORS/Traceback when possible; full stack is in the excerpt or raw log."
         )
     if not reason.strip() and not excerpt.strip():
-        return "无可用片段，无法自动归类；请打开完整 step log 查看失败点附近上下文。"
+        return "No excerpt available for auto-classification; open the full step log near the failure."
     return (
-        "未能自动归入常见类型；请结合「原因」与日志片段中的异常类型、栈顶文件与行号做进一步判断。"
+        "Could not auto-classify into a common type; use Reason and the excerpt (exception type, stack top file/line) for further triage."
     )
 
 

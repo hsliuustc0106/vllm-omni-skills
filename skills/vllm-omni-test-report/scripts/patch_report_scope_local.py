@@ -102,7 +102,7 @@ def patch_report(
         h100 = _extract_h100_ci_block(raw)
         if not h100:
             h100 = (
-                "*（未能从报告中解析 H100（CI）块；请运行完整 `compose_full_report.py` 重新生成。）*\n"
+                "*Could not parse H100 (CI) block from the report; run full `compose_full_report.py` to regenerate.*\n"
             )
         new_tr = cfr.render_test_result_section(
             skill_dir,

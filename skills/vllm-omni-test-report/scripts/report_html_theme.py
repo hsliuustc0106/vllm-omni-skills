@@ -258,38 +258,6 @@ section.job-fail-bk h3.section-failures .heading-ico {
 .panel-fail-analysis .heading-ico {
   color: var(--dashboard-warning);
 }
-.panel-perf-manual {
-  border-top: 3px solid var(--dashboard-violet);
-  background: linear-gradient(180deg, color-mix(in srgb, var(--dashboard-violet-bg) 55%, var(--dashboard-panel-bg)) 0%, var(--dashboard-panel-bg) 45%);
-}
-.panel-perf-manual > h2 {
-  border-bottom-color: color-mix(in srgb, var(--dashboard-violet) 30%, transparent);
-}
-.panel-perf-manual .heading-ico {
-  color: var(--dashboard-violet);
-}
-h3.perf-sheet-title {
-  margin: 1.25rem 0 0.55rem;
-  font-size: 1rem;
-  font-weight: 700;
-  color: var(--dashboard-violet);
-}
-h3.perf-sheet-title:first-of-type {
-  margin-top: 0.35rem;
-}
-.perf-truncate-hint {
-  margin: 0 0 0.5rem !important;
-}
-table.perf-manual {
-  font-size: 0.86rem;
-}
-table.perf-manual th {
-  background: linear-gradient(180deg, color-mix(in srgb, var(--dashboard-violet-bg) 85%, var(--dashboard-panel-bg)) 0%, var(--dashboard-panel-strong));
-  color: var(--dashboard-text);
-}
-table.perf-manual td {
-  background: color-mix(in srgb, var(--dashboard-panel-bg) 96%, var(--dashboard-badge-bg));
-}
 .perf-delta {
   font-size: 0.78em;
   font-weight: 750;
@@ -637,7 +605,7 @@ section.job-fail-bk h2 {
   font-weight: 750;
 }
 .issue-action-cell {
-  width: 7.5rem;
+  width: 8.5rem;
   text-align: center;
   vertical-align: middle !important;
   background: var(--surface-muted);
@@ -830,9 +798,6 @@ summary.report-subcard-summary {
 .report-subcard--bk-fail .report-subcard-summary .report-subcard-ico {
   color: var(--dashboard-warning);
 }
-.report-subcard--perf .report-subcard-summary .report-subcard-ico {
-  color: var(--dashboard-violet);
-}
 .report-subcard--bk-perf .report-subcard-summary .report-subcard-ico,
 .report-subcard--bk-perf-model .report-subcard-summary .report-subcard-ico {
   color: var(--ci);
@@ -862,9 +827,6 @@ details.report-subcard[open] > summary.report-subcard-summary::before {
 }
 .report-subcard--bk-fail summary.report-subcard-summary::before {
   color: var(--dashboard-warning);
-}
-.report-subcard--perf summary.report-subcard-summary::before {
-  color: var(--dashboard-violet);
 }
 .report-subcard--bk-perf summary.report-subcard-summary::before,
 .report-subcard--bk-perf-model summary.report-subcard-summary::before {
@@ -1171,7 +1133,7 @@ RELEASE_MARKDOWN_DOC_CSS = """
     var(--dashboard-panel-bg) 46%
   );
 }
-/* H2 大章（测试结论 / Metrics / Test Result / …）：整块可折叠 */
+/* H2 major sections (Test conclusion / Metrics / Test Result / …): entire block collapsible */
 .release-doc details.panel.release-section-card.release-section-details {
   padding: 0;
   overflow: hidden;

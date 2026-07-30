@@ -16,26 +16,26 @@ if str(_SCRIPTS) not in sys.path:
     sys.path.insert(0, str(_SCRIPTS))
 from report_html_theme import EDITORIAL_THEME_CSS, RELEASE_MARKDOWN_DOC_CSS
 
-# Inserted after ``## 测试结论``; replaced with interactive HTML (release) or static MD table (archive / .md only).
+# Inserted after ``## Test conclusion``; replaced with interactive HTML (release) or static MD table (archive / .md only).
 RELEASE_CONCLUSION_PLACEHOLDER = "@@RELEASE_CONCLUSION_WIDGET@@"
 
 RELEASE_CONCLUSION_ITEMS: tuple[str, ...] = (
-    "UT覆盖率达到本迭代要求",
-    "L2&L3最新一次通过率为100%",
-    "需求完成率大于85%",
-    "性能劣化小于5%",
-    "遗留DI小于30",
-    "致命issue遗留个数为0",
-    "所有遗留bug均已分配责任人",
+    "UT coverage meets this iteration requirement",
+    "Latest L2&L3 pass rate is 100%",
+    "Requirement completion rate > 85%",
+    "Performance regression < 5%",
+    "Remaining DI < 30",
+    "No remaining critical issues",
+    "All remaining bugs have assignees",
 )
 
-# 「L2&L3最新一次通过率为100%」：最新已结束 ready + merge 构建均无 failed/broken job
+# "Latest L2&L3 pass rate is 100%": latest finished ready + merge builds have no failed/broken jobs
 CONCLUSION_L2_L3_ROW_INDEX = 1
-# 「遗留DI小于30」：由 compose 基于 stats window 内 open bug 的 priority labels 预计算
+# "Remaining DI < 30": precomputed by compose from open bugs in stats window by priority labels
 CONCLUSION_DI_ROW_INDEX = 4
-# 「致命issue遗留个数为0」：由 compose 检测是否存在 open 且 label 为 ``critical`` 的 issue
+# "No remaining critical issues": compose checks for open issues labeled ``critical``
 CONCLUSION_CRITICAL_ROW_INDEX = 5
-# 「所有遗留bug均已分配责任人」：open label:bug 的 assignees
+# "All remaining bugs have assignees": open label:bug assignees
 CONCLUSION_ASSIGNEE_ROW_INDEX = 6
 
 
@@ -100,7 +100,7 @@ def _release_section_theme(title_plain: str) -> tuple[str, str]:
     """
     t = title_plain.strip()
     low = t.lower()
-    if "测试结论" in t:
+    if "test conclusion" in low:
         return "conclusion", _RELEASE_SVG_CHECK
     if "metrics" in low:
         return "metrics", _RELEASE_SVG_CHART
@@ -126,43 +126,43 @@ def test_conclusion_markdown_for_archive(
     assignee_row_ok: bool | None = None,
     assignee_row_detail: str = "",
 ) -> str:
-    """Static Markdown block (no ``##`` heading): table + **测试结论：** Go / Rejected."""
+    """Static Markdown block (no ``##`` heading): table + **Test conclusion:** Go / Rejected."""
     lines = [
-        "| 检查项 | 检查结果 |",
+        "| Check item | Result |",
         "| --- | --- |",
     ]
     verdict_ok = True
     for i, item in enumerate(RELEASE_CONCLUSION_ITEMS):
         safe = item.replace("|", "\\|")
-        cell = "通过"
+        cell = "Pass"
         extra = ""
         if i == CONCLUSION_L2_L3_ROW_INDEX and l2_l3_row_ok is not None:
-            cell = "通过" if l2_l3_row_ok else "不通过"
+            cell = "Pass" if l2_l3_row_ok else "Fail"
             if not l2_l3_row_ok:
                 verdict_ok = False
                 if l2_l3_row_detail:
-                    extra = f"（{l2_l3_row_detail.replace('|', '/')}）"
+                    extra = f" ({l2_l3_row_detail.replace('|', '/')})"
         elif i == CONCLUSION_DI_ROW_INDEX and di_row_ok is not None:
-            cell = "通过" if di_row_ok else "不通过"
+            cell = "Pass" if di_row_ok else "Fail"
             if not di_row_ok:
                 verdict_ok = False
             if di_row_detail:
-                extra = f"（{di_row_detail.replace('|', '/')}）"
+                extra = f" ({di_row_detail.replace('|', '/')})"
         elif i == CONCLUSION_CRITICAL_ROW_INDEX and critical_row_ok is not None:
-            cell = "通过" if critical_row_ok else "不通过"
+            cell = "Pass" if critical_row_ok else "Fail"
             if not critical_row_ok:
                 verdict_ok = False
                 if critical_row_detail:
-                    extra = f"（{critical_row_detail.replace('|', '/')}）"
+                    extra = f" ({critical_row_detail.replace('|', '/')})"
         elif i == CONCLUSION_ASSIGNEE_ROW_INDEX and assignee_row_ok is not None:
-            cell = "通过" if assignee_row_ok else "不通过"
+            cell = "Pass" if assignee_row_ok else "Fail"
             if not assignee_row_ok:
                 verdict_ok = False
                 if assignee_row_detail:
-                    extra = f"（{assignee_row_detail.replace('|', '/')}）"
+                    extra = f" ({assignee_row_detail.replace('|', '/')})"
         lines.append(f"| {safe} | {cell}{extra} |")
     vtxt = "Go" if verdict_ok else "Rejected"
-    lines.extend(["", f"**测试结论：** {vtxt}", ""])
+    lines.extend(["", f"**Test conclusion:** {vtxt}", ""])
     return "\n".join(lines)
 
 
@@ -180,7 +180,7 @@ def release_conclusion_widget_html(
     """Interactive table + verdict (Go / Rejected) for ``.release-doc`` HTML.
 
     Automatic rows (non-clickable when ``*_row_ok`` is not ``None``): **L2&L3**,
-    **遗留DI**, **致命issue…**, **遗留bug责任人**.
+    **Remaining DI**, **critical issues**, **bug assignees**.
     """
     rows: list[str] = []
     for i, item in enumerate(RELEASE_CONCLUSION_ITEMS):
@@ -214,20 +214,20 @@ def release_conclusion_widget_html(
             f'<tr data-conc-row="{i}" data-conc-auto="{"1" if is_auto else "0"}">'
             f'<td>{html.escape(item)}</td>'
             "<td>"
-            f'<div class="conc-btns{auto_cls}" role="group" aria-label="检查结果">'
-            f'<button type="button" class="conc-btn conc-pass {pass_cls}" data-conc="pass" aria-pressed="{pass_pressed}">通过</button>'
-            f'<button type="button" class="conc-btn conc-fail {fail_cls}" data-conc="fail" aria-pressed="{fail_pressed}">不通过</button>'
+            f'<div class="conc-btns{auto_cls}" role="group" aria-label="Check result">'
+            f'<button type="button" class="conc-btn conc-pass {pass_cls}" data-conc="pass" aria-pressed="{pass_pressed}">Pass</button>'
+            f'<button type="button" class="conc-btn conc-fail {fail_cls}" data-conc="fail" aria-pressed="{fail_pressed}">Fail</button>'
             f"</div>{hint}</td></tr>"
         )
     rows_s = "\n".join(rows)
     return f"""<div class="release-conclusion-wrap">
 <table class="release-conclusion-table">
-<thead><tr><th>检查项</th><th>检查结果</th></tr></thead>
+<thead><tr><th>Check item</th><th>Result</th></tr></thead>
 <tbody>
 {rows_s}
 </tbody>
 </table>
-<p class="release-verdict-line">测试结论： <strong class="release-verdict" id="release-verdict-label">Go</strong></p>
+<p class="release-verdict-line">Test conclusion: <strong class="release-verdict" id="release-verdict-label">Go</strong></p>
 </div>
 <script>
 (function () {{
@@ -774,7 +774,7 @@ _RELEASE_SECTION_CARD_MARKER = '<section class="panel release-section-card'
 
 
 def _fold_release_report_section_cards(html_fragment: str) -> str:
-    """Turn each H2-headed ``release-section-card`` (测试结论 / Metrics / …) into default-closed ``details``."""
+    """Turn each H2-headed ``release-section-card`` (Test conclusion / Metrics / …) into default-closed ``details``."""
     pos = 0
     out: list[str] = []
     while True:
@@ -915,8 +915,8 @@ def wrap_html_document(
             '<button type="button" class="btn-release-archive" '
             'id="release-archive-md-btn" '
             f'data-download-name="{dl_name_esc}" '
-            'title="下载与当前报告内容一致的 Markdown 文件（供归档或 patch_report_*.py）">'
-            "归档 Markdown</button>"
+            'title="Download a Markdown file matching this report (for archive or patch_report_*.py)">'
+            "Archive Markdown</button>"
             "</div>"
         )
         archive_scripts = (
@@ -943,7 +943,7 @@ def wrap_html_document(
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
     } catch (e) {
-      alert("归档失败: " + e);
+      alert("Archive failed: " + e);
     }
   });
 })();
@@ -1001,7 +1001,7 @@ def convert_release_report_markdown(
 ) -> str:
     """Full HTML document from a release report Markdown string.
 
-    自动结论行需传入对应 ``*_row_ok``；未传入时该行在归档表中默认「通过」。
+    Pass ``*_row_ok`` for automatic conclusion rows; when omitted, that row defaults to Pass in the archive table.
     """
     title = "vLLM-Omni Test Report"
     for line in md.splitlines():

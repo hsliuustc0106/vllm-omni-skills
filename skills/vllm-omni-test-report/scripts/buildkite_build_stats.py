@@ -834,7 +834,7 @@ def failed_job_names_from_build(build: dict) -> list[str]:
 
 def l2_l3_ready_merge_gate(token: str) -> tuple[bool, str]:
     """
-    **测试结论** — «L2&L3最新一次通过率为100%».
+    **Test conclusion** — "Latest L2&L3 pass rate is 100%".
 
     Pass iff the latest **finished** **ready** (non-main) and **merge** (main non-nightly/weekly)
     builds each have **no** failed/broken jobs (same bucket names as metrics table).
@@ -843,17 +843,17 @@ def l2_l3_ready_merge_gate(token: str) -> tuple[bool, str]:
         rb = fetch_latest_finished_non_main_build(token)
         mb = fetch_latest_finished_merge_build(token)
     except Exception as exc:
-        return False, f"Buildkite 请求失败（{exc}）"
+        return False, f"Buildkite request failed ({exc})"
 
     if rb is None:
         return (
             False,
-            "未找到已结束的 ready CI 构建（non-main，与 Metrics「ready」同口径）",
+            "No finished ready CI build found (non-main, same bucket as Metrics 'ready')",
         )
     if mb is None:
         return (
             False,
-            "未找到已结束的 merge CI 构建（main 非 nightly/weekly，与 Metrics「merge」同口径）",
+            "No finished merge CI build found (main non-nightly/weekly, same bucket as Metrics 'merge')",
         )
 
     rb = ensure_build_with_jobs(token, rb)
@@ -866,15 +866,15 @@ def l2_l3_ready_merge_gate(token: str) -> tuple[bool, str]:
     parts: list[str] = []
     if rf:
         rn = rb.get("number", "?")
-        head = "、".join(rf[:8])
-        tail = f" 等共 {len(rf)} 个" if len(rf) > 8 else ""
-        parts.append(f"ready #{rn} 存在失败 job：{head}{tail}")
+        head = ", ".join(rf[:8])
+        tail = f" ({len(rf)} total)" if len(rf) > 8 else ""
+        parts.append(f"ready #{rn} has failed jobs: {head}{tail}")
     if mf:
         mn = mb.get("number", "?")
-        head = "、".join(mf[:8])
-        tail = f" 等共 {len(mf)} 个" if len(mf) > 8 else ""
-        parts.append(f"merge #{mn} 存在失败 job：{head}{tail}")
-    return False, "；".join(parts)
+        head = ", ".join(mf[:8])
+        tail = f" ({len(mf)} total)" if len(mf) > 8 else ""
+        parts.append(f"merge #{mn} has failed jobs: {head}{tail}")
+    return False, "; ".join(parts)
 
 
 def fetch_ut_coverage_simple_unit_test(

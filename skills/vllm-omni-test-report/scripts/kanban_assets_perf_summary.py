@@ -7,17 +7,25 @@ import argparse
 import json
 import os
 import subprocess
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+_SCRIPTS = Path(__file__).resolve().parent
+if str(_SCRIPTS) not in sys.path:
+    sys.path.insert(0, str(_SCRIPTS))
+
+from kanban_repo_config import KANBAN_REPO_URL
+from laptop_path_defaults import (
+    DEFAULT_KANBAN_REPO_ROOT_DISPLAY,
+    resolve_kanban_repo_root,
+)
 
 DEFAULT_ASSETS_DIR = Path(
     os.environ.get("KANBAN_ASSETS_DIR", "").strip()
 ).resolve() if os.environ.get("KANBAN_ASSETS_DIR", "").strip() else None
-DEFAULT_REPO_ROOT = Path(
-    os.environ.get("KANBAN_REPO_ROOT", "").strip()
-).resolve() if os.environ.get("KANBAN_REPO_ROOT", "").strip() else None
+DEFAULT_REPO_ROOT = resolve_kanban_repo_root()
 
 LOWER_BETTER_HINTS = (
     "latency",
@@ -667,7 +675,10 @@ def main() -> None:
         "--kanban-repo-root",
         type=Path,
         default=DEFAULT_REPO_ROOT,
-        help="Path to vllm-omni-kanban repo root.",
+        help=(
+            f"Local clone root of {KANBAN_REPO_URL} "
+            f"(default: $KANBAN_REPO_ROOT or {DEFAULT_KANBAN_REPO_ROOT_DISPLAY})."
+        ),
     )
     parser.add_argument(
         "--expected-remote",

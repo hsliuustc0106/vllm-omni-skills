@@ -2,12 +2,59 @@
 
 ## `REPO_ROOT`
 
-- Export **`REPO_ROOT`** to the absolute path of the vLLM-Omni repository root **inside the Docker container**, or pass **`cd "$REPO_ROOT"`** inside **`bash -lc '...'`** when using **`docker exec`**.
-- Paths are resolved from the container filesystem; bind-mount your checkout if the image does not include the repo.
+- **`REPO_ROOT`** is the vLLM-Omni repository root **on the cluster / inside the container** (H200 SSH session or H800 **`docker exec`** shell).
+- **Default:** **`/rebase/vllm-omni`** — show this value and **confirm with the user** before export (see [Confirm run defaults](#confirm-run-defaults-with-user)).
+
+  ```bash
+  export REPO_ROOT="${REPO_ROOT:-/rebase/vllm-omni}"
+  ```
+
+- Use **`cd "$REPO_ROOT"`** before **`git pull`** (optional) and **`run_nightly_jobs.sh`**. Override only after the user declines the default or names another path (see [Confirm run defaults](#confirm-run-defaults-with-user)).
+- **Laptop sync / HTML report** use a **separate** local checkout path — see [nightly-local-log-fetch.md](nightly-local-log-fetch.md) (not **`/rebase/vllm-omni`** on your machine unless you mirror that layout).
+
+<a id="git-pull-before-run-confirm-with-user"></a>
+
+## Git pull before run (confirm with user)
+
+**After** connecting to the cluster (H200 SSH session or H800 **`docker exec`** shell) and **`cd "$REPO_ROOT"`**, **ask the user** whether this test run should pull the latest code **before** starting **`run_nightly_jobs.sh`**.
+
+**Do not** run **`git pull`** silently. Wait for **yes** / **pull** / **拉取** / equivalent (unless the user already said so in this thread).
+
+### Agent prompt template
+
+> Connected to the cluster and in **`$REPO_ROOT`** (`/rebase/vllm-omni` by default).
+> Should I run **`git pull`** to update the repo before starting the test cases? (yes / no)
+
+### If user confirms pull
+
+Run in the **same shell** (after **`source /rebase/.venv/bin/activate`** and env exports if already applied):
+
+```bash
+cd "$REPO_ROOT"
+git pull
+```
+
+- Pulls the **current branch** tracking remote (site default is usually **`main`**).
+- If **`git pull`** fails (merge conflicts, dirty tree, auth), **stop** — show the error and resolve with the user before **`run_nightly_jobs.sh`**.
+
+### If user declines
+
+Skip **`git pull`** and proceed to **`run_nightly_jobs.sh`** with the checkout as-is.
+
+### Order relative to other steps
+
+1. **`source /rebase/.venv/bin/activate`**
+2. Export confirmed **`REPO_ROOT`**, **`HF_HOME`**, **`CUDA_VISIBLE_DEVICES`** (if applicable), **`unset`** cache vars
+3. **`cd "$REPO_ROOT"`**
+4. **Ask → optional `git pull`** (this section)
+5. **`bash tools/nightly/run_nightly_jobs.sh`** …
 
 ## Python venv inside the container
 
-On this HK/cluster setup, activate the project virtualenv **before** any repo commands (**`run_nightly_jobs.sh`**, pytest, or other tooling) inside **`docker exec … bash -lc '…'`** (or an interactive shell in the same container):
+On cluster setups, activate the project virtualenv **before** any repo commands (**`run_nightly_jobs.sh`**, pytest, or other tooling):
+
+- **H200:** in the shell after **`ssh`** (session is already inside the container).
+- **H800:** inside **`docker exec … bash -lc '…'`** (or an interactive shell in the same container).
 
 ```bash
 source /rebase/.venv/bin/activate
@@ -17,7 +64,31 @@ Use the **same** inner shell as **`cd "$REPO_ROOT"`** and the Hugging Face / vLL
 
 ## Hugging Face cache and vLLM
 
-Before **`run_nightly_jobs.sh`** (or any local vLLM-Omni test script) in the **same** shell / **`docker exec bash -lc`**:
+Before **`run_nightly_jobs.sh`** in the **same** shell (after **`source /rebase/.venv/bin/activate`**):
+
+| Machine | Default **`HF_HOME`** |
+|---------|----------------------|
+| **H200** | **`/models/`** |
+| **H800** | **`/home/models/`** |
+
+**Both H200 and H800** — always unset stale cache vars:
+
+```bash
+unset HF_HUB_CACHE
+unset TRANSFORMERS_CACHE
+export VLLM_ALLOW_LONG_MAX_MODEL_LEN="1"
+```
+
+**H200** (after **`ssh`**, already in container):
+
+```bash
+export HF_HOME="/models/"
+unset HF_HUB_CACHE
+unset TRANSFORMERS_CACHE
+export VLLM_ALLOW_LONG_MAX_MODEL_LEN="1"
+```
+
+**H800** (inside **`docker exec … bash -lc '…'`**):
 
 ```bash
 export HF_HOME="/home/models/"
@@ -26,22 +97,97 @@ unset TRANSFORMERS_CACHE
 export VLLM_ALLOW_LONG_MAX_MODEL_LEN="1"
 ```
 
-- **`HF_HOME`** — root for HF datasets/cache layout on this cluster; must exist and match where **shared weights** are mounted (change only if the user or **`run_nightly_jobs.sh`** documents a different path).
-- **`unset HF_HUB_CACHE`** / **`unset TRANSFORMERS_CACHE`** — drop inherited values so **`HF_HOME`** is not overridden by stale per-user cache paths.
-- **`VLLM_ALLOW_LONG_MAX_MODEL_LEN`** — vLLM flag for long **`max_model_len`** in tests that need it.
+- Override **`HF_HOME`** only after the user declines the default or names a different mount (see [Confirm run defaults](#confirm-run-defaults-with-user)).
 
-Apply these **before** optional **`CUDA_VISIBLE_DEVICES`** selection and **before** **`cd "$REPO_ROOT" && bash tools/nightly/run_nightly_jobs.sh`**. (Ensure **`source /rebase/.venv/bin/activate`** has already run in that shell; see [Python venv inside the container](#python-venv-inside-the-container).)
+<a id="confirm-laptop-path-defaults-with-user"></a>
+
+## Confirm laptop path defaults with user
+
+**Before** log sync, kanban prep, or nightly HTML on the **laptop**, show and confirm local paths. Full rules and agent prompt: [vllm-omni-test-report confirm-laptop-path-defaults](../vllm-omni-test-report/references/confirm-laptop-path-defaults.md).
+
+| Variable | Laptop default |
+|----------|----------------|
+| **`REPO_ROOT`** | `~/vllm-omni` |
+| **`KANBAN_REPO_ROOT`** | `~/vllm-omni-kanban` |
+
+This is **in addition to** [Confirm run defaults with user](#confirm-run-defaults-with-user) for cluster **`REPO_ROOT=/rebase/vllm-omni`**, **`HF_HOME`**, and **`CUDA_VISIBLE_DEVICES`**.
+
+<a id="confirm-run-defaults-with-user"></a>
+<a id="confirm-path-defaults-with-user"></a>
+
+## Confirm run defaults with user
+
+**Before** **`ssh`** / **`docker exec`** / running **`run_nightly_jobs.sh`**, show the planned defaults (paths **and** GPU selection) and **ask whether to use them**. Do not silently assume defaults when the user has not already confirmed or overridden values in the same conversation.
+
+| Variable | H200 default | H800 default |
+|----------|--------------|--------------|
+| **`REPO_ROOT`** | `/rebase/vllm-omni` | `/rebase/vllm-omni` |
+| **`HF_HOME`** | `/models/` | `/home/models/` |
+| **`CUDA_VISIBLE_DEVICES`** | `0,1,2,3` | No fixed index list — confirm **one** of: **`X`** empty GPUs → [nvidia-smi pick](#cuda_visible_devices-empty-gpus); explicit list (e.g. `0,1`); or **Slurm allocation** (skip `export`) |
+
+Also apply on both machines (always run after confirmed **`HF_HOME`**):
+
+```bash
+unset HF_HUB_CACHE
+unset TRANSFORMERS_CACHE
+export VLLM_ALLOW_LONG_MAX_MODEL_LEN="1"
+```
+
+### Agent prompt template (show then ask)
+
+**H200 example:**
+
+> Planned run defaults:
+> - **`REPO_ROOT`**: `/rebase/vllm-omni`
+> - **`HF_HOME`**: `/models/`
+> - **`CUDA_VISIBLE_DEVICES`**: `0,1,2,3`
+>
+> Use these defaults? To change them, provide paths or a GPU list; I will connect and run after you confirm.
+
+**H800 example** (user has not yet given **`X`** or a device list):
+
+> Planned run defaults:
+> - **`REPO_ROOT`**: `/rebase/vllm-omni`
+> - **`HF_HOME`**: `/home/models/`
+> - **`CUDA_VISIBLE_DEVICES`**: after connect, pick **X** idle GPUs inside the container via **`nvidia-smi`** (please confirm **X**, or give an explicit device list such as `0,1`; if using Slurm allocation without `export`, say so)
+>
+> Proceed with this plan? Confirm **`REPO_ROOT` / `HF_HOME`** defaults and specify the GPU strategy; I will connect and run after you confirm.
+
+**H800 example** (user already said **2 GPUs** / **`CUDA_VISIBLE_DEVICES=0,1`**):
+
+> Planned run defaults:
+> - **`REPO_ROOT`**: `/rebase/vllm-omni`
+> - **`HF_HOME`**: `/home/models/`
+> - **`CUDA_VISIBLE_DEVICES`**: `0,1` (per your specified 2 GPUs / device list)
+>
+> Use these defaults? Say if you want changes; I will connect and run after you confirm.
+
+### Rules
+
+1. **Always display** **`REPO_ROOT`**, **`HF_HOME`**, and **`CUDA_VISIBLE_DEVICES`** (or H800 GPU strategy) **before** the first cluster run in a session (unless the user already said **use defaults** / gave explicit values).
+2. **Wait for confirmation** or explicit overrides before running remote commands.
+3. If the user confirms defaults → use the table values: **`export REPO_ROOT="${REPO_ROOT:-…}"`**, **`export HF_HOME="…"`**, **`export CUDA_VISIBLE_DEVICES="…"`** (H200 default **`0,1,2,3`**; H800 per confirmed strategy).
+4. If the user gives custom paths or GPU list → use those for the rest of the session.
+5. **H800 + `nvidia-smi` pick:** confirm **`X`** in the same prompt when not already known; run the pick script **after** connect inside **`docker exec`**, then **`export`** the chosen indices before **`run_nightly_jobs.sh`**.
+6. **H800 + Slurm only:** if the user confirms using the allocation without override, **omit** **`export CUDA_VISIBLE_DEVICES`** and note that in the confirmation reply.
+
+**Always after confirmed `HF_HOME`:** **`unset HF_HUB_CACHE`** / **`unset TRANSFORMERS_CACHE`** — so **`HF_HOME`** is not overridden by inherited cache paths.
+
+Apply confirmed env **before** **`cd "$REPO_ROOT"`**, optional **`git pull`** ([Git pull before run](#git-pull-before-run-confirm-with-user)), and **`bash tools/nightly/run_nightly_jobs.sh`**. (Ensure **`source /rebase/.venv/bin/activate`** has already run in that shell; see [Python venv inside the container](#python-venv-inside-the-container).)
 
 ## Default log location
 
 - **`$REPO_ROOT/logs/nightly_jobs`** is the default **`LOG_DIR`** for runs and for the report script.
-- Optional manual perf workbook on the same tree: **`$REPO_ROOT/logs/nightly_perf_manual.xlsx`** — copy it with the logs when syncing off-cluster (see [nightly-local-log-fetch.md](nightly-local-log-fetch.md)).
+- Optional DFX perf JSON: **`$REPO_ROOT/tests/dfx/perf/results/`** — synced for kanban **`manual_*`** → **`docs/assets/charts/*_history.json`** (see [nightly-local-log-fetch.md](nightly-local-log-fetch.md) and [vllm-omni-test-report kanban prep](../vllm-omni-test-report/references/kanban-pre-report-prep.md)).
+- **Before each laptop sync:** delete local **`$REPO_ROOT/logs`** and **`$REPO_ROOT/tests/dfx/perf/results`** so old artifacts are not merged with the new pull ([clear local trees](nightly-local-log-fetch.md#clear-local-trees)).
 - If `tools/nightly/run_nightly_jobs.sh` writes elsewhere, sync that directory or symlink into `logs/nightly_jobs`, then pass **`--log-dir`** when running **`vllm-omni-test-report`** `nightly_local_log_report.py`.
 
 ## SSH connection name
 
 - The **connection name** is whatever you pass to `ssh`: a **`Host`** entry in `~/.ssh/config` (e.g. `my-hk`) or `user@login.example.com`.
 - Use `ssh -v` when diagnosing host key or proxy issues.
+- **H200:** SSH lands in the container — [nightly-local-h200.md](nightly-local-h200.md) (no **`docker exec`**). Default **`CUDA_VISIBLE_DEVICES=0,1,2,3`** — **confirm with user** before export.
+- **H800:** Slurm + **`docker exec`** — [nightly-local-h800.md](nightly-local-h800.md).
 
 ## Finding `JOBID` for `--overlap`
 
@@ -107,11 +253,38 @@ echo "nightly jobs PID=$! log=$LOG"
 
 - Path: **`tools/nightly/run_nightly_jobs.sh`** relative to the repo root. Forks or branches may differ.
 
+<a id="run-nightly-jobs-test-type"></a>
+
+### Test type and model filter
+
+After **`cd "$REPO_ROOT"`**, choose flags from user intent (run **`git pull`** first only if the user confirmed — [Git pull before run](#git-pull-before-run-confirm-with-user)):
+
+| User intent | Command |
+|-------------|---------|
+| Default (full nightly, user did **not** ask for **local**) | `bash tools/nightly/run_nightly_jobs.sh` |
+| Run **local** cases — e.g. **local**, **local test cases**, **run local**, **run local cases** | `bash tools/nightly/run_nightly_jobs.sh --test-type local` |
+| Run **local** for a specific model **`xxxx`** — e.g. **Qwen local**, **run local for Wan** | `bash tools/nightly/run_nightly_jobs.sh --test-type local --label-substr xxxx` |
+
+- **`--label-substr`** is a substring match on job labels; pass the model keyword the user gives (**`Qwen`**, **`Wan`**, **`FLUX`**, etc.).
+- Apply the same command in **H200** (direct **`ssh`**) and **H800** (**`docker exec`** inner shell), and in **`nohup`** / **`tmux`** sessions.
+
+```bash
+# All local jobs
+bash tools/nightly/run_nightly_jobs.sh --test-type local
+
+# Local jobs whose labels contain "Qwen"
+bash tools/nightly/run_nightly_jobs.sh --test-type local --label-substr Qwen
+```
+
 <a id="cuda_visible_devices-empty-gpus"></a>
 
 ## `CUDA_VISIBLE_DEVICES` — empty GPUs via `nvidia-smi`
 
-Run this on the **same machine** that will execute the tests (**inside `docker exec`**, after **`source /rebase/.venv/bin/activate`**, if the job runs in the container). The user specifies **`X`** = how many cards should be **free**.
+**H200:** default **`0,1,2,3`** — confirm in [Confirm run defaults](#confirm-run-defaults-with-user) before **`export`**.
+
+**H800:** confirm GPU strategy in the same step (**`X`** + this script, explicit list, or Slurm-only). Run the pick script only **after** the user confirms **`X`** or **`nvidia-smi`** mode.
+
+Run this on the **same machine** that will execute the tests (**inside `docker exec`**, after **`source /rebase/.venv/bin/activate`**, if the job runs in the container). **`X`** = how many cards should be **free**.
 
 **Idle (“empty”)** here means **`memory.used == 0`** and **`utilization.gpu == 0`** in `nvidia-smi`’s CSV query (some sites reserve a few MiB on “idle” GPUs — adjust the checks if needed).
 
@@ -147,15 +320,18 @@ export CUDA_VISIBLE_DEVICES
 echo "Using CUDA_VISIBLE_DEVICES=$CUDA_VISIBLE_DEVICES"
 ```
 
-Then run the workload in **that shell** (after **`HF_HOME` / vLLM** exports from [Hugging Face cache and vLLM](#hugging-face-cache-and-vllm), e.g. same `bash -lc '…'` string):
+Then run the workload in **that shell** (use machine-appropriate **`HF_HOME`** from [Hugging Face cache and vLLM](#hugging-face-cache-and-vllm)):
 
 ```bash
-export HF_HOME="/home/models/"
+# H200
+export HF_HOME="/models/"
 unset HF_HUB_CACHE
 unset TRANSFORMERS_CACHE
 export VLLM_ALLOW_LONG_MAX_MODEL_LEN="1"
 cd "$REPO_ROOT" && bash tools/nightly/run_nightly_jobs.sh
 ```
+
+(H800: **`HF_HOME="/home/models/"`** instead.)
 
 (If **`CUDA_VISIBLE_DEVICES`** was set in the steps above, it remains in effect; if you already exported **HF / vLLM** vars in the same shell, omit duplicates.)
 

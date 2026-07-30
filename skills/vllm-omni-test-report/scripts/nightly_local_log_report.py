@@ -35,14 +35,20 @@ from nightly_job_pytest_table import (
     collect_nightly_job_log_analyses,
     fetch_nightly_build,
 )
-from nightly_perf_manual_xlsx import (
-    PERF_MANUAL_FILENAME,
-    load_perf_manual_with_compare,
+from kanban_assets_perf_summary import build_assets_perf_summary
+from nightly_job_log_discovery import discover_job_logs, read_combined_job_logs
+from local_perf_results import (
+    collect_local_perf_test_keys,
+    local_perf_result_files,
+    perf_row_matches_local_test,
+    resolve_local_perf_result_dir,
 )
-from kanban_assets_perf_summary import (
-    _build_perf_rows,
-    _empty_perf_status_counts,
-    build_assets_perf_summary,
+from kanban_repo_config import KANBAN_REPO_URL
+from laptop_path_defaults import (
+    DEFAULT_KANBAN_REPO_ROOT_DISPLAY,
+    DEFAULT_LAPTOP_REPO_ROOT_DISPLAY,
+    resolve_kanban_repo_root,
+    resolve_laptop_repo_root,
 )
 from report_html_theme import EDITORIAL_THEME_CSS
 
@@ -89,17 +95,42 @@ _SVG_CHART_BARS = (
     '<line x1="6" y1="20" x2="6" y2="14"/>'
 )
 
-VLLM_OMNI_REPO = "https://github.com/vllm-project/vllm-omni"
+VLLM_OMNI_REPO = os.environ.get(
+    "VLLM_OMNI_ISSUE_REPO", "https://github.com/vllm-project/vllm-omni"
+).strip().rstrip("/")
 VLLM_OMNI_BUG_ISSUE_TEMPLATE = "400-bug-report.yml"
+# GitHub issue form field ids — must match explicit `id` in vllm-omni
+# `.github/ISSUE_TEMPLATE/400-bug-report.yml` (URL query prefill only works with `id`).
+VLLM_OMNI_BUG_ENV_FIELD_ID = "current-environment"
+VLLM_OMNI_BUG_ENV_COLLECT_PLACEHOLDER = "Your output of `python collect_env.py` here"
+VLLM_OMNI_BUG_ENV_DEFAULT_VALUE = (
+    "<details>\n"
+    "<summary>The output of <code>python collect_env.py</code></summary>\n\n"
+    "```text\n"
+    f"{VLLM_OMNI_BUG_ENV_COLLECT_PLACEHOLDER}\n"
+    "```\n\n"
+    "</details>"
+)
+VLLM_OMNI_BUG_ENV_CI_REPLACEMENT = "ci env"
+VLLM_OMNI_BUG_CODE_VERSION_FIELD_ID = "code-version"
+VLLM_OMNI_BUG_DESCRIBE_FIELD_ID = "bug-description"
+# GitHub issue labels (exact repo names). Local Submit issue: bug only; CI: bug + ci-failure + high priority.
+VLLM_OMNI_BUG_ISSUE_LABELS_CI = ("bug", "ci-failure", "high priority")
+VLLM_OMNI_BUG_ISSUE_LABELS_LOCAL = ("bug",)
+
+
+def _vllm_omni_bug_env_ci_prefill() -> str:
+    return VLLM_OMNI_BUG_ENV_DEFAULT_VALUE.replace(
+        VLLM_OMNI_BUG_ENV_COLLECT_PLACEHOLDER,
+        VLLM_OMNI_BUG_ENV_CI_REPLACEMENT,
+    )
 
 # Total raw log bytes (per failing local job) embeddable in HTML; larger logs get a notice + paths only.
 FULL_LOG_EMBED_MAX_BYTES = 2 * 1024 * 1024
 DEFAULT_KANBAN_ASSETS_DIR = Path(
     os.environ.get("KANBAN_ASSETS_DIR", "").strip()
 ).resolve() if os.environ.get("KANBAN_ASSETS_DIR", "").strip() else None
-DEFAULT_KANBAN_REPO_ROOT = Path(
-    os.environ.get("KANBAN_REPO_ROOT", "").strip()
-).resolve() if os.environ.get("KANBAN_REPO_ROOT", "").strip() else None
+DEFAULT_KANBAN_REPO_ROOT = resolve_kanban_repo_root()
 
 
 @dataclass
@@ -114,19 +145,7 @@ class KanbanAssetsConfig:
     refresh_warnings: list[str] = field(default_factory=list)
 
 
-@dataclass
-class LocalPerfResultConfig:
-    result_root: Path | None = None
-
-
-def _default_local_perf_result_root(kanban_repo_root: Path | None) -> Path | None:
-    if kanban_repo_root is None:
-        return None
-    candidate = (kanban_repo_root / "data/local_nightly_raw").resolve()
-    return candidate if candidate.is_dir() else None
-
-
-# Keep this list aligned with vllm-omni-kanban/scripts/mkdocs_hooks.py and
+# Keep this list aligned with https://github.com/hsliuustc0106/vllm-omni-kanban/blob/main/scripts/mkdocs_hooks.py and
 # the maintenance note in SKILL.md.
 KANBAN_RAW_MODEL_SYNCS: tuple[tuple[str, str], ...] = (
     ("qwen3omni", "qwen3_omni"),
@@ -215,48 +234,162 @@ def _github_issue_button_cell() -> str:
         '<td class="issue-action-cell">'
         '<button type="button" class="btn-github-issue">'
         f'{_svg_icon(_SVG_PLUS_ISSUE, size=17, extra_class="btn-issue-ico")}'
-        '<span class="btn-issue-text">File issue</span>'
+        '<span class="btn-issue-text">Submit issue</span>'
         "</button></td>"
     )
 
 
-def _github_issue_modal_and_script() -> str:
-    """Modal + client script: open GitHub bug template, prefilled title; body copied to match upstream form."""
-    tmpl_url = f"{VLLM_OMNI_REPO}/blob/main/.github/ISSUE_TEMPLATE/{VLLM_OMNI_BUG_ISSUE_TEMPLATE}"
+def _github_issue_submit_script() -> str:
+    """Client script: Submit issue opens GitHub bug template with all fields prefilled via URL."""
     issue_new = f"{VLLM_OMNI_REPO}/issues/new"
     return f"""
-<div id="gh-issue-modal" class="gh-modal" hidden aria-hidden="true">
-  <div class="gh-modal-backdrop" tabindex="-1"></div>
-  <div class="gh-modal-panel" role="dialog" aria-modal="true" aria-labelledby="gh-issue-dialog-title">
-    <header class="gh-modal-head">
-      <h2 id="gh-issue-dialog-title">File a vllm-omni bug report</h2>
-      <button type="button" class="gh-modal-x" id="gh-issue-close" aria-label="Close">×</button>
-    </header>
-    <p class="gh-modal-hint">Body sections follow the upstream
-      <a href="{html.escape(tmpl_url)}" target="_blank" rel="noopener noreferrer">bug report template</a>
-      (<code>{html.escape(VLLM_OMNI_BUG_ISSUE_TEMPLATE)}</code>).
-      For <strong>Buildkite</strong> rows, the body uses <code>ci env</code> and tries to fill <strong>vllm / vllm-omni</strong>
-      versions by scanning the step log; paste anything missing from the build log if needed.
-      Click <strong>Open GitHub</strong> (template and title are pre-filled), then paste the Markdown below into
-      <strong>Describe the bug</strong>. Redact secrets before submitting.</p>
-    <textarea id="gh-issue-body-text" class="gh-issue-textarea" rows="20" spellcheck="false"></textarea>
-    <footer class="gh-modal-actions">
-      <button type="button" class="btn-gh-copy" id="gh-issue-copy">Copy body</button>
-      <a class="btn-gh-open" id="gh-issue-open" href="{html.escape(issue_new)}" target="_blank" rel="noopener noreferrer">Open GitHub</a>
-    </footer>
-  </div>
-</div>
 <script>
 (function () {{
-  var modal = document.getElementById("gh-issue-modal");
-  var ta = document.getElementById("gh-issue-body-text");
-  var openA = document.getElementById("gh-issue-open");
-  var copyBtn = document.getElementById("gh-issue-copy");
-  var closeBtn = document.getElementById("gh-issue-close");
-  var backdrop = modal ? modal.querySelector(".gh-modal-backdrop") : null;
-  if (!modal || !ta || !openA || !copyBtn || !closeBtn || !backdrop) return;
   var issueBase = {json.dumps(issue_new)};
   var bugTemplate = {json.dumps(VLLM_OMNI_BUG_ISSUE_TEMPLATE)};
+  var issueEnvFieldId = {json.dumps(VLLM_OMNI_BUG_ENV_FIELD_ID)};
+  var issueEnvCiValue = {json.dumps(_vllm_omni_bug_env_ci_prefill())};
+  var issueEnvLocalValue = {json.dumps(VLLM_OMNI_BUG_ENV_DEFAULT_VALUE)};
+  var issueCodeVersionFieldId = {json.dumps(VLLM_OMNI_BUG_CODE_VERSION_FIELD_ID)};
+  var issueDescribeFieldId = {json.dumps(VLLM_OMNI_BUG_DESCRIBE_FIELD_ID)};
+  var issueLabelsCi = {json.dumps(list(VLLM_OMNI_BUG_ISSUE_LABELS_CI))};
+  var issueLabelsLocal = {json.dumps(list(VLLM_OMNI_BUG_ISSUE_LABELS_LOCAL))};
+  var maxIssueUrlLen = 7800;
+
+  function issueLabelsFor(d) {{
+    return d.env === "ci" ? issueLabelsCi : issueLabelsLocal;
+  }}
+
+  function applyIssueLabels(u, labels) {{
+    if (!labels || !labels.length) return;
+    u.searchParams.set("labels", labels.join(","));
+  }}
+
+  function finalizeIssueUrl(u) {{
+    // URLSearchParams encodes spaces as '+'; GitHub expects '%20' in issue URLs.
+    return u.toString().replace(/\\+/g, "%20");
+  }}
+
+  function resolveVersionLines(d) {{
+    if (d.env === "ci") {{
+      var vllmLine = (d.vllmVer && d.vllmVer.trim()) ? d.vllmVer.trim() : "(not found in Buildkite step log)";
+      var omniLine;
+      if (d.omniVer && d.omniVer.trim()) {{
+        omniLine = d.omniVer.trim();
+      }} else if (d.buildCommit && d.buildCommit.trim()) {{
+        omniLine = d.buildCommit.trim();
+      }} else {{
+        omniLine = "(not found in Buildkite step log)";
+      }}
+      return {{ vllmLine: vllmLine, omniLine: omniLine }};
+    }}
+    return {{ vllmLine: "(pending)", omniLine: "(pending)" }};
+  }}
+
+  function buildCodeVersionFieldValue(d) {{
+    var ver = resolveVersionLines(d);
+    return [
+      "<details>",
+      "<summary>The commit id or version of vllm</summary>",
+      "",
+      "```text",
+      ver.vllmLine,
+      "```",
+      "</details>",
+      "<details>",
+      "<summary>The commit id or version of vllm-omni</summary>",
+      "",
+      "```text",
+      ver.omniLine,
+      "```",
+      "</details>",
+    ].join("\\n");
+  }}
+
+  function buildEnvFieldValue(d) {{
+    return d.env === "ci" ? issueEnvCiValue : issueEnvLocalValue;
+  }}
+
+  function buildDescribeFieldValue(d, excerptOverride) {{
+    var kind = d.isErr ? "pytest ERROR" : "pytest FAILED";
+    var excerpt = excerptOverride !== undefined ? excerptOverride : d.excerpt;
+    var lines = [];
+    if (d.bkBuildUrl && d.bkBuildUrl.trim()) {{
+      lines.push("**Buildkite build:** " + d.bkBuildUrl.trim());
+    }}
+    if (d.bkStepUrl && d.bkStepUrl.trim()) {{
+      var stepUrl = d.bkStepUrl.trim();
+      var stepName = (d.bkStepName && d.bkStepName.trim()) ? d.bkStepName.trim() : "";
+      if (stepName) {{
+        lines.push("**Buildkite step:** [" + stepName + "](" + stepUrl + ")");
+      }} else {{
+        lines.push("**Buildkite step:** " + stepUrl);
+      }}
+    }}
+    if (lines.length) lines.push("");
+    lines.push("**Failure kind:** " + kind);
+    lines.push("**Test node:** `" + d.node + "`");
+    lines.push("");
+    lines.push("**Log reason:**");
+    lines.push((d.reason && d.reason.trim()) ? d.reason.trim() : "(none in report)");
+    lines.push("");
+    lines.push("**Analysis:**");
+    lines.push((d.analysis && d.analysis.trim()) ? d.analysis.trim() : "(none in report)");
+    lines.push("");
+    lines.push("**Error log excerpt:**");
+    lines.push("");
+    lines.push("```text");
+    lines.push(excerpt || "(empty)");
+    lines.push("```");
+    lines.push("");
+    lines.push("---");
+    lines.push("*Generated from a nightly HTML report. Redact secrets before submitting; complete the checkboxes on GitHub.*");
+    return lines.join("\\n");
+  }}
+
+  function issueTitle(d) {{
+    var n = d.node.replace(/\\s*\\(ERROR\\)\\s*$/i, "");
+    var t = "[Bug]: Nightly / CI failed - " + n;
+    return t.length > 220 ? t.slice(0, 217) + "..." : t;
+  }}
+
+  function buildIssueUrl(d, opts) {{
+    opts = opts || {{}};
+    var u = new URL(issueBase);
+    u.searchParams.set("template", bugTemplate);
+    u.searchParams.set("title", issueTitle(d));
+    applyIssueLabels(u, issueLabelsFor(d));
+    u.searchParams.set(issueEnvFieldId, buildEnvFieldValue(d));
+    u.searchParams.set(issueCodeVersionFieldId, buildCodeVersionFieldValue(d));
+    u.searchParams.set(
+      issueDescribeFieldId,
+      buildDescribeFieldValue(d, opts.excerpt)
+    );
+    return u;
+  }}
+
+  function submitIssue(d) {{
+    var url = finalizeIssueUrl(buildIssueUrl(d));
+    if (url.length > maxIssueUrlLen) {{
+      var over = url.length - maxIssueUrlLen + 220;
+      var raw = d.excerpt || "";
+      var maxExcerpt = Math.max(400, raw.length - over);
+      var truncated =
+        raw.slice(0, maxExcerpt) +
+        "\\n\\n...(truncated for GitHub URL length; see HTML report for full log)";
+      url = finalizeIssueUrl(buildIssueUrl(d, {{ excerpt: truncated }}));
+    }}
+    if (url.length > maxIssueUrlLen && d.analysis) {{
+      var over2 = url.length - maxIssueUrlLen + 120;
+      var aRaw = d.analysis || "";
+      var maxAnalysis = Math.max(200, aRaw.length - over2);
+      d = Object.assign({{}}, d, {{
+        analysis: aRaw.slice(0, maxAnalysis) + "\\n\\n...(analysis truncated; see HTML report)",
+      }});
+      url = finalizeIssueUrl(buildIssueUrl(d));
+    }}
+    window.open(url, "_blank", "noopener,noreferrer");
+  }}
 
   function gatherRow(btn) {{
     var tr = btn.closest("tr");
@@ -272,127 +405,14 @@ def _github_issue_modal_and_script() -> str:
     var vllmVer = tr.getAttribute("data-vllm-version") || "";
     var omniVer = tr.getAttribute("data-vllm-omni-version") || "";
     var buildCommit = tr.getAttribute("data-build-commit") || "";
+    var bkBuildUrl = tr.getAttribute("data-buildkite-build-url") || "";
+    var bkStepUrl = tr.getAttribute("data-buildkite-step-url") || "";
+    var bkStepName = tr.getAttribute("data-buildkite-step-name") || "";
     return {{
       ctx: ctx, node: node, reason: reason, analysis: analysis, excerpt: excerpt, isErr: isErr,
       env: env, vllmVer: vllmVer, omniVer: omniVer, buildCommit: buildCommit,
+      bkBuildUrl: bkBuildUrl, bkStepUrl: bkStepUrl, bkStepName: bkStepName,
     }};
-  }}
-
-  function buildMarkdown(d) {{
-    var kind = d.isErr ? "pytest ERROR" : "pytest FAILED";
-    var analysisNote;
-    if (d.analysis && d.analysis.trim()) {{
-      analysisNote = [
-        "**Automated analysis (from report, not copied):**",
-        "The HTML report may include a short heuristic summary in another language in the Analysis column.",
-        "Please restate the failure in English for maintainers if you rely on that text.",
-        "",
-      ].join("\\n");
-    }} else {{
-      analysisNote = [
-        "**Automated analysis:**",
-        "None in report.",
-        "",
-      ].join("\\n");
-    }}
-
-    var envSection;
-    if (d.env === "ci") {{
-      envSection = [
-        "### Your current environment",
-        "",
-        "```text",
-        "ci env",
-        "```",
-        "",
-      ].join("\\n");
-    }} else {{
-      envSection = [
-        "### Your current environment",
-        "",
-        "*(Local nightly logs — add `python collect_env.py` output here if useful.)*",
-        "",
-        "```text",
-        "(pending -- paste collect_env.py output here)",
-        "```",
-        "",
-      ].join("\\n");
-    }}
-
-    var vllmLine, omniLine;
-    if (d.env === "ci") {{
-      vllmLine = (d.vllmVer && d.vllmVer.trim()) ? d.vllmVer.trim() : "(not found in Buildkite step log)";
-      if (d.omniVer && d.omniVer.trim()) {{
-        omniLine = d.omniVer.trim();
-      }} else if (d.buildCommit && d.buildCommit.trim()) {{
-        omniLine = d.buildCommit.trim();
-      }} else {{
-        omniLine = "(not found in Buildkite step log)";
-      }}
-    }} else {{
-      vllmLine = "(pending)";
-      omniLine = "(pending)";
-    }}
-
-    return [
-      envSection,
-      "### Your code version",
-      "",
-      "The commit id or version of vllm",
-      "",
-      "```text",
-      vllmLine,
-      "```",
-      "",
-      "The commit id or version of vllm-omni",
-      "",
-      "```text",
-      omniLine,
-      "```",
-      "",
-      "### 🐛 Describe the bug",
-      "",
-      "**Report source:** " + d.ctx,
-      "**Failure kind:** " + kind,
-      "**Test node:** `" + d.node + "`",
-      "",
-      "**Log reason:**",
-      d.reason,
-      "",
-      analysisNote,
-      "**Pytest / CI log excerpt:**",
-      "",
-      "```text",
-      d.excerpt,
-      "```",
-      "",
-      "---",
-      "*Generated from a nightly HTML report. Redact secrets before submitting; complete the checkboxes on GitHub.*",
-    ].join("\\n");
-  }}
-
-  function issueTitle(d) {{
-    var n = d.node.replace(/\\s*\\(ERROR\\)\\s*$/i, "");
-    var t = "[Bug]: Nightly / CI failed - " + n;
-    return t.length > 220 ? t.slice(0, 217) + "..." : t;
-  }}
-
-  function openModal(d) {{
-    ta.value = buildMarkdown(d);
-    var u = new URL(issueBase);
-    u.searchParams.set("template", bugTemplate);
-    u.searchParams.set("title", issueTitle(d));
-    openA.href = u.toString();
-    modal.hidden = false;
-    modal.setAttribute("aria-hidden", "false");
-    document.body.style.overflow = "hidden";
-    ta.focus();
-  }}
-
-  function closeModal() {{
-    modal.hidden = true;
-    modal.setAttribute("aria-hidden", "true");
-    document.body.style.overflow = "";
   }}
 
   document.addEventListener("click", function (ev) {{
@@ -400,27 +420,7 @@ def _github_issue_modal_and_script() -> str:
     if (b) {{
       ev.preventDefault();
       var d = gatherRow(b);
-      if (d) openModal(d);
-    }}
-  }});
-  closeBtn.addEventListener("click", closeModal);
-  backdrop.addEventListener("click", closeModal);
-  document.addEventListener("keydown", function (ev) {{
-    if (ev.key === "Escape" && !modal.hidden) closeModal();
-  }});
-  copyBtn.addEventListener("click", function () {{
-    var v = ta.value;
-    var reset = function () {{ copyBtn.textContent = "Copy body"; }};
-    if (navigator.clipboard && navigator.clipboard.writeText) {{
-      navigator.clipboard.writeText(v).then(function () {{
-        copyBtn.textContent = "Copied";
-        setTimeout(reset, 1400);
-      }}).catch(function () {{ ta.select(); document.execCommand("copy"); reset(); }});
-    }} else {{
-      ta.select();
-      try {{ document.execCommand("copy"); }} catch (e) {{}}
-      copyBtn.textContent = "Copied";
-      setTimeout(reset, 1400);
+      if (d) submitIssue(d);
     }}
   }});
 
@@ -432,7 +432,7 @@ def _github_issue_modal_and_script() -> str:
       var nowHidden = !panel.hidden;
       panel.hidden = nowHidden;
       btn.setAttribute("aria-expanded", nowHidden ? "false" : "true");
-      btn.textContent = nowHidden ? "查看完整日志" : "收起完整日志";
+      btn.textContent = nowHidden ? "View full log" : "Collapse full log";
     }});
   }});
 
@@ -569,46 +569,15 @@ def default_log_dir(repo_root: Path) -> Path:
     return repo_root / "logs" / "nightly_jobs"
 
 
-def discover_job_logs(log_dir: Path) -> list[tuple[str, list[Path]]]:
-    if not log_dir.is_dir():
-        return []
-    subs = sorted(
-        [p for p in log_dir.iterdir() if not p.name.startswith(".")],
-        key=lambda p: p.name,
-    )
-    if not subs:
-        return []
-
-    merged: dict[str, list[Path]] = {}
-
-    for d in sorted((p for p in subs if p.is_dir()), key=lambda p: p.name):
-        resolved: list[Path] = []
-        for pat in ("*.log", "*.out", "*.txt"):
-            resolved.extend(sorted(d.glob(pat)))
-        if resolved:
-            merged.setdefault(d.name, []).extend(resolved)
-
-    for p in subs:
-        if not p.is_file():
-            continue
-        if p.suffix.lower() not in (".log", ".out", ".txt"):
-            continue
-        merged.setdefault(p.stem, []).append(p)
-
-    out: list[tuple[str, list[Path]]] = []
-    for name in sorted(merged.keys()):
-        paths = merged[name]
-        if not paths:
-            continue
-        seen: set[str] = set()
-        uniq: list[Path] = []
-        for path in sorted(paths, key=lambda q: q.as_posix().lower()):
-            key = str(path.resolve())
-            if key not in seen:
-                seen.add(key)
-                uniq.append(path)
-        out.append((name, uniq))
-    return out
+def _combined_job_log_disk_bytes(paths: list[Path]) -> int | None:
+    """Return total on-disk size of ``paths`` in bytes, or ``None`` if ``stat`` fails."""
+    total = 0
+    for p in paths:
+        try:
+            total += p.stat().st_size
+        except OSError:
+            return None
+    return total
 
 
 # Local Test summary: group jobs by pillar × dimension (folder / job name prefix).
@@ -750,7 +719,7 @@ def _render_local_summary_table_html(
                 "Failed",
                 "Skipped",
                 "Errors",
-                "执行时间",
+                "Elapsed time",
             ],
             summary_rows_loc,
             table_class="summary",
@@ -814,7 +783,7 @@ def _render_local_summary_grouped_html(
             "\n".join(
                 [
                     '<details class="local-summary-pillar local-summary-pillar--other">',
-                    '<summary class="local-summary-pillar-summary">其他</summary>',
+                    '<summary class="local-summary-pillar-summary">Other</summary>',
                     '<div class="local-summary-pillar-body">',
                     _render_local_summary_table_html(uncat),
                     "</div>",
@@ -824,10 +793,10 @@ def _render_local_summary_grouped_html(
         )
 
     tail_hints = [
-        '<p class="hint">若存在失败，请在「失败分析」中按 Job 展开或折叠查看摘录。</p>',
-        '<p class="hint summary-legend">行底色：<strong class="summary-legend--ok">绿</strong> = 本 Job 无失败/错误；'
-        '<strong class="summary-legend--fail">红</strong> = 存在失败、错误或日志拉取失败；'
-        '<strong class="summary-legend--unk">灰</strong> = 未识别到 pytest 结果摘要。</p>',
+        '<p class="hint">If there are failures, expand or collapse excerpts per job under Failure analysis.</p>',
+        '<p class="hint summary-legend">Row background: <strong class="summary-legend--ok">green</strong> = no failures/errors for this job; '
+        '<strong class="summary-legend--fail">red</strong> = failures, errors, or log fetch failure; '
+        '<strong class="summary-legend--unk">gray</strong> = no pytest result summary detected.</p>',
     ]
     return ("\n".join(parts + tail_hints)) if parts else "\n".join(tail_hints)
 
@@ -872,7 +841,7 @@ def _append_local_summary_grouped_markdown(
                         "Failed",
                         "Skipped",
                         "Errors",
-                        "执行时间",
+                        "Elapsed time",
                     ],
                     summary_rows,
                 )
@@ -881,7 +850,7 @@ def _append_local_summary_grouped_markdown(
 
     if uncat:
         uncat.sort(key=lambda t: t[0].lower())
-        lines.append("#### 其他")
+        lines.append("#### Other")
         lines.append("")
         summary_rows_u = [_summary_row_for_job(n, p, i) for n, p, i in uncat]
         lines.append(
@@ -893,7 +862,7 @@ def _append_local_summary_grouped_markdown(
                     "Failed",
                     "Skipped",
                     "Errors",
-                    "执行时间",
+                    "Elapsed time",
                 ],
                 summary_rows_u,
             )
@@ -910,15 +879,15 @@ def markdown_local_summary_from_log_dir(log_dir: Path) -> str:
     """
     groups = discover_job_logs(log_dir)
     lines: list[str] = [
-        f"*日志根目录:* `{log_dir}`（布局见 [references/nightly-local-log-layout.md](references/nightly-local-log-layout.md)）。",
+        f"*Log root:* `{log_dir}` (layout: [references/nightly-local-log-layout.md](references/nightly-local-log-layout.md)).",
         "",
-        "与 **nightly** HTML/Markdown 报告中本地 **Summary** 相同的分组方式（Omni / TTS / Diffusion × Perf / Acc / …）：",
+        "Same grouping as local **Summary** in nightly HTML/Markdown reports (Omni / TTS / Diffusion × Perf / Acc / …):",
         "",
     ]
     if not groups:
         lines.append(
-            f"*未找到可解析的 Job 日志。* 确认目录与 "
-            f"[references/nightly-local-log-layout.md](references/nightly-local-log-layout.md) 一致。"
+            f"*No parseable job logs found.* Confirm the directory matches "
+            f"[references/nightly-local-log-layout.md](references/nightly-local-log-layout.md)."
         )
         lines.append("")
         return "\n".join(lines)
@@ -926,7 +895,7 @@ def markdown_local_summary_from_log_dir(log_dir: Path) -> str:
     job_rows = _local_job_rows_with_info(groups)
     _append_local_summary_grouped_markdown(lines, job_rows)
     lines.append(
-        "*失败 / 错误 Job 的逐条摘录仅在 **nightly** 完整报告中展开；此处仅保留汇总表。*"
+        "*Per-job failure/error excerpts expand only in the full nightly report; this section keeps the summary table only.*"
     )
     lines.append("")
     return "\n".join(lines)
@@ -942,27 +911,8 @@ def read_job_text(paths: list[Path]) -> str:
     return "\n".join(chunks)
 
 
-def _combined_job_log_disk_bytes(paths: list[Path]) -> int | None:
-    """Return total on-disk size of ``paths`` in bytes, or ``None`` if ``stat`` fails."""
-    total = 0
-    for p in paths:
-        try:
-            total += p.stat().st_size
-        except OSError:
-            return None
-    return total
-
-
 def _read_combined_job_logs(paths: list[Path]) -> str:
-    parts: list[str] = []
-    for p in paths:
-        parts.append(f"===== {p.name} =====\n")
-        try:
-            parts.append(p.read_text(encoding="utf-8-sig", errors="replace"))
-        except OSError as e:
-            parts.append(f"<<< read error {p}: {e} >>>\n")
-        parts.append("\n")
-    return "".join(parts)
+    return read_combined_job_logs(paths, include_headers=True)
 
 
 def _render_full_log_panel_html(paths: list[Path], panel_id: str) -> str:
@@ -971,7 +921,7 @@ def _render_full_log_panel_html(paths: list[Path], panel_id: str) -> str:
         return ""
     tb = _combined_job_log_disk_bytes(paths)
     if tb is None:
-        inner = '<p class="note full-log-oversize">无法读取日志文件信息。</p>'
+        inner = '<p class="note full-log-oversize">Unable to read log file metadata.</p>'
     elif tb > FULL_LOG_EMBED_MAX_BYTES:
         mib = tb / (1024 * 1024)
         cap = FULL_LOG_EMBED_MAX_BYTES / (1024 * 1024)
@@ -979,8 +929,8 @@ def _render_full_log_panel_html(paths: list[Path], panel_id: str) -> str:
             f"<li><code>{html.escape(str(p.resolve()))}</code></li>" for p in paths
         )
         inner = (
-            f'<p class="note full-log-oversize">合并日志约 <strong>{mib:.2f} MiB</strong>，超过报告嵌入上限 '
-            f"(<strong>{cap:.1f} MiB</strong>)，未内嵌全文。请在本地打开：</p>"
+            f'<p class="note full-log-oversize">Merged logs are about <strong>{mib:.2f} MiB</strong>, exceeding the embed cap '
+            f"(<strong>{cap:.1f} MiB</strong>); full text not embedded. Open locally:</p>"
             f'<ul class="full-log-paths">{lis}</ul>'
         )
     else:
@@ -988,7 +938,7 @@ def _render_full_log_panel_html(paths: list[Path], panel_id: str) -> str:
     return (
         '<div class="full-log-wrap">'
         '<button type="button" class="btn-view-full-log" aria-expanded="false" '
-        f'aria-controls="{panel_id}">查看完整日志</button>'
+        f'aria-controls="{panel_id}">View full log</button>'
         f'<div id="{panel_id}" class="full-log-panel" hidden>{inner}</div>'
         "</div>"
     )
@@ -1319,227 +1269,7 @@ def _render_perf_model_table_html(table_id: str, rows: list[list[str]]) -> str:
     return "\n".join(parts)
 
 
-def _raw_json_timestamp(path: Path) -> str:
-    try:
-        payload = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
-        payload = None
-    if payload is not None:
-        records = payload if isinstance(payload, list) else [payload]
-        timestamps: list[str] = []
-        for item in records:
-            if not isinstance(item, dict):
-                continue
-            raw = str(item.get("timestamp") or "").strip()
-            if not raw:
-                continue
-            try:
-                timestamps.append(datetime.strptime(raw, "%Y%m%d-%H%M%S").isoformat())
-            except ValueError:
-                timestamps.append(raw)
-        if timestamps:
-            return max(timestamps)
-
-    match = re.search(r"(\d{8}-\d{6})", path.stem)
-    if match:
-        try:
-            return datetime.strptime(match.group(1), "%Y%m%d-%H%M%S").isoformat()
-        except ValueError:
-            return ""
-    return ""
-
-
-def _local_perf_result_files(result_dir: Path) -> list[Path]:
-    if not result_dir.is_dir():
-        return []
-    paths: dict[Path, None] = {}
-    for pattern in KANBAN_RAW_PATTERNS:
-        for path in result_dir.rglob(pattern):
-            if path.is_file():
-                paths[path] = None
-    return sorted(paths)
-
-
-def _pick_latest_local_perf_result_dir(result_root: Path) -> Path | None:
-    if not result_root.is_dir():
-        return None
-    dirs = [path for path in result_root.iterdir() if path.is_dir()]
-    if not dirs:
-        return None
-    def _created_at(path: Path) -> float:
-        stat = path.stat()
-        return float(getattr(stat, "st_birthtime", stat.st_mtime))
-    return max(dirs, key=_created_at)
-
-
-def _load_local_perf_result_payload(path: Path) -> tuple[list[dict[str, Any]], str | None]:
-    try:
-        payload = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as exc:
-        return [], str(exc)
-    if isinstance(payload, list):
-        return [item for item in payload if isinstance(item, dict)], None
-    if isinstance(payload, dict):
-        if isinstance(payload.get("results"), list):
-            return [item for item in payload["results"] if isinstance(item, dict)], None
-        return [payload], None
-    return [], "unsupported JSON payload: expected object, list, or object with results list"
-
-
-def _local_perf_date(raw: dict[str, Any], source_file: Path) -> tuple[str, str]:
-    ts = str(raw.get("timestamp") or "").strip()
-    if ts:
-        try:
-            parsed = datetime.strptime(ts, "%Y%m%d-%H%M%S")
-            return parsed.strftime("%Y-%m-%d %H:%M:%S"), parsed.isoformat()
-        except ValueError:
-            return ts, ts
-    file_ts = _raw_json_timestamp(source_file)
-    return file_ts, file_ts
-
-
-def _set_scaled_metric(record: dict[str, Any], key: str, value: Any, scale: float = 1.0) -> None:
-    num = _as_num(value)
-    if num is not None:
-        record[key] = num * scale
-
-
-def _normalize_local_perf_result_record(raw: dict[str, Any], source_file: Path) -> dict[str, Any] | None:
-    result = raw.get("result") if isinstance(raw.get("result"), dict) else raw
-    bench = raw.get("benchmark_params") if isinstance(raw.get("benchmark_params"), dict) else {}
-    server = raw.get("server_params") if isinstance(raw.get("server_params"), dict) else {}
-    baseline = bench.get("baseline") if isinstance(bench.get("baseline"), dict) else raw.get("baseline")
-    if not isinstance(result, dict) or not isinstance(baseline, dict):
-        return None
-
-    date, sort_timestamp = _local_perf_date(raw, source_file)
-    model = server.get("model") or result.get("model") or raw.get("Model") or raw.get("model_id") or "unknown"
-    record: dict[str, Any] = {
-        "test_name": str(raw.get("test_name") or source_file.stem),
-        "model_id": str(model),
-        "benchmark_name": str(bench.get("name") or raw.get("benchmark_name") or ""),
-        "dataset_name": str(bench.get("dataset") or result.get("dataset") or raw.get("Dataset") or ""),
-        "task": str(bench.get("task") or result.get("task") or raw.get("Task") or ""),
-        "max_concurrency": bench.get("max-concurrency", raw.get("max_concurrency")),
-        "num_prompts": bench.get("num-prompts", raw.get("num_prompts")),
-        "qps": bench.get("request-rate", bench.get("request_rate", raw.get("request_rate"))),
-        "completed_requests": result.get("completed_requests", raw.get("completed")),
-        "failed_requests": result.get("failed_requests", raw.get("failed")),
-        "date": date,
-        "sort_timestamp": sort_timestamp,
-        "source_file": source_file.name,
-    }
-    record["config_key"] = " | ".join(
-        str(record.get(field) or "")
-        for field in ("benchmark_name", "dataset_name", "task", "max_concurrency", "num_prompts", "qps")
-    )
-
-    _set_scaled_metric(record, "throughput_qps", result.get("throughput_qps"))
-    _set_scaled_metric(record, "e2e_latency_ms", result.get("latency_mean"), 1000.0)
-    _set_scaled_metric(record, "e2e_latency_p99_ms", result.get("latency_p99"), 1000.0)
-    _set_scaled_metric(record, "peak_memory_gb", result.get("peak_memory_mb_mean"), 1.0 / 1024.0)
-    _set_scaled_metric(record, "baseline_throughput_qps", baseline.get("throughput_qps"))
-    _set_scaled_metric(record, "baseline_e2e_latency_ms", baseline.get("latency_mean"), 1000.0)
-    _set_scaled_metric(record, "baseline_e2e_latency_p99_ms", baseline.get("latency_p99"), 1000.0)
-    _set_scaled_metric(record, "baseline_peak_memory_gb", baseline.get("peak_memory_mb_mean"), 1.0 / 1024.0)
-    return record
-
-
-def _local_perf_summary(
-    local_perf_cfg: LocalPerfResultConfig,
-) -> tuple[dict[str, Any], dict[str, list[list[str]]]]:
-    if local_perf_cfg.result_root is None:
-        return {
-            "status": "missing",
-            "message": "local perf result root is not configured. Pass --local-perf-result-root.",
-            "result_root": "",
-            "result_dir": "",
-            "rows": [],
-            "summary": _empty_perf_status_counts(),
-        }, {}
-
-    result_root = local_perf_cfg.result_root.resolve()
-    result_dir = _pick_latest_local_perf_result_dir(result_root)
-    if result_dir is None:
-        return {
-            "status": "missing",
-            "message": f"No timestamped local perf result directories found under {result_root}.",
-            "result_root": str(result_root),
-            "result_dir": "",
-            "rows": [],
-            "summary": _empty_perf_status_counts(),
-        }, {}
-
-    result_files = _local_perf_result_files(result_dir)
-    if not result_files:
-        return {
-            "status": "missing",
-            "message": f"No perf benchmark result JSON files found under {result_dir}.",
-            "result_root": str(result_root),
-            "result_dir": str(result_dir),
-            "rows": [],
-            "summary": _empty_perf_status_counts(),
-        }, {}
-
-    records: list[dict[str, Any]] = []
-    errors: list[str] = []
-    for raw_path in result_files:
-        payload, error = _load_local_perf_result_payload(raw_path)
-        if error:
-            errors.append(f"{raw_path.name}: {error}")
-            continue
-        records.extend(
-            rec
-            for item in payload
-            if (rec := _normalize_local_perf_result_record(item, raw_path)) is not None
-        )
-    rows = _build_perf_rows(records)
-    rows = [row for row in rows if row.baseline is not None]
-    rows.sort(key=lambda row: (row.model, row.config_key, row.metric))
-    counts = _empty_perf_status_counts()
-    grouped_rows: dict[str, list[list[str]]] = {}
-    for row in rows:
-        counts[row.status] = counts.get(row.status, 0) + 1
-        grouped_rows.setdefault(_md_cell(row.model or "unknown"), []).append(
-            [
-                _md_cell(row.model_type),
-                _md_cell(row.config_view),
-                _md_cell(row.test_name),
-                _md_cell(row.metric),
-                _perf_num(row.latest),
-                _perf_num(row.baseline),
-                _perf_pct(row.vs_baseline_pct),
-                _md_cell(row.status),
-            ]
-        )
-    return {
-        "status": "ok" if rows else "empty",
-        "message": "" if rows else "No baseline-backed rows found in local perf benchmark result JSON.",
-        "result_root": str(result_root),
-        "result_dir": str(result_dir),
-        "file_count": len(result_files),
-        "errors": errors,
-        "latest_day": max((str(rec.get("date") or "")[:10] for rec in records), default=""),
-        "rows": rows,
-        "summary": counts,
-    }, grouped_rows
-
-
-def _buildkite_perf_rows(
-    kanban_cfg: KanbanAssetsConfig,
-) -> tuple[dict[str, Any], dict[str, list[list[str]]]]:
-    summary = build_assets_perf_summary(
-        assets_dir=kanban_cfg.assets_dir,
-        kanban_repo_root=kanban_cfg.repo_root,
-        expected_remote=kanban_cfg.expected_remote,
-        expected_branch=kanban_cfg.expected_branch,
-    )
-    if kanban_cfg.refresh_note:
-        summary.setdefault("warnings", []).append(kanban_cfg.refresh_note)
-    for warning in kanban_cfg.refresh_warnings:
-        summary.setdefault("warnings", []).append(warning)
-    if summary.get("status") != "ok" or kanban_cfg.refresh_warnings:
-        summary["raw_fallback"] = _kanban_raw_assets_diagnostic(kanban_cfg, summary)
+def _grouped_rows_from_summary(summary: dict[str, Any]) -> dict[str, list[list[str]]]:
     grouped_rows: dict[str, list[list[str]]] = {}
     for item in summary.get("rows", []):
         model = _md_cell(str(item.get("model") or "unknown"))
@@ -1555,6 +1285,94 @@ def _buildkite_perf_rows(
                 _md_cell(str(item.get("status") or "")),
             ]
         )
+    return grouped_rows
+
+
+def _filter_perf_summary_for_local(
+    summary: dict[str, Any],
+    *,
+    local_repo_root: Path,
+) -> dict[str, Any]:
+    result_root = (local_repo_root / "tests/dfx/perf/results").resolve()
+    resolved_dir = resolve_local_perf_result_dir(result_root)
+    perf_files = local_perf_result_files(resolved_dir) if resolved_dir else []
+    local_keys = collect_local_perf_test_keys(resolved_dir)
+
+    out = dict(summary)
+    scope: dict[str, Any] = {
+        "result_root": str(result_root),
+        "resolved_dir": str(resolved_dir) if resolved_dir else "",
+        "perf_file_count": len(perf_files),
+        "test_key_count": len(local_keys),
+    }
+
+    if not perf_files:
+        out["rows"] = []
+        out["status"] = "empty"
+        out["message"] = (
+            f"No local perf JSON under {result_root}. "
+            "Sync tests/dfx/perf/results from the cluster before generating the report."
+        )
+        out["summary"] = {"pass": 0, "normal": 0, "fail": 0, "n/a": 0}
+        scope["message"] = (
+            f"No local perf JSON under {result_root}; Local performance baseline comparison shows only synced-result cases."
+        )
+        out["local_perf_scope"] = scope
+        return out
+
+    filtered = [
+        row
+        for row in summary.get("rows", [])
+        if isinstance(row, dict) and perf_row_matches_local_test(row, local_keys)
+    ]
+    stats = {"pass": 0, "normal": 0, "fail": 0, "n/a": 0}
+    for row in filtered:
+        st = str(row.get("status") or "n/a")
+        stats[st] = stats.get(st, 0) + 1
+
+    out["rows"] = filtered
+    out["summary"] = stats
+    if filtered:
+        out["status"] = "ok"
+        out["message"] = ""
+        scope["message"] = (
+            f"Synced {len(perf_files)} perf JSON file(s) → showing {len(filtered)} baseline row(s) "
+            f"({len(local_keys)} test key(s))."
+        )
+    else:
+        out["status"] = "empty"
+        out["message"] = (
+            "Local perf JSON present but no kanban history rows matched. "
+            "Run prepare_kanban_before_report.py (manual_* + mkdocs build) then regenerate."
+        )
+        scope["message"] = (
+            f"{len(perf_files)} local perf JSON file(s) present but no kanban history rows matched; "
+            "run prepare_kanban_before_report.py first."
+        )
+    out["local_perf_scope"] = scope
+    return out
+
+
+def _buildkite_perf_rows(
+    kanban_cfg: KanbanAssetsConfig,
+    *,
+    local_repo_root: Path | None = None,
+) -> tuple[dict[str, Any], dict[str, list[list[str]]]]:
+    summary = build_assets_perf_summary(
+        assets_dir=kanban_cfg.assets_dir,
+        kanban_repo_root=kanban_cfg.repo_root,
+        expected_remote=kanban_cfg.expected_remote,
+        expected_branch=kanban_cfg.expected_branch,
+    )
+    if kanban_cfg.refresh_note:
+        summary.setdefault("warnings", []).append(kanban_cfg.refresh_note)
+    for warning in kanban_cfg.refresh_warnings:
+        summary.setdefault("warnings", []).append(warning)
+    if summary.get("status") != "ok" or kanban_cfg.refresh_warnings:
+        summary["raw_fallback"] = _kanban_raw_assets_diagnostic(kanban_cfg, summary)
+    if local_repo_root is not None:
+        summary = _filter_perf_summary_for_local(summary, local_repo_root=local_repo_root)
+    grouped_rows = _grouped_rows_from_summary(summary)
     return summary, grouped_rows
 
 
@@ -1563,7 +1381,7 @@ def _kanban_fallback_items(summary: dict[str, Any]) -> list[str]:
     if not isinstance(diag, dict):
         return []
     items = [
-        "本地 nightly_jobs 只用于用例通过情况分析，nightly_perf_manual.xlsx 只用于详细 perf benchmark 表格；二者不参与 baseline 对比。",
+        "Local nightly_jobs is for pass/fail analysis only; Local performance baseline comparison shows tests/dfx/perf/results synced cases; Buildkite performance baseline comparison reads all models from kanban docs/assets/charts/*_history.json.",
     ]
     raw_root = str(diag.get("raw_root") or "")
     if raw_root:
@@ -1593,7 +1411,7 @@ def _render_kanban_fallback_html(summary: dict[str, Any]) -> str:
     if not items:
         return ""
     return (
-        '<div class="note"><strong>Raw data fallback 诊断:</strong><ul>'
+        '<div class="note"><strong>Raw data fallback diagnostics:</strong><ul>'
         + "".join(f"<li>{html.escape(item)}</li>" for item in items)
         + "</ul></div>"
     )
@@ -1603,17 +1421,36 @@ def _append_kanban_fallback_markdown(lines: list[str], summary: dict[str, Any]) 
     items = _kanban_fallback_items(summary)
     if not items:
         return
-    lines.append("- **Raw data fallback 诊断:**")
+    lines.append("- **Raw data fallback diagnostics:**")
     for item in items:
         lines.append(f"  - {_md_cell(item)}")
 
 
-def _render_buildkite_perf_inner_html(kanban_cfg: KanbanAssetsConfig) -> str:
-    summary, grouped_rows = _buildkite_perf_rows(kanban_cfg)
+def _render_buildkite_perf_inner_html(
+    kanban_cfg: KanbanAssetsConfig,
+    *,
+    model_subcard_class: str = "report-subcard--bk-perf-model",
+    local_repo_root: Path | None = None,
+) -> str:
+    summary, grouped_rows = _buildkite_perf_rows(
+        kanban_cfg,
+        local_repo_root=local_repo_root,
+    )
     parts: list[str] = [
-        '<p class="meta"><strong>数据源:</strong> '
+        '<p class="meta"><strong>Data source:</strong> '
         f'<code>{html.escape(str(summary.get("assets_dir") or ""))}</code></p>'
     ]
+    local_scope = summary.get("local_perf_scope") or {}
+    if local_scope.get("message"):
+        parts.append(
+            '<p class="meta"><strong>Local filter:</strong> '
+            f"{html.escape(str(local_scope['message']))}</p>"
+        )
+        if local_scope.get("resolved_dir"):
+            parts.append(
+                '<p class="meta"><strong>Perf JSON:</strong> '
+                f"<code>{html.escape(str(local_scope['resolved_dir']))}</code></p>"
+            )
     history = summary.get("history") or {}
     if history:
         file_count = len(history.get("files") or [])
@@ -1634,7 +1471,7 @@ def _render_buildkite_perf_inner_html(kanban_cfg: KanbanAssetsConfig) -> str:
         warn_html = "".join(
             f"<li>{html.escape(str(w))}</li>" for w in warnings
         )
-        parts.append(f'<div class="note"><strong>源配置提示:</strong><ul>{warn_html}</ul></div>')
+        parts.append(f'<div class="note"><strong>Source config notes:</strong><ul>{warn_html}</ul></div>')
     if summary.get("status") != "ok":
         msg = summary.get("message") or "No performance rows available."
         parts.append(f'<p class="note">{html.escape(str(msg))}</p>')
@@ -1644,12 +1481,16 @@ def _render_buildkite_perf_inner_html(kanban_cfg: KanbanAssetsConfig) -> str:
         return "\n".join(parts)
     parts.append(
         "<p class=\"hint\">"
-        f"仅展示最新一天（{html.escape(str(summary.get('latest_day') or 'N/A'))}）且包含 baseline 的模型记录。"
-        "</p>"
+        + (
+            "Showing baseline comparison in kanban history only for cases synced to tests/dfx/perf/results."
+            if local_repo_root is not None
+            else f"Showing latest day ({html.escape(str(summary.get('latest_day') or 'N/A'))}) model records that include a baseline."
+        )
+        + "</p>"
     )
     stats = summary.get("summary", {})
     parts.append(
-        '<p class="meta"><strong>统计:</strong> '
+        '<p class="meta"><strong>Stats:</strong> '
         f"pass={int(stats.get('pass', 0))}, "
         f"normal={int(stats.get('normal', 0))}, "
         f"fail={int(stats.get('fail', 0))}, "
@@ -1663,15 +1504,27 @@ def _render_buildkite_perf_inner_html(kanban_cfg: KanbanAssetsConfig) -> str:
                 f"{model_name} ({len(model_rows)} rows)",
                 table_html,
                 open_default=False,
-                details_class="report-subcard--bk-perf-model",
+                details_class=model_subcard_class,
                 icon_paths=_SVG_LIST,
             )
         )
     return "\n".join(parts)
 
 
+def _append_local_perf_baseline_markdown(
+    lines: list[str],
+    kanban_cfg: KanbanAssetsConfig,
+    *,
+    repo_root: Path,
+) -> None:
+    lines.append("## Local performance baseline comparison")
+    lines.append("")
+    summary, grouped_rows = _buildkite_perf_rows(kanban_cfg, local_repo_root=repo_root)
+    _append_buildkite_perf_markdown(lines, summary, grouped_rows)
+
+
 def _append_buildkite_perf_markdown(lines: list[str], summary: dict[str, Any], grouped_rows: dict[str, list[list[str]]]) -> None:
-    lines.append(f"- **数据源:** `{summary.get('assets_dir') or ''}`")
+    lines.append(f"- **Data source:** `{summary.get('assets_dir') or ''}`")
     history = summary.get("history") or {}
     if history:
         lines.append(
@@ -1682,23 +1535,23 @@ def _append_buildkite_perf_markdown(lines: list[str], summary: dict[str, Any], g
         if history.get("generated_at"):
             lines.append(f"- **History generated_at:** `{history.get('generated_at')}`")
     for warning in summary.get("warnings") or []:
-        lines.append(f"- **提示:** {_md_cell(str(warning))}")
+        lines.append(f"- **Note:** {_md_cell(str(warning))}")
     if summary.get("status") != "ok":
         lines.append(
-            f"- **说明:** {_md_cell(str(summary.get('message') or 'No performance rows available.'))}"
+            f"- **Description:** {_md_cell(str(summary.get('message') or 'No performance rows available.'))}"
         )
         _append_kanban_fallback_markdown(lines, summary)
         lines.append("")
         return
     stats = summary.get("summary", {})
-    lines.append(f"- **最新日期:** `{summary.get('latest_day')}`")
+    lines.append(f"- **Latest date:** `{summary.get('latest_day')}`")
     lines.append(
-        f"- **统计:** pass `{int(stats.get('pass', 0))}` / "
+        f"- **Stats:** pass `{int(stats.get('pass', 0))}` / "
         f"normal `{int(stats.get('normal', 0))}` / "
         f"fail `{int(stats.get('fail', 0))}` / n-a `{int(stats.get('n/a', 0))}`"
     )
     lines.append("")
-    lines.append("*按模型分组展示（Markdown 无折叠能力）。*")
+    lines.append("*Grouped by model (Markdown has no collapse).*")
     lines.append("")
     for model_name in sorted(grouped_rows.keys()):
         lines.append(f"#### {model_name}")
@@ -1709,78 +1562,6 @@ def _append_buildkite_perf_markdown(lines: list[str], summary: dict[str, Any], g
                 grouped_rows[model_name],
             )
         )
-        lines.append("")
-
-
-def _render_local_perf_baseline_inner_html(local_perf_cfg: LocalPerfResultConfig) -> str:
-    summary, grouped_rows = _local_perf_summary(local_perf_cfg)
-    parts: list[str] = [
-        '<p class="meta"><strong>数据源:</strong> '
-        f'<code>{html.escape(str(summary.get("result_dir") or summary.get("result_root") or ""))}</code></p>'
-    ]
-    if summary.get("file_count"):
-        parts.append(f'<p class="meta"><strong>文件数:</strong> {int(summary.get("file_count") or 0)}</p>')
-    if summary.get("errors"):
-        err_html = "".join(f"<li>{html.escape(str(err))}</li>" for err in summary.get("errors") or [])
-        parts.append(f'<div class="note"><strong>读取提示:</strong><ul>{err_html}</ul></div>')
-    if summary.get("status") != "ok":
-        parts.append(
-            f'<p class="note">{html.escape(str(summary.get("message") or "No local perf benchmark baseline rows available."))}</p>'
-        )
-        return "\n".join(parts)
-    stats = summary.get("summary", {})
-    parts.append(
-        "<p class=\"hint\">"
-        f"读取最新 local perf benchmark result JSON（{html.escape(str(summary.get('latest_day') or 'N/A'))}），仅展示包含 baseline 的指标。"
-        "</p>"
-    )
-    parts.append(
-        '<p class="meta"><strong>统计:</strong> '
-        f"pass={int(stats.get('pass', 0))}, "
-        f"normal={int(stats.get('normal', 0))}, "
-        f"fail={int(stats.get('fail', 0))}, "
-        f"n/a={int(stats.get('n/a', 0))}</p>"
-    )
-    for i, model_name in enumerate(sorted(grouped_rows.keys())):
-        model_rows = grouped_rows[model_name]
-        table_html = _render_perf_model_table_html(f"local-perf-model-{i}", model_rows)
-        parts.append(
-            _details_subcard(
-                f"{model_name} ({len(model_rows)} rows)",
-                table_html,
-                open_default=False,
-                details_class="report-subcard--local-perf-model",
-                icon_paths=_SVG_LIST,
-            )
-        )
-    return "\n".join(parts)
-
-
-def _append_local_perf_baseline_markdown(lines: list[str], local_perf_cfg: LocalPerfResultConfig) -> None:
-    summary, grouped_rows = _local_perf_summary(local_perf_cfg)
-    lines.append("## Local 性能基线对比")
-    lines.append("")
-    lines.append(f"- **数据源:** `{summary.get('result_dir') or summary.get('result_root') or ''}`")
-    if summary.get("file_count"):
-        lines.append(f"- **文件数:** `{int(summary.get('file_count') or 0)}`")
-    for err in summary.get("errors") or []:
-        lines.append(f"- **读取提示:** {_md_cell(str(err))}")
-    if summary.get("status") != "ok":
-        lines.append(f"- **说明:** {_md_cell(str(summary.get('message') or 'No local perf benchmark baseline rows available.'))}")
-        lines.append("")
-        return
-    stats = summary.get("summary", {})
-    lines.append(f"- **最新日期:** `{summary.get('latest_day')}`")
-    lines.append(
-        f"- **统计:** pass `{int(stats.get('pass', 0))}` / "
-        f"normal `{int(stats.get('normal', 0))}` / "
-        f"fail `{int(stats.get('fail', 0))}` / n-a `{int(stats.get('n/a', 0))}`"
-    )
-    lines.append("")
-    for model_name in sorted(grouped_rows.keys()):
-        lines.append(f"### {model_name}")
-        lines.append("")
-        lines.append(render_markdown_table(_PERF_TABLE_HEADERS, grouped_rows[model_name]))
         lines.append("")
 
 
@@ -1796,7 +1577,7 @@ def _append_buildkite_markdown(
     if bk_note:
         lines.append(bk_note)
         lines.append("")
-        lines.append("### 性能基线对比")
+        lines.append("### Performance baseline comparison")
         lines.append("")
         summary, grouped_rows = _buildkite_perf_rows(kanban_cfg)
         _append_buildkite_perf_markdown(lines, summary, grouped_rows)
@@ -1804,7 +1585,7 @@ def _append_buildkite_markdown(
     if not bk_build or bk_jobs is None:
         lines.append("*(Buildkite section not available.)*")
         lines.append("")
-        lines.append("### 性能基线对比")
+        lines.append("### Performance baseline comparison")
         lines.append("")
         summary, grouped_rows = _buildkite_perf_rows(kanban_cfg)
         _append_buildkite_perf_markdown(lines, summary, grouped_rows)
@@ -1821,7 +1602,7 @@ def _append_buildkite_markdown(
     sum_rows = [_summary_row_for_bk_rec(r) for r in bk_jobs]
     lines.append(
         render_markdown_table(
-            ["Job", "Total", "Passed", "Failed", "Skipped", "Errors", "执行时间"],
+            ["Job", "Total", "Passed", "Failed", "Skipped", "Errors", "Elapsed time"],
             sum_rows,
         )
     )
@@ -1830,7 +1611,7 @@ def _append_buildkite_markdown(
         "*Failed Buildkite steps only: detailed excerpts below. Passing steps are in the table only.*"
     )
     lines.append("")
-    lines.append("### 性能基线对比")
+    lines.append("### Performance baseline comparison")
     lines.append("")
     summary, grouped_rows = _buildkite_perf_rows(kanban_cfg)
     _append_buildkite_perf_markdown(lines, summary, grouped_rows)
@@ -1896,7 +1677,6 @@ def emit_report(
     bk_jobs: list[dict[str, Any]] | None = None,
     bk_note: str | None = None,
     kanban_cfg: KanbanAssetsConfig | None = None,
-    local_perf_cfg: LocalPerfResultConfig | None = None,
 ) -> None:
     groups = discover_job_logs(log_dir)
     if kanban_cfg is None:
@@ -1904,8 +1684,6 @@ def emit_report(
             assets_dir=DEFAULT_KANBAN_ASSETS_DIR,
             repo_root=DEFAULT_KANBAN_REPO_ROOT,
         )
-    if local_perf_cfg is None:
-        local_perf_cfg = LocalPerfResultConfig()
 
     lines: list[str] = [
         f"# {_md_cell(title)}",
@@ -1925,8 +1703,7 @@ def emit_report(
             "and match paths in references/nightly-local-log-layout.md.*"
         )
         lines.append("")
-        _append_perf_manual_markdown(lines, log_dir)
-        _append_local_perf_baseline_markdown(lines, local_perf_cfg)
+        _append_local_perf_baseline_markdown(lines, kanban_cfg, repo_root=repo_root)
         print("\n".join(lines), file=out_fp)
         return
 
@@ -1939,8 +1716,7 @@ def emit_report(
         "*Failed and errored jobs only: detailed excerpts below. Passing jobs appear in the summary table only.*"
     )
     lines.append("")
-    _append_perf_manual_markdown(lines, log_dir)
-    _append_local_perf_baseline_markdown(lines, local_perf_cfg)
+    _append_local_perf_baseline_markdown(lines, kanban_cfg, repo_root=repo_root)
 
     for job_name, paths, info in job_rows:
         if _job_is_clean(info):
@@ -1948,7 +1724,7 @@ def emit_report(
         lines.append(f"### Local job: `{_md_cell(job_name)}`")
         lines.append("")
         lines.append(
-            "*完整日志：在 HTML 报告中点击 **查看完整日志** 展开内嵌全文，或本地打开下列文件。*"
+            "*Full logs: in the HTML report click **View full log** to expand embedded text, or open these files locally.*"
         )
         rel = ", ".join(f"`{p.name}`" for p in paths)
         lines.append(f"- {rel}")
@@ -2004,12 +1780,24 @@ def _th_labeled(icon_paths: str, text: str) -> str:
     )
 
 
+def _buildkite_build_url(build: dict[str, Any] | None) -> str:
+    if not build:
+        return ""
+    bn = build.get("number")
+    if bn is None:
+        return ""
+    return f"https://buildkite.com/{ORG}/{PIPELINE}/builds/{int(bn)}"
+
+
 def _issue_row_data_attrs(
     *,
     issue_env: str = "local",
     issue_vllm_version: str = "",
     issue_vllm_omni_version: str = "",
     issue_build_commit: str = "",
+    buildkite_build_url: str = "",
+    buildkite_step_url: str = "",
+    buildkite_step_name: str = "",
 ) -> str:
     def aq(s: str) -> str:
         return html.escape(s or "", quote=True)
@@ -2018,7 +1806,10 @@ def _issue_row_data_attrs(
         f'data-issue-env="{aq(issue_env)}" '
         f'data-vllm-version="{aq(issue_vllm_version)}" '
         f'data-vllm-omni-version="{aq(issue_vllm_omni_version)}" '
-        f'data-build-commit="{aq(issue_build_commit)}"'
+        f'data-build-commit="{aq(issue_build_commit)}" '
+        f'data-buildkite-build-url="{aq(buildkite_build_url)}" '
+        f'data-buildkite-step-url="{aq(buildkite_step_url)}" '
+        f'data-buildkite-step-name="{aq(buildkite_step_name)}"'
     )
 
 
@@ -2030,6 +1821,9 @@ def _render_failures_table_html(
     issue_vllm_version: str = "",
     issue_vllm_omni_version: str = "",
     issue_build_commit: str = "",
+    buildkite_build_url: str = "",
+    buildkite_step_url: str = "",
+    buildkite_step_name: str = "",
 ) -> str:
     ctx_attr = html.escape(report_context, quote=True)
     row_ex = _issue_row_data_attrs(
@@ -2037,6 +1831,9 @@ def _render_failures_table_html(
         issue_vllm_version=issue_vllm_version,
         issue_vllm_omni_version=issue_vllm_omni_version,
         issue_build_commit=issue_build_commit,
+        buildkite_build_url=buildkite_build_url,
+        buildkite_step_url=buildkite_step_url,
+        buildkite_step_name=buildkite_step_name,
     )
     parts: list[str] = [
         '<table class="fail-table">',
@@ -2089,7 +1886,7 @@ def _render_buildkite_section_html(
     kanban_cfg: KanbanAssetsConfig,
 ) -> str:
     summary_inner: list[str] = []
-    fail_inner = '<p class="note">无数据：未加载 Buildkite 步骤日志。</p>'
+    fail_inner = '<p class="note">No data: Buildkite step logs were not loaded.</p>'
 
     if note:
         summary_inner.append(f'<p class="note">{html.escape(note)}</p>')
@@ -2116,7 +1913,7 @@ def _render_buildkite_section_html(
         summary_inner.append(
             _table_wrap(
                 render_html_table(
-                    ["Job", "Total", "Passed", "Failed", "Skipped", "Errors", "执行时间"],
+                    ["Job", "Total", "Passed", "Failed", "Skipped", "Errors", "Elapsed time"],
                     sum_rows,
                     table_class="summary",
                     row_classes=sum_row_cls,
@@ -2177,6 +1974,9 @@ def _render_buildkite_section_html(
                         "vllm_omni", ""
                     ),
                     issue_build_commit=(rec.get("build_commit_short") or ""),
+                    buildkite_build_url=build_url,
+                    buildkite_step_url=str(rec.get("step_link") or ""),
+                    buildkite_step_name=str(rec.get("name") or ""),
                 ),
                 "</div></details>",
             ]
@@ -2184,11 +1984,11 @@ def _render_buildkite_section_html(
 
         if fail_blocks:
             fail_inner = (
-                '<p class="hint">点击各步骤标题可展开或折叠失败详情与日志摘录。</p>\n'
+                '<p class="hint">Click each step title to expand or collapse failure details and log excerpts.</p>\n'
                 + "\n".join(fail_blocks)
             )
         else:
-            fail_inner = '<p class="note">当前无失败步骤，或各 Job 均无失败/错误摘录。</p>'
+            fail_inner = '<p class="note">No failed steps currently, or no failure/error excerpts for any job.</p>'
 
     return "\n".join(
         [
@@ -2200,21 +2000,21 @@ def _render_buildkite_section_html(
                 sub=html.escape("Latest scheduled nightly (main)"),
             ),
             _details_subcard(
-                "Summary（各 Job 执行情况）",
+                "Summary (per-job execution)",
                 "\n".join(summary_inner),
                 open_default=False,
                 details_class="report-subcard--bk",
                 icon_paths=_SVG_LIST,
             ),
             _details_subcard(
-                "性能基线对比",
+                "Performance baseline comparison",
                 _render_buildkite_perf_inner_html(kanban_cfg),
                 open_default=False,
                 details_class="report-subcard--bk-perf",
                 icon_paths=_SVG_CHART_BARS,
             ),
             _details_subcard(
-                "失败分析",
+                "Failure analysis",
                 fail_inner,
                 open_default=False,
                 details_class="report-subcard--bk-fail",
@@ -2223,123 +2023,6 @@ def _render_buildkite_section_html(
             "</section>",
         ]
     )
-
-
-def _perf_rows_with_delta_markdown(sh: dict[str, Any]) -> list[list[str]]:
-    rows = sh["rows"]
-    drows: list[list[str]] | None = sh.get("delta_rows")
-    if not drows:
-        return rows
-    out: list[list[str]] = []
-    for i, row in enumerate(rows):
-        dr = drows[i] if i < len(drows) else []
-        out.append(
-            [
-                row[j] + (f" {dr[j]}" if j < len(dr) and (dr[j] or "").strip() else "")
-                for j in range(len(row))
-            ]
-        )
-    return out
-
-
-def _append_perf_manual_markdown(lines: list[str], log_dir: Path) -> None:
-    data = load_perf_manual_with_compare(log_dir)
-    lines.append(f"## 性能测试结果 (`{PERF_MANUAL_FILENAME}`)")
-    lines.append("")
-    lines.append(f"- **路径:** `{data['path']}`")
-    if data.get("compare_path"):
-        lines.append(f"- **对比 (上一版):** `{data['compare_path']}`")
-    lines.append("")
-    st = data["status"]
-    if st == "missing":
-        lines.append(
-            "*未找到该文件。同步日志时请一并复制（见 "
-            "[../vllm-omni-nightly-local/references/nightly-local-log-fetch.md](../vllm-omni-nightly-local/references/nightly-local-log-fetch.md)）。*"
-        )
-        lines.append("")
-        return
-    if st == "no_openpyxl":
-        lines.append("无法读取 .xlsx：请先安装 **openpyxl**（`pip install openpyxl`）。")
-        lines.append("")
-        return
-    if st == "error":
-        lines.append(f"*读取失败: {data['message']}*")
-        lines.append("")
-        return
-    if data.get("message"):
-        lines.append(f"*{data['message']}*")
-        lines.append("")
-    if not data["sheets"]:
-        lines.append("*工作簿中无可用表格数据。*")
-        lines.append("")
-        return
-    for sh in data["sheets"]:
-        lines.append(f"### Sheet: `{_md_cell(sh['title'])}`")
-        lines.append("")
-        if sh.get("truncated_rows"):
-            lines.append("*（行数过多，已截断。）*")
-            lines.append("")
-        lines.append(
-            render_markdown_table(
-                sh["headers"],
-                _perf_rows_with_delta_markdown(sh),
-            )
-        )
-        lines.append("")
-
-
-def _perf_manual_inner_html(log_dir: Path) -> str:
-    """Workbook path + tables for the Local · 性能分析 subcard (no outer panel)."""
-    data = load_perf_manual_with_compare(log_dir)
-    parts: list[str] = [
-        '<p class="meta"><strong>文件:</strong> '
-        f'<code>{html.escape(data["path"])}</code>'
-        + (
-            f' · <strong>对比:</strong> <code>{html.escape(data["compare_path"])}</code>'
-            if data.get("compare_path")
-            else ""
-        )
-        + "</p>"
-    ]
-    st = data["status"]
-    if st == "missing":
-        parts.append(
-            '<p class="note">未找到该文件。同步集群日志时请一并复制 '
-            "<code>nightly_perf_manual.xlsx</code> "
-            "（见 vllm-omni-nightly-local <code>nightly-local-log-fetch</code>）。</p>"
-        )
-    elif st == "no_openpyxl":
-        parts.append(
-            '<p class="note">无法读取 .xlsx：请先安装 <code>openpyxl</code> '
-            "（<code>pip install openpyxl</code>）。</p>"
-        )
-    elif st == "error":
-        parts.append(f'<p class="note">读取失败：{html.escape(data["message"])}</p>')
-    else:
-        if data.get("message"):
-            parts.append(f'<p class="hint">{html.escape(data["message"])}</p>')
-        if not data["sheets"]:
-            parts.append('<p class="note">工作簿中无可用表格数据。</p>')
-        else:
-            for sh in data["sheets"]:
-                parts.append(
-                    f'<h3 class="perf-sheet-title">{html.escape(sh["title"])}</h3>'
-                )
-                if sh.get("truncated_rows"):
-                    parts.append(
-                        '<p class="hint perf-truncate-hint">行数过多，仅显示前若干行。</p>'
-                    )
-                parts.append(
-                    _table_wrap(
-                        render_html_table(
-                            sh["headers"],
-                            sh["rows"],
-                            table_class="perf-manual",
-                            cell_suffixes=sh.get("delta_rows"),
-                        )
-                    )
-                )
-    return "\n".join(parts)
 
 
 def _render_buildkite_note_html(note: str) -> str:
@@ -2354,15 +2037,15 @@ def _render_buildkite_note_html(note: str) -> str:
                 sub=html.escape("Latest scheduled nightly (main)"),
             ),
             _details_subcard(
-                "Summary（各 Job 执行情况）",
+                "Summary (per-job execution)",
                 inner,
                 open_default=False,
                 details_class="report-subcard--bk",
                 icon_paths=_SVG_LIST,
             ),
             _details_subcard(
-                "失败分析",
-                '<p class="note">无数据：未加载 Buildkite 步骤日志。</p>',
+                "Failure analysis",
+                '<p class="note">No data: Buildkite step logs were not loaded.</p>',
                 open_default=False,
                 details_class="report-subcard--bk-fail",
                 icon_paths=_SVG_ALERT,
@@ -2382,7 +2065,6 @@ def emit_report_html(
     bk_jobs: list[dict[str, Any]] | None = None,
     bk_note: str | None = None,
     kanban_cfg: KanbanAssetsConfig | None = None,
-    local_perf_cfg: LocalPerfResultConfig | None = None,
 ) -> None:
     groups = discover_job_logs(log_dir)
     if kanban_cfg is None:
@@ -2390,8 +2072,6 @@ def emit_report_html(
             assets_dir=DEFAULT_KANBAN_ASSETS_DIR,
             repo_root=DEFAULT_KANBAN_REPO_ROOT,
         )
-    if local_perf_cfg is None:
-        local_perf_cfg = LocalPerfResultConfig()
 
     css = EDITORIAL_THEME_CSS
 
@@ -2444,17 +2124,12 @@ def emit_report_html(
     )
     local_chunks.append(
         _details_subcard(
-            "性能分析",
-            _perf_manual_inner_html(log_dir),
-            open_default=False,
-            details_class="report-subcard--perf",
-            icon_paths=_SVG_CHART_BARS,
-        )
-    )
-    local_chunks.append(
-        _details_subcard(
-            "性能基线对比",
-            _render_local_perf_baseline_inner_html(local_perf_cfg),
+            "Performance baseline comparison",
+            _render_buildkite_perf_inner_html(
+                kanban_cfg,
+                model_subcard_class="report-subcard--local-perf-model",
+                local_repo_root=repo_root,
+            ),
             open_default=False,
             details_class="report-subcard--local-perf-baseline",
             icon_paths=_SVG_CHART_BARS,
@@ -2462,6 +2137,7 @@ def emit_report_html(
     )
 
     fail_local_parts: list[str] = []
+    local_bk_build_url = _buildkite_build_url(bk_build)
     if job_rows:
         full_log_i = 0
         for job_name, paths, info in job_rows:
@@ -2490,6 +2166,7 @@ def emit_report_html(
                     report_context=(
                         f"Local nightly_jobs · job: {job_name} · logs: {log_files}"
                     ),
+                    buildkite_build_url=local_bk_build_url,
                 ),
                 "</div></details>",
             ]
@@ -2497,14 +2174,14 @@ def emit_report_html(
             full_log_i += 1
     if fail_local_parts:
         fail_inner_loc = (
-            '<p class="hint">点击各 Job 标题可展开或折叠失败测试列表与日志摘录。</p>\n'
+            '<p class="hint">Click each job title to expand or collapse failed test lists and log excerpts.</p>\n'
             + "\n".join(fail_local_parts)
         )
     else:
-        fail_inner_loc = '<p class="note">当前无失败或错误需逐项分析。</p>'
+        fail_inner_loc = '<p class="note">No failures or errors require itemized analysis.</p>'
     local_chunks.append(
         _details_subcard(
-            "失败分析",
+            "Failure analysis",
             fail_inner_loc,
             open_default=False,
             details_class="report-subcard--local-fail",
@@ -2519,7 +2196,7 @@ def emit_report_html(
         title,
         css,
         "\n".join(body_parts),
-        tail=_github_issue_modal_and_script(),
+        tail=_github_issue_submit_script(),
     )
     print(doc, file=out_fp)
 
@@ -2576,14 +2253,15 @@ def main() -> None:
         type=Path,
         default=None,
         help="Repository root: default log dir is <repo-root>/logs/nightly_jobs; "
-        "also shown in the report header (default: $REPO_ROOT env or cwd).",
+        f"also shown in the report header (default: $REPO_ROOT or "
+        f"{DEFAULT_LAPTOP_REPO_ROOT_DISPLAY}).",
     )
     parser.add_argument(
         "--log-dir",
         type=Path,
         default=None,
         help="Log directory (default: <repo-root>/logs/nightly_jobs; "
-        "repo-root from --repo-root, $REPO_ROOT, or cwd).",
+        f"repo-root from --repo-root, $REPO_ROOT, or {DEFAULT_LAPTOP_REPO_ROOT_DISPLAY}).",
     )
     parser.add_argument(
         "--html-report",
@@ -2618,13 +2296,17 @@ def main() -> None:
         "--kanban-assets-dir",
         type=Path,
         default=DEFAULT_KANBAN_ASSETS_DIR,
-        help="Path to vllm-omni-kanban docs/assets/charts for Buildkite performance summary.",
+        help=f"Path to {KANBAN_REPO_URL} docs/assets/charts for Buildkite performance summary.",
     )
     parser.add_argument(
         "--kanban-repo-root",
         type=Path,
         default=DEFAULT_KANBAN_REPO_ROOT,
-        help="Path to vllm-omni-kanban repo root; resolves docs/assets/charts and enables source validation.",
+        help=(
+            f"Local clone root of {KANBAN_REPO_URL}; "
+            "resolves docs/assets/charts and enables source validation "
+            f"(default: $KANBAN_REPO_ROOT or {DEFAULT_KANBAN_REPO_ROOT_DISPLAY})."
+        ),
     )
     parser.add_argument(
         "--kanban-expected-remote",
@@ -2648,13 +2330,6 @@ def main() -> None:
         help="Opt-in: run kanban raw sync + generate_charts before reading docs/assets/charts history.",
     )
     parser.add_argument(
-        "--local-perf-result-root",
-        type=Path,
-        default=None,
-        help="Root directory containing timestamped local perf benchmark result directories "
-        "(default: <kanban-repo-root>/data/local_nightly_raw when it exists).",
-    )
-    parser.add_argument(
         "--title",
         default="Nightly local test report",
         help="Report title.",
@@ -2665,13 +2340,10 @@ def main() -> None:
         print("Use only one of --html-report or --markdown-report.", file=sys.stderr)
         sys.exit(2)
 
-    r_txt = os.environ.get("REPO_ROOT", "").strip()
     if args.repo_root is not None:
         repo = args.repo_root.resolve()
-    elif r_txt:
-        repo = Path(r_txt).resolve()
     else:
-        repo = Path.cwd().resolve()
+        repo = resolve_laptop_repo_root()
 
     log_dir = args.log_dir.resolve() if args.log_dir else default_log_dir(repo)
 
@@ -2694,13 +2366,6 @@ def main() -> None:
         )
         kanban_cfg.refresh_note = refresh_note
         kanban_cfg.refresh_warnings = refresh_warnings
-    local_perf_cfg = LocalPerfResultConfig(
-        result_root=(
-            args.local_perf_result_root.resolve()
-            if args.local_perf_result_root
-            else _default_local_perf_result_root(kanban_cfg.repo_root)
-        ),
-    )
 
     if args.html_report:
         out = args.html_report
@@ -2715,7 +2380,6 @@ def main() -> None:
                 bk_jobs=bk_jobs,
                 bk_note=bk_note,
                 kanban_cfg=kanban_cfg,
-                local_perf_cfg=local_perf_cfg,
             )
     elif args.markdown_report:
         out = args.markdown_report
@@ -2730,7 +2394,6 @@ def main() -> None:
                 bk_jobs=bk_jobs,
                 bk_note=bk_note,
                 kanban_cfg=kanban_cfg,
-                local_perf_cfg=local_perf_cfg,
             )
     else:
         if args.to_stdout == "markdown":
@@ -2743,7 +2406,6 @@ def main() -> None:
                 bk_jobs=bk_jobs,
                 bk_note=bk_note,
                 kanban_cfg=kanban_cfg,
-                local_perf_cfg=local_perf_cfg,
             )
         else:
             emit_report_html(
@@ -2755,7 +2417,6 @@ def main() -> None:
                 bk_jobs=bk_jobs,
                 bk_note=bk_note,
                 kanban_cfg=kanban_cfg,
-                local_perf_cfg=local_perf_cfg,
             )
 
 

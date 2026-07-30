@@ -4,13 +4,13 @@ Compose a full test report (default **HTML**).
 
 Agents and users should **emit HTML by default**; pass ``--format markdown`` only when a Markdown file is explicitly required (e.g. hand-editing, ``patch_report_*.py``).
 
-  - 测试结论: interactive checklist (HTML) / static MD; 自动行：「L2&L3…」= Buildkite 最新已结束
-    **ready** + **merge**（与 metrics 同口径）均无 failed/broken job；「致命issue…」= 无 open ``critical``；
-    「遗留DI…」= stats window 内 open ``bug`` 按 priority labels 加权后小于 30；「遗留bug…」= open ``bug`` 均有 assignee
+  - Test conclusion: interactive checklist (HTML) / static MD; auto rows: "L2&L3…" = latest finished
+    **ready** + **merge** (same buckets as metrics) have no failed/broken jobs; "critical issues…" = no open ``critical``;
+    "Remaining DI…" = open ``bug`` in stats window weighted by priority labels < 30; "bug assignees…" = open ``bug`` all have assignee
   - Metrics overview: buildkite_build_stats.py --markdown
   - Test Result: Common stack from references/local-test-matrix.md; H200/H800/A100 from
-    optional --log-dir-h* (nightly-style Summary); H100 = Buildkite scheduled nightly (**Build** 表
-    仅 build 链接、branch、commit；**Summary** + failed-jobs 表 — no per-job pytest or bug+ci-failure analysis)
+    optional --log-dir-h* (nightly-style Summary); H100 = Buildkite scheduled nightly (**Build** table
+    with build link, branch, commit only; **Summary** + failed-jobs table — no per-job pytest or bug+ci-failure analysis)
   - Issue tracking: GitHub Search label:ci-failure + local test in:title (stats window)
   - Open issues: GitHub open bugs (label:bug); filter `created_at` to --stats-from..--stats-to (UTC)
 
@@ -46,7 +46,7 @@ from release_md_to_html import (
 )
 
 CI_FAILURE_LABEL = "ci-failure"  # matches GitHub label on vllm-project/vllm-omni
-BUG_DI_THRESHOLD_TENTHS = 300  # "遗留DI小于30"; store DI in tenths to avoid float drift.
+BUG_DI_THRESHOLD_TENTHS = 300  # "Remaining DI < 30"; store DI in tenths to avoid float drift.
 BUG_DI_WEIGHTS_TENTHS: dict[str, int] = {
     "critical": 100,
     "high priority": 30,
@@ -251,7 +251,7 @@ def _bug_di_detail(total_tenths: int, counts: dict[str, int]) -> str:
     if counts.get("unclassified", 0):
         parts.append(f"unclassified={counts['unclassified']}")
     detail = ", ".join(parts) if parts else "no open bug in stats window"
-    return f"自动 DI={_format_di_tenths(total_tenths)}（{detail}）"
+    return f"Auto DI={_format_di_tenths(total_tenths)} ({detail})"
 
 
 def _bug_di_conclusion(issues: list[dict]) -> tuple[bool, str]:
@@ -263,13 +263,13 @@ def no_open_critical_labeled_issues(
     gh_token: str | None,
 ) -> tuple[bool, str]:
     """
-    For **测试结论** row «致命issue遗留个数为0»: pass iff there is **no** open (non-PR)
+    For **Test conclusion** row "No remaining critical issues": pass iff there is **no** open (non-PR)
     issue with label ``critical``.
     """
     try:
         issues = _github_fetch_open_issues_with_label(gh_token, "critical")
     except Exception as exc:
-        return False, f"无法检测 label critical（{exc}）"
+        return False, f"Unable to check label critical ({exc})"
     if not issues:
         return True, ""
     nums: list[int] = []
@@ -280,24 +280,24 @@ def no_open_critical_labeled_issues(
             continue
     nums.sort()
     show = nums[:15]
-    tail = f" 等共 {len(nums)} 个" if len(nums) > len(show) else ""
-    lst = "、".join(f"#{n}" for n in show)
-    return False, f"仍存在含 label **critical** 的 open issue：{lst}{tail}"
+    tail = f" ({len(nums)} total)" if len(nums) > len(show) else ""
+    lst = ", ".join(f"#{n}" for n in show)
+    return False, f"Open issues with label **critical** still exist: {lst}{tail}"
 
 
 def open_bug_assignees_all_assigned(
     gh_token: str | None,
 ) -> tuple[bool, str]:
     """
-    For **测试结论** auto row: pass iff every open ``bug`` issue has at least one assignee.
+    For **Test conclusion** auto row: pass iff every open ``bug`` issue has at least one assignee.
 
-    Returns ``(ok, detail)`` — ``detail`` is empty on success; on failure, a short Chinese
+    Returns ``(ok, detail)`` — ``detail`` is empty on success; on failure, a short English
     note listing unassigned issue numbers (or an error reason if the API call fails).
     """
     try:
         issues = _github_fetch_open_bug_issues(gh_token)
     except Exception as exc:
-        return False, f"无法检测 assignee（{exc}）"
+        return False, f"Unable to check assignee ({exc})"
     unassigned: list[int] = []
     for i in issues:
         assignees = i.get("assignees")
@@ -312,9 +312,9 @@ def open_bug_assignees_all_assigned(
         return True, ""
     unassigned.sort()
     show = unassigned[:15]
-    tail = f" 等共 {len(unassigned)} 个" if len(unassigned) > len(show) else ""
-    nums = "、".join(f"#{n}" for n in show)
-    return False, f"以下 open bug 未分配责任人：{nums}{tail}"
+    tail = f" ({len(unassigned)} total)" if len(unassigned) > len(show) else ""
+    nums = ", ".join(f"#{n}" for n in show)
+    return False, f"The following open bugs have no assignee: {nums}{tail}"
 
 
 def github_open_bug_rows_in_range(
@@ -612,14 +612,14 @@ def render_issue_tracking_section(
         return (
             "## Issue tracking\n\n"
             f"{filt}"
-            f"*GitHub Search API 不可用: {err_note}。* 请配置 `GITHUB_TOKEN` / `GH_TOKEN` 后重试，"
-            f"或手工检索上述链接。\n"
+            f"*GitHub Search API unavailable: {err_note}.* Configure `GITHUB_TOKEN` / `GH_TOKEN` and retry, "
+            f"or search manually using the link above.\n"
         )
     if n == 0:
         return (
             "## Issue tracking\n\n"
             f"{filt}"
-            "*本窗口内无匹配 issue。*\n"
+            "*No matching issues in this window.*\n"
         )
     return (
         "## Issue tracking\n\n"
@@ -640,15 +640,15 @@ def extract_common_stack_from_matrix(skill_dir: Path) -> str:
         raw,
     )
     if not m:
-        return "*未找到 `## Common stack (all rows)` 段落；请检查 reference。*\n"
+        return "*Could not find `## Common stack (all rows)` section; check reference.*\n"
     body = (m.group(1) or "").strip()
-    return (body + "\n") if body else "*（Common stack 正文为空）*\n"
+    return (body + "\n") if body else "*Common stack section is empty.*\n"
 
 
 def _gpu_log_placeholder(gpu_flag: str) -> str:
     return (
-        f"*未传入 `{gpu_flag}`：无与 nightly 本地章节同结构的汇总表。* "
-        f"请将集群/单机上的 `nightly_jobs` 日志根目录传给 compose（见 `--help`）。"
+        f"*`{gpu_flag}` not provided: no summary table matching nightly local sections.* "
+        f"Pass the cluster/machine `nightly_jobs` log root to compose (see `--help`)."
     )
 
 
@@ -681,9 +681,9 @@ def render_test_result_section(
     chunks: list[str] = [
         "## Test Result",
         "",
-        "布局说明：`### Common stack` 来自 reference；"
-        "`### H200` / `### H800` / `### A100` 与 **nightly** 报告中本地 **Summary** 分组一致（需传入对应 `--log-dir-*`）；"
-        "`### H100` 为 **Buildkite scheduled nightly**（Build / Summary / 失败 Job 表；不含 per-job pytest 与 bug+ci-failure 分析）。",
+        "Layout: `### Common stack` from reference; "
+        "`### H200` / `### H800` / `### A100` match nightly local **Summary** grouping (pass `--log-dir-*`); "
+        "`### H100` is **Buildkite scheduled nightly** (Build / Summary / failed job table; no per-job pytest or bug+ci-failure analysis).",
         "",
         "### Common stack (all rows)",
         "",
@@ -722,8 +722,8 @@ def render_test_result_section(
 
 
 def render_test_conclusion_section() -> str:
-    """``## 测试结论`` + placeholder for interactive widget (HTML) or static MD."""
-    return f"## 测试结论\n\n{RELEASE_CONCLUSION_PLACEHOLDER}\n\n"
+    """``## Test conclusion`` + placeholder for interactive widget (HTML) or static MD."""
+    return f"## Test conclusion\n\n{RELEASE_CONCLUSION_PLACEHOLDER}\n\n"
 
 
 def run_script(py: Path, args: list[str], cwd: Path, env: dict[str, str]) -> str:
@@ -852,20 +852,20 @@ def preview_report_markdown(
     conclusion = render_test_conclusion_section()
     ci_md = (
         "## Metrics overview\n\n"
-        "*本段为 **预览假数据**：未运行 `buildkite_build_stats.py`，下列数值仅为版式演示。*\n\n"
+        "*This section uses **preview placeholder data**: `buildkite_build_stats.py` was not run; values below are layout demos only.*\n\n"
         + render_markdown_table(
-            ["指标（示例）", "数值"],
+            ["Metric (example)", "Value"],
             [
                 ["**Stats window**", f"`{stats_from}` … `{stats_to}`"],
                 ["**Pipeline**", f"`{ORG}/{PIPELINE}` · branch `{BRANCH}`"],
-                ["**Job success rate（窗口内）**", "97.4%"],
-                ["**UT 覆盖率（示例）**", "84.6%"],
-                ["**Bug 平均首次响应（h）**", "6.2"],
-                ["**本窗口新建 bug 数（示例）**", "5"],
-                ["**L4 / nightly 触达**", "✓ 示例：最近 7 次定时构建均完成"],
+                ["**Job success rate (window)**", "97.4%"],
+                ["**UT coverage (example)**", "84.6%"],
+                ["**Bug avg first response (h)**", "6.2"],
+                ["**New bugs in window (example)**", "5"],
+                ["**L4 / nightly reach**", "✓ Example: last 7 scheduled builds completed"],
                 [
-                    "**说明**",
-                    "去掉 `--preview` 并配置 token 后将替换为 `buildkite_build_stats.py` 真实输出。",
+                    "**Note**",
+                    "Remove `--preview` and configure tokens to replace with real `buildkite_build_stats.py` output.",
                 ],
             ],
         )
@@ -899,13 +899,13 @@ def preview_report_markdown(
             [
                 "L2_Diffusion_Accuracy_Test",
                 "failed",
-                "AssertionError: max diff 0.08 > 0.05 *(示例)*",
+                "AssertionError: max diff 0.08 > 0.05 *(example)*",
                 f"[open]({demo_link_a})",
             ],
             [
                 "L3_Merge_Example_Suite",
                 "failed",
-                "Timeout after 45m *(示例)*",
+                "Timeout after 45m *(example)*",
                 f"[open]({demo_link_b})",
             ],
         ],
@@ -930,8 +930,8 @@ def preview_report_markdown(
     issue_tracking = (
         "## Issue tracking\n\n"
         "**Filter:** GitHub Search — `label:ci-failure`, `created` (UTC) "
-        f"**{stats_from}** … **{stats_to}**, title contains `local test`。\n\n"
-        "*以下为 **预览假数据**（列与正式报告一致）。*\n\n"
+        f"**{stats_from}** … **{stats_to}**, title contains `local test`.\n\n"
+        "*Preview placeholder data below (columns match the live report).*\n\n"
         "*Matching issues: **2**.*\n\n"
         + render_markdown_table(
             ["Issue", "Title", "State", "Created (UTC date)"],
@@ -957,7 +957,7 @@ def preview_report_markdown(
         "## Open issues (stats window)\n\n"
         f"Open issues labeled **bug**, state **open**, excluding PRs, with `created_at` "
         f"(UTC date) in **{stats_from}** … **{stats_to}**. "
-        "*以下为预览假数据；正式发布为 GitHub 分页结果。*\n\n"
+        "*Preview placeholder data; live report uses paginated GitHub results.*\n\n"
         + render_markdown_table(
             ["Issue", "Title", "Opened at", "Priority", "DI", "Status", "Owner"],
             [
@@ -995,7 +995,7 @@ def preview_report_markdown(
 
     return f"""# vLLM-Omni Test Report - Scheduled Nightly
 
-* **Preview mode:** 无 Buildkite / GitHub / pytest 日志拉取；下列内容仅供版式预览。*
+* **Preview mode:** No Buildkite / GitHub / pytest log fetch; content below is layout preview only.*
 
 {conclusion}{ci_md}
 
@@ -1004,8 +1004,8 @@ def preview_report_markdown(
 ## Data source
 
 - **Mode:** `compose_full_report.py --preview` (sample tables only)
-- **Test Result:** Common stack 自 `references/local-test-matrix.md`；H200/H800/A100 可传 `--log-dir-*`；H100 为 Buildkite 块
-- **Issue tracking:** `label:ci-failure` + title **local test**；Open issues 仍为 `label:bug` 分页
+- **Test Result:** Common stack from `references/local-test-matrix.md`; H200/H800/A100 via `--log-dir-*`; H100 is Buildkite block
+- **Issue tracking:** `label:ci-failure` + title **local test**; Open issues still paginated `label:bug`
 - Live report: `buildkite_build_stats.py`, GitHub REST/Search
 """
 
@@ -1018,7 +1018,7 @@ def local_testing_markdown(skill_dir: Path) -> str:
         log_h800=None,
         log_a100=None,
         h100_ci_markdown=(
-            "*（此处应放入完整 H100 / Buildkite 块；请运行 `compose_full_report.py` 重新生成报告。）*\n"
+            "*Insert full H100 / Buildkite block here; run `compose_full_report.py` to regenerate the report.*\n"
         ),
     )
 
@@ -1120,11 +1120,11 @@ def main() -> None:
                     l2_l3_row_ok=True,
                     l2_l3_row_detail="",
                     di_row_ok=True,
-                    di_row_detail="自动 DI=4.1（high priority=1, medium priority=1, low priority=1）",
+                    di_row_detail="Auto DI=4.1 (high priority=1, medium priority=1, low priority=1)",
                     critical_row_ok=True,
                     critical_row_detail="",
                     assignee_row_ok=True,
-                    assignee_row_detail="（预览：未请求 GitHub / 未跑 Buildkite 门控，自动行占位为通过）",
+                    assignee_row_detail="(Preview: GitHub / Buildkite gates not run; auto rows placeholder Pass)",
                 ),
                 encoding="utf-8",
             )
@@ -1135,11 +1135,11 @@ def main() -> None:
                     l2_l3_row_ok=True,
                     l2_l3_row_detail="",
                     di_row_ok=True,
-                    di_row_detail="自动 DI=4.1（high priority=1, medium priority=1, low priority=1）",
+                    di_row_detail="Auto DI=4.1 (high priority=1, medium priority=1, low priority=1)",
                     critical_row_ok=True,
                     critical_row_detail="",
                     assignee_row_ok=True,
-                    assignee_row_detail="（预览：未请求 GitHub / 未跑 Buildkite 门控，自动行占位为通过）",
+                    assignee_row_detail="(Preview: GitHub / Buildkite gates not run; auto rows placeholder Pass)",
                 ),
                 encoding="utf-8",
             )
@@ -1189,10 +1189,10 @@ def main() -> None:
     except ImportError:
         l2_l3_row_ok, l2_l3_row_detail = (
             False,
-            "无法导入 buildkite_build_stats（请 pip install requests）",
+            "Unable to import buildkite_build_stats (pip install requests)",
         )
     except Exception as exc:
-        l2_l3_row_ok, l2_l3_row_detail = False, f"L2&L3 检测失败（{exc}）"
+        l2_l3_row_ok, l2_l3_row_detail = False, f"L2&L3 check failed ({exc})"
 
     critical_row_ok, critical_row_detail = no_open_critical_labeled_issues(gh_token)
     assignee_row_ok, assignee_row_detail = open_bug_assignees_all_assigned(gh_token)
@@ -1266,10 +1266,10 @@ def main() -> None:
 {issue_tracking_block}{open_issues_block}
 ## Data source
 
-- **测试结论（自动）：** (1) Buildkite **ready**（non-main）与 **merge**（main 非 nightly/weekly）各自**最近一次已结束**构建中无 `failed`/`broken` job；
-  (2) stats window 内 open `label:bug` 按 priority labels 加权后 **DI < 30**；(3) 无 open `critical`；(4) open `label:bug` 均有 assignee
+- **Test conclusion (auto):** (1) Buildkite **ready** (non-main) and **merge** (main non-nightly/weekly) each latest **finished** build has no `failed`/`broken` job;
+  (2) open `label:bug` in stats window weighted by priority labels **DI < 30**; (3) no open `critical`; (4) open `label:bug` all have assignee
 - **Test Result:** Common stack from `references/local-test-matrix.md`; H200/H800/A100 via `--log-dir-h200` / `--log-dir-h800` / `--log-dir-a100`;
-  H100 = Buildkite scheduled nightly (this build #{build_no}: **Build** 表仅链接/分支/commit + Summary + failed jobs)
+  H100 = Buildkite scheduled nightly (this build #{build_no}: **Build** table link/branch/commit only + Summary + failed jobs)
 - **Issue tracking:** GitHub Search — `label:ci-failure`, `local test` in:title, `created` in `{stats_from}`..`{stats_to}` (UTC)
 - **Open issues:** REST `label:bug`, `created_at` UTC date in `{stats_from}`..`{stats_to}`
 - Buildkite API: `{ORG}/{PIPELINE}` branch `main`

@@ -78,7 +78,7 @@ For a **full calendar month**, set both ends explicitly (e.g. `--stats-from 2026
 
 ## DI calculation for release reports
 
-The **Open issues (stats window)** table is also the source for the release conclusion row **遗留DI小于30**. For every open `label:bug` issue in the stats window, use the first matching label below and sum all DI values:
+The **Open issues (stats window)** table is also the source for the release conclusion row **Remaining DI < 30**. For every open `label:bug` issue in the stats window, use the first matching label below and sum all DI values:
 
 | Label | DI |
 |-------|----|

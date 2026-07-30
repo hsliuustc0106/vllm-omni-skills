@@ -70,7 +70,7 @@ Step-by-step instructions.
 | `vllm-omni-review` | PR review guidelines |
 | `vllm-omni-recipe` | vLLM recipes documentation |
 | `vllm-omni-tts-integration` | TTS integration patterns |
-| `vllm-omni-nightly-local` | HK: SSH/Slurm/Docker; **`source /rebase/.venv/bin/activate`** in container before repo commands; `nightly_jobs`; HTML via vllm-omni-test-report (nightly) |
+| `vllm-omni-nightly-local` | **H200** (SSH=in container) or **H800** (Slurm+docker); **`source /rebase/.venv/bin/activate`**; `nightly_jobs`; HTML via vllm-omni-test-report (nightly) |
 
 ## Validation Rules
 

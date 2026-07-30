@@ -122,6 +122,8 @@ vllm serve <model> --omni --cpu-offload-gb 10
 
 **HunyuanImage3.0 garbage output in offline inference**: Fixed in #3243. The AR stage now uses the Instruct chat template (`User:`/`Assistant:` framing) instead of the pretrain format. Trigger tags (`💭`, `<recaption>`) must go *after* `Assistant:`, not before the user prompt. Use `build_prompt_tokens()` from `vllm_omni.diffusion.models.hunyuan_image3.prompt_utils` for segment-by-segment tokenization that avoids cross-segment BPE merges. MoE routing now runs in fp32 (matching HF). VAE pixel values must stay fp32 through preprocessing — do not pre-cast to bf16.
 
+**HunyuanImage3.0 RGBA/palette images produce wrong colors**: Fixed in #4502. Non-RGB images (RGBA, P-mode, etc.) are now auto-converted to RGB via PIL's `.convert(\"RGB\")`. RGBA transparency is composited against white. No user action needed.
+
 **HunyuanImage3.0 load_weights error**: Fixed in #1598. Ensure you are using the latest vllm-omni.
 
 **HunyuanImage3 online/offline output mismatch**: Fixed in #3500/#3516. Online multistage path now uses `build_prompt_tokens()` matching offline behavior.

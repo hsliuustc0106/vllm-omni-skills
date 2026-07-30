@@ -19,6 +19,7 @@ vLLM-Omni supports text-to-speech (TTS), text-to-audio (sound effects, music), a
 | Qwen3-TTS 0.6B CustomVoice | `Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice` | TTS + voice cloning | 4 GB |
 | Qwen3-TTS 0.6B Base | `Qwen/Qwen3-TTS-12Hz-0.6B-Base` | Basic TTS | 4 GB |
 | Fish Speech S2 Pro | `fishaudio/s2-pro` | TTS + voice cloning (dual-AR + DAC) | 16 GB |
+| MOSS-TTS Local Transformer v1.5 | `OpenMOSS-Team/MOSS-TTS-Local-Transformer-v1.5` | TTS + voice cloning (Qwen3 backbone) | 8 GB |
 | CosyVoice3 0.5B | `FunAudioLLM/Fun-CosyVoice3-0.5B-2512` | TTS (AR + flow matching) | 4 GB |
 | MiMo-Audio-7B | `XiaomiMiMo/MiMo-Audio-7B-Instruct` | Audio understanding + TTS | 24 GB |
 | MiMo-V2.5-ASR | `XiaomiMiMo/MiMo-V2.5-ASR` | ASR (speech-to-text) | 24 GB |
@@ -26,7 +27,7 @@ vLLM-Omni supports text-to-speech (TTS), text-to-audio (sound effects, music), a
 | VoxCPM2 | `openbmb/VoxCPM2` | TTS (native AR, 30+ languages) | 8 GB |
 | Stable-Audio-Open | `stabilityai/stable-audio-open-1.0` | Text-to-audio (music/effects) | 8 GB |
 
-OmniVoice supports voice cloning via `ref_audio` + `ref_text` (requires transformers>=5.3). VoxCPM2 is a 2B tokenizer-free native AR TTS model producing 48kHz audio in 30+ languages (requires `pip install voxcpm`).
+OmniVoice supports voice cloning via `ref_audio` + `ref_text` (requires transformers>=5.3). VoxCPM2 is a 2B tokenizer-free native AR TTS model producing 48kHz audio in 30+ languages (requires `pip install voxcpm`). MOSS-TTS-Local-Transformer-v1.5 outputs 48 kHz stereo via the MOSS-Audio-Tokenizer-v2 codec and shares the same `ref_audio` voice cloning interface as other MOSS-TTS variants. Serve with `moss_tts_local.yaml`.
 
 ## Model Architectures
 
@@ -203,6 +204,12 @@ For a step-by-step guide on integrating a new TTS model into vLLM-Omni, see the 
 **Fish Speech voice cloning latency**: Uploaded voices via `/v1/audio/voice/upload` now auto-cache DAC-encoded reference audio. First request encodes the reference; subsequent requests reuse the cached codes for faster TTFP. Fixed in #2609.
 
 **Event loop blocking under concurrent TTS**: Blocking tokenizer operations (`_build_voxtral_prompt`, `_build_fish_speech_prompt`) now run in a shared `ThreadPoolExecutor(max_workers=1)`. This prevents `/health` latency spikes under concurrent load. Fixed in #2511.
+
+**CosyVoice3 echoes reference text in output**: Fixed in #4644. The talker serving path now correctly wraps `ref_text` in the model instruction template (`<|endofprompt|>` delimiter). Provide the raw transcript as `ref_text` (not pre-formatted). If your transcript already includes the delimiter, the wrapper skips it.
+
+**Qwen3-TTS pipeline stalls (300s hang)**: Fixed in #4463. Degenerate AR talker outputs (no valid codec frames) previously stalled the pipeline for up to 300s. The connector now returns an empty-but-finished payload so the stage-1 wait gate releases immediately. Update to latest vllm-omni.
+
+**Fish Speech crash on decode with vLLM >=0.23.0**: Fixed in #4428. The Fish KV-cache attention backend now uses the correct unbind dimension for vLLM's interleaved KV cache layout. If decode crashes with "too many values to unpack", update vllm-omni.
 
 ## References
 

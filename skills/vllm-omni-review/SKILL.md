@@ -65,6 +65,7 @@ Inspired by common PR-review skill patterns (e.g. explicit modes + tool choice);
 | Diffusion / image / video model PRs | [references/diffusion-checklist.md](references/diffusion-checklist.md) |
 | New model / omni pipeline PRs (TTS, audio, multimodal) | [references/model-addition-checklist.md](references/model-addition-checklist.md) — **profiling + baseline comparison (blocking gate)**, dead-code scan, description/diff integrity, copy-paste detection, registry consistency |
 | High-risk change; need coverage matrix / docs sync | [references/tests-docs-checklist.md](references/tests-docs-checklist.md) |
+| Optional second-pass invariant verifier | [references/fm-agent-verification.md](references/fm-agent-verification.md) — use FM-Agent only for selected high-risk state/lifecycle/config/concurrency PRs |
 | Calibrating phrasing from real maintainers | [references/maintainer-style-study.md](references/maintainer-style-study.md) |
 
 **Legacy paths (do not load — content merged):** `pitfalls.md` → [blocker-patterns.md](references/blocker-patterns.md) **Part 2**; `code-patterns.md` → [architecture.md](references/architecture.md) **Code patterns for review**; `python-style-guide.md` → [review-execution.md](references/review-execution.md) **Python style (review flags)**; batch/CI triage → [review-execution.md](references/review-execution.md) (Batch / CI sections).
@@ -242,6 +243,12 @@ Be explicit in review comments. Treat "manual verification only" as insufficient
 
 **Delivery:** Local assessment first, ask user before posting. Convert worst 1-2 findings to inline comments (counts against comment budget). If D-grade dimension or code bug found, escalate to REQUEST_CHANGES via Step 9.
 
+### Optional: FM-Agent Second Pass
+
+When a PR is high-risk and manual review leaves non-local invariants unclear, use FM-Agent as an offline verifier. Load [references/fm-agent-verification.md](references/fm-agent-verification.md) for scope, setup, and output handling.
+
+Use it for scheduler/connector/async state, config propagation, memory ownership, request lifecycle, and other changes where a probe script could validate a suspected invariant. Do **not** use it for routine docs/style review, CI gate checks, or performance/hardware claims. Never post FM-Agent findings directly; inspect the generated bug report and probe before converting anything into a GitHub comment.
+
 ### Step 9: Incremental Posting + Final Verdict
 
 **Post inline comments directly to GitHub as you find them.** Do not accumulate comments for a batch post at the end. Each `gh api` call posts one or more comments immediately. If context runs out mid-review, the comments already posted are safe on GitHub.
@@ -359,4 +366,5 @@ All paths are under `skills/vllm-omni-review/references/`. There is **no** `pitf
 - [Architecture](references/architecture.md) — Layers and critical paths; end section **Code patterns for review** = async, distributed, KV cache, validation, connectors, errors, logging (former code-patterns content)
 - [Diffusion checklist](references/diffusion-checklist.md) — Diffusion PR dimensions, PR body template, Quick Red Flags
 - [Tests & docs checklist](references/tests-docs-checklist.md) — High-risk coverage matrix and docs sync
+- [FM-Agent verification](references/fm-agent-verification.md) — Optional offline second pass for high-risk invariant and state-lifecycle review
 - [Maintainer style study](references/maintainer-style-study.md) — Example maintainer phrasing

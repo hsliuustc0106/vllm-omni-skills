@@ -11,7 +11,8 @@ Fetch vllm-omni builds from the Buildkite REST API for a date range and compute:
     **ut (exclude models)** from Simple Unit Test log on the **latest `main` build that is not** a scheduled
     nightly or scheduled weekly (same ``classify_build`` heuristic as the merge bucket; not the raw newest build on the pipeline).
     ``ut (exclude models)`` uses per-file lines minus any path with a directory segment named ``models``; ready/merge/nightly/weekly
-    rows use CI build stats only. The emitted
+    rows use CI build stats only. **ready per-PR avg success rate** = arithmetic mean of per-PR success rates over **ready** bucket
+    builds (non-``main``, CI before merge), grouped by Buildkite ``pull_request.id`` or branch name. The emitted
     Markdown table lists percentages only, not those path rules.
 
 Four CI buckets (display names in reports):
@@ -62,6 +63,9 @@ PIPELINE_SLUG = "vllm-omni"
 FINISHED_STATES = {"passed", "failed", "canceled", "blocked", "skipped", "not_run"}
 SUCCESS_STATE = "passed"
 FAIL_STATE = "failed"
+
+# Metrics table row: mean of per-PR rates in the **ready** bucket (not the pooled **ready** row).
+METRICS_ROW_READY_PER_PR_AVG = "ready per-PR avg success rate"
 # Step/job states (Buildkite)
 FAIL_JOB_STATES = {"failed", "broken"}
 
@@ -411,6 +415,78 @@ class Bucket:
         if not self.duration_seconds:
             return None
         return sum(self.duration_seconds) / len(self.duration_seconds)
+
+
+def ready_per_pr_group_key(build: dict) -> str | None:
+    """
+    Group key for **ready**-bucket CI runs aggregated per PR.
+
+    Prefer Buildkite ``pull_request.id``; fall back to ``branch`` when the API omits PR metadata.
+    """
+    if classify_build(build) != "non_main":
+        return None
+    pr = build.get("pull_request")
+    if isinstance(pr, dict):
+        pr_id = pr.get("id")
+        if pr_id is not None and str(pr_id).strip():
+            return f"pr:{pr_id}"
+    branch = (build.get("branch") or "").strip()
+    if branch:
+        return f"branch:{branch}"
+    return None
+
+
+def compute_ready_per_pr_avg_success_rate(
+    builds: list[dict],
+) -> tuple[float | None, int, int, int]:
+    """
+    Mean of per-PR success rates in the **ready** bucket.
+
+    Each PR (or branch when ``pull_request`` is absent) contributes
+    ``passed / (passed + failed)`` over its finished **ready** builds in ``builds``.
+    Returns ``(avg_rate, n_prs, total_passed, total_failed)``.
+    """
+    groups: dict[str, Bucket] = defaultdict(Bucket)
+    for b in builds:
+        key = ready_per_pr_group_key(b)
+        if key is None:
+            continue
+        state = (b.get("state") or "").strip().lower()
+        if state == SUCCESS_STATE:
+            groups[key].passed += 1
+        elif state == FAIL_STATE:
+            groups[key].failed += 1
+
+    rates: list[float] = []
+    total_passed = 0
+    total_failed = 0
+    for bucket in groups.values():
+        t = bucket.total_for_success_rate
+        if t == 0:
+            continue
+        rates.append(bucket.passed / t)
+        total_passed += bucket.passed
+        total_failed += bucket.failed
+
+    if not rates:
+        return None, 0, total_passed, total_failed
+    return sum(rates) / len(rates), len(rates), total_passed, total_failed
+
+
+def format_ready_per_pr_avg_cell(
+    avg_rate: float | None,
+    n_prs: int,
+    total_passed: int,
+    total_failed: int,
+) -> str:
+    if avg_rate is None or n_prs == 0:
+        return "*N/A* (no finished passed/failed ready builds in window)"
+    total = total_passed + total_failed
+    return (
+        f"**{avg_rate * 100:.1f}%** "
+        f"(avg over {n_prs} PRs, {total} CI runs: "
+        f"{total_passed} passed / {total_failed} failed)"
+    )
 
 
 def format_duration(seconds: float) -> str:
@@ -1085,6 +1161,17 @@ def main() -> int:
         print(f"           avg duration = {dur_str}")
         rows_md.append((label, rate_str.replace("|", "/"), dur_md, str(other)))
 
+    pr_avg, pr_n, pr_pass, pr_fail = compute_ready_per_pr_avg_success_rate(builds)
+    pr_cell = format_ready_per_pr_avg_cell(pr_avg, pr_n, pr_pass, pr_fail)
+    if pr_avg is None or pr_n == 0:
+        pr_cli = "N/A (no finished passed/failed ready builds in window)"
+    else:
+        pr_cli = (
+            f"{pr_avg * 100:.1f}% (mean of {pr_n} PR rates; "
+            f"{pr_pass + pr_fail} CI runs: {pr_pass} passed / {pr_fail} failed)"
+        )
+    print(f"  {METRICS_ROW_READY_PER_PR_AVG}: {pr_cli}")
+
     if args.markdown:
         (
             bnum,
@@ -1126,7 +1213,9 @@ def main() -> int:
         print()
         print(
             f"Source: `scripts/buildkite_build_stats.py`; "
-            f"window (Buildkite `created_at`, UTC): `{args.created_from}` - `{args.created_to}`."
+            f"window (Buildkite `created_at`, UTC): `{args.created_from}` - `{args.created_to}`. "
+            f"Row **{METRICS_ROW_READY_PER_PR_AVG}** = mean per-PR success rate over **ready** (non-`main`) builds, "
+            f"grouped by `pull_request.id` or branch (distinct from pooled **ready** row)."
         )
         print()
         metrics_header = [
@@ -1139,6 +1228,7 @@ def main() -> int:
         metrics_rows: list[list[str]] = []
         for label, rate, dur, other in rows_md:
             metrics_rows.append([label, rate, dur, other, "-"])
+        metrics_rows.append([METRICS_ROW_READY_PER_PR_AVG, pr_cell.replace("|", "/"), "-", "-", "-"])
         metrics_rows.append(["ut", ut_rate, ut_dur, ut_other, "-"])
         metrics_rows.append(["ut (exclude models)", ut_excl_rate, "-", ut_other, "-"])
         metrics_rows.append(

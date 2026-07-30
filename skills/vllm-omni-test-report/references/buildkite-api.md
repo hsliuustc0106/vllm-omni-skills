@@ -88,8 +88,11 @@ The script [scripts/buildkite_build_stats.py](../scripts/buildkite_build_stats.p
 | ready | `branch != "main"` |
 | merge | `branch == "main"` and **not** the scheduled-nightly case below (typical merged-PR `main` builds) |
 | nightly | `branch == "main"` and (`source == "schedule"` or message suggests scheduled/nightly) |
+| weekly | `branch == "main"` and message matches *Scheduled weekly* |
 
 **Success rate** (per bucket): `passed / (passed + failed)` only. Counts of `canceled`, `blocked`, etc. are reported separately.
+
+**ready per-PR avg success rate** (Metrics row): arithmetic **mean of per-PR success rates** over **ready** bucket builds in the stats window — **not** the same number as the pooled **ready** row (which treats every CI run equally). Each PR (or feature branch when Buildkite omits `pull_request`) contributes `passed / (passed + failed)` from its finished CI runs on non-`main` branches. Grouping uses `pull_request.id` when present, else `branch`. Only finished `passed` / `failed` builds count.
 
 **Average wall time** (per bucket): among builds counted as `passed` or `failed`, those with both `created_at` and
 `finished_at`, compute `finished_at - created_at` in seconds and take the arithmetic mean.

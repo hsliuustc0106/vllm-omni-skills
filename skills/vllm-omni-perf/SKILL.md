@@ -157,6 +157,8 @@ curl http://localhost:8091/metrics
 
 **Latency regression with TP**: For small models, the communication overhead of tensor parallelism may exceed the compute savings. Use TP only for models that saturate a single GPU.
 
+**MagCache skipped steps produce corrupted/wrong outputs**: Fixed in #5561. Non-head blocks now pass inputs through unchanged on skipped steps; only the head block applies the cached residual once per step.
+
 ## References
 
 - For TeaCache configuration details, see [references/teacache.md](references/teacache.md)

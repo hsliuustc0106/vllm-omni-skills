@@ -140,6 +140,8 @@ vllm serve <model> --omni --cpu-offload-gb 10
 
 **Qwen-Image tiny request sizes**: Small requests (below VAE alignment) are now clamped to minimum valid dimensions instead of collapsing to zero. All Qwen-Image pipeline variants use the shared `normalize_min_aligned_size()` helper. Fixed in #2637.
 
+**`response_format=file` returns wrong Content-Type/filename extension**: Fixed in #5619. File metadata now respects the `output_format` parameter (`png`, `jpg`/`jpeg`, `webp`) for Content-Type, Content-Disposition filename, ZIP archive entries, and PIL save format.
+
 ## References
 
 - For FLUX model details, see [references/flux-models.md](references/flux-models.md)

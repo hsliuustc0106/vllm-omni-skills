@@ -146,6 +146,17 @@ vllm serve Wan-AI/Wan2.2-T2V-A14B-Diffusers --omni \
 
 This accelerates video/image generation by parallelizing the diffusion computation.
 
+## Guidance Parallelism (LTX)
+
+The LTX pipeline supports sharding its guidance plan across ranks with `--cfg-parallel-size`:
+
+```bash
+vllm serve diffusers/LTX-2.3-Diffusers --omni \
+  --cfg-parallel-size 2 --stage-init-timeout 600
+```
+
+This shards up to 4 guidance passes (cond, uncond, STG, cross-modality) across ranks. Balanced sizes: 1, 2, 4. Total device count = `cfg_parallel_size × tp_size × pp_size`. Distilled (positive-only guidance) pipelines see no speedup from `cfg_parallel_size > 1`.
+
 ## Configuration Examples
 
 ### Small model, single GPU
@@ -182,6 +193,10 @@ vllm serve <model> --omni --tensor-parallel-size 8
 **HunyuanImage3 KV reuse broken under sequence parallel**: Fixed in #3546. `ar_kv_reuse_len` is now correctly propagated through the DiT forward pass and SP seq_len calculations.
 
 **SHM connector `test_chunk_transfer_adapter` failures**: Fixed in #3650. Updated test assertions for connector transfer adapter protocol changes.
+
+**CFG diffusion dispatched with incomplete companion outputs (degraded conditioning)**: Fixed in #5482. Companion outputs are now peeked non-destructively; diffusion only dispatches when all companion outputs are ready. KV-ready no longer marks companions done — only `set_companion_output` does. CFG-aware cleanup expands orphans to companions on abort.
+
+**LTX `--cfg-parallel-size 2` rejects non-CFG guidance (STG, cross-modality)**: Fixed in #5547. `cfg_parallel_size` now supports the full guidance plan; bound removed from `[1, 2, 3]` range.
 
 ## References
 

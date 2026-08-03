@@ -186,9 +186,24 @@ response = client.chat.completions.create(
 
 For a step-by-step guide on integrating a new TTS model into vLLM-Omni, see the [TTS model developer guide](https://github.com/vllm-project/vllm-omni/blob/main/docs/contributing/model/adding_tts_model.md). Offline examples are consolidated under `examples/offline_inference/text_to_speech/<model>/end2end.py`, and online serving examples under `examples/online_serving/text_to_speech/<model>/`.
 
+## WebSocket Streaming (Qwen3-TTS)
+
+The speech WebSocket supports multi-utterance sessions — `input.done` flushes buffered text as one utterance without closing the connection:
+
+```python
+# Send multiple utterances over a single WebSocket connection
+python qwen3_tts/streaming_speech_client.py --text "First sentence." --text "Second sentence."
+```
+
+Each `audio.start`/`audio.done`/`audio.chunk` and `session.done` frame carries an `utterance_index` counter. Send `session.close` to disconnect explicitly. To change voice between utterances, re-send `session.config` (rejected mid-buffer). Idle timeout enforces cleanup between utterances.
+
 ## Troubleshooting
 
 **Audio quality issues**: Ensure reference audio for voice cloning is clean (no background noise), 10-20 seconds, single speaker.
+
+**MiniCPM-o 4.5 single-GPU OOM during vocoder (HiFi-GAN cuDNN)**: Fixed in #5621. Talker and Code2Wav `gpu_memory_utilization` reduced to 0.15 each, leaving ~15% device memory for runtime kernels.
+
+**MiniCPM-o 4.5 single-GPU audio fails on first chunk**: Fixed in #5637. Explicit KV-cache budgets for the Talker stage and HiFT CUDA priming at construction prevent first-chunk failures.
 
 **Qwen3-TTS code predictor crash**: Fixed in #1619. If you encounter a crash in the code predictor stage, update to the latest vllm-omni.
 

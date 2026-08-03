@@ -114,6 +114,8 @@ Video generation is significantly more compute-intensive than image generation:
 
 **Choppy output**: Increase `num_inference_steps` and `num_frames`.
 
+**Wan2.2 generates low-quality output when `guidance_scale` is omitted**: Fixed in #5615. Omitted `guidance_scale` now resolves to pipeline defaults (4.0 T2V / 5.0 I2V) instead of 0.0.
+
 ## References
 
 - For Wan2.2 model details and advanced config, see [references/wan-models.md](references/wan-models.md)

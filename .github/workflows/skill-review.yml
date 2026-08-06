@@ -21,7 +21,7 @@ jobs:
       # Pinned to a commit SHA (not the mutable `main` branch) so a compromise
       # of the upstream action cannot silently exfiltrate `tessl-token`.
       # Update intentionally by bumping to a newer reviewed SHA.
-      - uses: tesslio/skill-review@c9357d3848c862bfe750e89c1c42599f3f45d483  # main @ 2026-06-30
+      - uses: tesslio/skill-review@7e7ea574722a6d72752aa5a316bcc813d06b7cd2  # main @ 2026-06-30
         if: env.TESSL_TOKEN_AVAILABLE == 'true'
         with:
           tessl-token: ${{ secrets.TESSL_API_TOKEN || secrets.TESSL_TOKEN }}

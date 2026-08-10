@@ -46,6 +46,7 @@ Starting points:
 - `Qwen-Image`, `Qwen-Image-2512`: begin with `ignored_layers=["img_mlp"]`
 - `Tongyi-MAI/Z-Image-Turbo`: start with all layers quantized
 - `FLUX.1-dev`, `HunyuanImage-3`, `HunyuanVideo-1.5`: documented in current FP8 support tables
+- `MiniMax H3`: `--quantization fp8` with structured `--diffusion-quantization-config` for component-scoped ignore (#5737). Transformer uses per-module `prefix` strings; QKV reorder and gate/up split happen in `load_weights` (not module constructors), so online FP8's `process_weights_after_loading` sees correct sharding. Incompatible with layerwise offload. Quality baseline: LPIPS 0.1156, PSNR 23.63 dB at 384×672 107-frame 10-step, 22% memory reduction.
 
 Prefer dynamic activation scaling unless static calibration is explicitly required.
 
@@ -61,6 +62,8 @@ Starting points:
 - `Tongyi-MAI/Z-Image-Turbo`: documented Int8 support
 
 Int8 is more likely than FP8 to require layer-level tuning for quality.
+
+**NPU (Ascend) Int8**: `--quantization int8` on NPU uses the INT8 online path. Layers wider than 65535 output dims per rank stay unquantized automatically. Supports `offload_after_quant` to cap load-time device footprint by returning quantized layers to CPU. Use `--dlo-no-use-allgather` with distributed layerwise offload (AllGather + INT8 incompatible on NPU). RainFusion attention (`--diffusion-attention-backend RAINFUSION_ATTN`) is required for video diffusion with INT8 on NPU (#5706).
 
 ### GGUF
 

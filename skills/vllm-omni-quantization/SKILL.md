@@ -81,6 +81,9 @@ curl -s http://localhost:8091/v1/images/generations \
 | offline text_to_image fails | quantization config conflicts with diffusion pipeline init | fixed in #1515, update vllm-omni |
 | OmniDiffusion init crash | `pipeline_class` variable not initialized during quantized load | fixed in #1562, update vllm-omni |
 | HunyuanImage3.0 load_weights error | weight loading fails with quantized HunyuanImage3.0 | fixed in #1598, update vllm-omni |
+| MiniMax H3 FP8 quality drops | sensitive layers unquantized or prefix scoping wrong | `--diffusion-quantization-config '{"transformer":{"method":"fp8","ignored_layers":["blocks.0.post_patch_proj","blocks.*.time_embedder","blocks.*.attn.post_patch_proj","final_layer.norm_final","final_layer.post_patch_proj"]}}'`. Transformer QKV and gate/up weight reordering runs inside `load_weights`, so FP8 sees correct sharding (#5737). Incompatible with layerwise offload. |
+| NPU INT8 rejects wide layers | layer output dim > 65535 per rank | layers wider than 65535 stay unquantized automatically. Use `--dlo-no-use-allgather` if combining with distributed layerwise offload (#5706). LPIPS gate: compare against BF16 baseline, ignore layers that exceed dim limit. |
+| NPU diffusion attention crashes with INT8 | INT8 requires RainFusion attention backend | `--diffusion-attention-backend RAINFUSION_ATTN --diffusion-attention-config '{"block_sparse":{"sparsity":0.8}}'`. Ascend NPU only; tune sparsity → start_step → skip_layers. Falls back to FLASH_ATTN for non-video or misaligned geometries (#5706). |
 
 ## References
 

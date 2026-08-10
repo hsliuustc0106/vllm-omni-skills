@@ -40,6 +40,7 @@ vllm serve <model> --omni \
 Recommended thresholds by model:
 - Image models: 0.05-0.15
 - Video models: 0.08-0.20
+- MiniMax H3: 0.17 (FL2VA only; Ref2VA not supported)
 
 ## Cache-DiT
 
@@ -51,7 +52,7 @@ vllm serve <model> --omni --enable-cache-dit
 
 Can be combined with TeaCache, but test independently first to measure impact.
 
-Supported models: FLUX.2-dev, Helios-Distilled, Wan2.2, and others using `ForwardPattern.Pattern_2`. Helios achieves ~20% speedup with cache-dit.
+Supported models: FLUX.2-dev, Helios-Distilled, Wan2.2, MiniMax H3, and others using `ForwardPattern.Pattern_2`. Helios achieves ~20% speedup with cache-dit. MiniMax H3 supports request-scoped quality grading via `quality="high"` (1.35× speedup at SSIM 0.9709, conservative Cache-DiT profile) and `quality="lossless"` (no cache). Use `extra_body.quality` in API requests to toggle per-request (#5853). Cache-DiT and TeaCache are mutually exclusive on the same model.
 
 TeaCache and CPU Offload hooks are compatible — use them simultaneously with `--enable-teacache --enable-cpu-offload` (or `--cpu-offload-gb`). The HookRegistry sorts hooks alphabetically and ensures the forward-overriding hook (TeaCache) runs last in the pre-process chain. Only one forward-overriding hook is allowed at a time.
 

@@ -42,6 +42,15 @@ TeaCache works with all DiT-based models in vLLM-Omni:
 - Z-Image
 - HunyuanImage3.0
 - OmniGen2
+- MiniMax H3 (FL2VA partition only — Ref2VA rejects TeaCache with ValueError)
+
+### Model-Specific Defaults
+
+When `--teacache-threshold` is not set, the threshold defers to per-model defaults: 0.17 for MiniMax H3, 0.20 fallback for others (#5840). Config files store polynomial coefficients per transformer type for automatic tuning.
+
+### MiniMax H3
+
+TeaCache for MiniMax H3 works only on the FL2VA (frame-to-video) partition. In combined FL2VA+Ref2VA serving, FL2VA requests use TeaCache while Ref2VA requests run uncached. The extractor (`extract_minimax_h3_context`) mirrors the packed multimodal forward path: `_embed` → `blocks` loop (with `video_token_layout` forwarded) → `final_layer` postprocessing with row selection and update masks. Registered under transformer class `MiniMaxH3DiTModel`. TeaCache and Cache-DiT are mutually exclusive on MiniMax H3.
 
 ## Combining with Other Optimizations
 

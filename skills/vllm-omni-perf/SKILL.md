@@ -139,6 +139,30 @@ watch -n 1 nvidia-smi
 curl http://localhost:8091/metrics
 ```
 
+### Omni-DuplexEval (MiniCPM-o realtime duplex)
+
+`vllm bench omni-duplex-eval` benchmarks MiniCPM-o realtime duplex serving against the `Hothan/Omni-DuplexEval` dataset in three phases (generate → evaluate → summarize):
+
+```bash
+# 1. Start the duplex generation server
+vllm serve openbmb/MiniCPM-o-4_5 --omni --trust-remote-code \
+    --deploy-config vllm_omni/deploy/minicpmo_4_5_duplex.yaml --port 8099
+
+# 2. Generate responses
+vllm bench omni-duplex-eval --omni generate \
+    --url ws://127.0.0.1:8099/v1/realtime?duplex=1 \
+    --model openbmb/MiniCPM-o-4_5 --ref-audio /data/ref.wav \
+    --dataset Hothan/Omni-DuplexEval --response-root /data/responses
+
+# 3. Evaluate (separate multimodal judge) then summarize
+vllm bench omni-duplex-eval --omni evaluate --dataset Hothan/Omni-DuplexEval \
+    --response-root /data/responses --score-root /data/scores \
+    --judge-base-url http://127.0.0.1:8000 --judge-model Qwen/Qwen2.5-VL-7B-Instruct
+vllm bench omni-duplex-eval --omni summarize --score-root /data/scores
+```
+
+Dataset names such as `RTD_OCR` and `PR_correction` are Hugging Face splits, not configs — pass one via `--split` or omit it to run all nine splits. `--limit 1` is a useful smoke test.
+
 ## Optimization Workflow
 
 1. **Baseline**: Run benchmark with default settings

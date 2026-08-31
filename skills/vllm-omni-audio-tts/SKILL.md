@@ -204,6 +204,8 @@ For a step-by-step guide on integrating a new TTS model into vLLM-Omni, see the 
 
 **Event loop blocking under concurrent TTS**: Blocking tokenizer operations (`_build_voxtral_prompt`, `_build_fish_speech_prompt`) now run in a shared `ThreadPoolExecutor(max_workers=1)`. This prevents `/health` latency spikes under concurrent load. Fixed in #2511.
 
+**Qwen3-TTS Base truncation / incomplete audio**: Base (voice-clone) requests without an explicit `max_new_tokens` use a text-scaled codec safety ceiling (at least 192 frames). If the Talker reaches that ceiling without emitting codec EOS, non-streaming serving discards the incomplete audio and retries once with a fresh seed — an explicit `seed` or `max_new_tokens` disables the retry. SSE/WebSocket clients receive a structured error containing `"action":"discard"` and must drop any already-emitted audio. Fixed in #6728.
+
 ## References
 
 - For Qwen3-TTS details and voice options, see [references/qwen-tts.md](references/qwen-tts.md)

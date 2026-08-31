@@ -81,6 +81,7 @@ curl -s http://localhost:8091/v1/images/generations \
 | offline text_to_image fails | quantization config conflicts with diffusion pipeline init | fixed in #1515, update vllm-omni |
 | OmniDiffusion init crash | `pipeline_class` variable not initialized during quantized load | fixed in #1562, update vllm-omni |
 | HunyuanImage3.0 load_weights error | weight loading fails with quantized HunyuanImage3.0 | fixed in #1598, update vllm-omni |
+| Qwen3-Omni quantized load crashes on missing `packed_modules_mapping` | nested component lacks the mapping attribute | fixed in #6748, update vllm-omni |
 
 ## References
 

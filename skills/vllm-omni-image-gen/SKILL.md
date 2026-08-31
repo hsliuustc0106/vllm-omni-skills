@@ -25,8 +25,12 @@ vLLM-Omni supports text-to-image generation and image editing through diffusion 
 | SD 3.5 Medium | `stabilityai/stable-diffusion-3.5-medium` | Text-to-image | 12 GB |
 | OmniGen2 | `OmniGen2/OmniGen2` | Text-to-image | 24 GB |
 | HunyuanImage3.0 | `tencent/HunyuanImage-3.0` | Text-to-image + editing | 40 GB |
+| MammothModa2-Preview | `bytedance-research/MammothModa2-Preview` | Text-to-image (AR→DiT) | 48 GB |
+| MammothModa2-Dev | `bytedance-research/MammothModa2-Dev` | Text-to-image + understanding | 48 GB |
 
 Dreamid-Omni from ByteDance and FLUX.2-dev with cache_dit support are available. FLUX.2-klein supports plain string prompts (no dict wrapper needed).
+
+MammothModa2 (ByteDance Research) is an AR→DiT pipeline. Its DiT generation knobs (`text_guidance_scale`, `cfg_range`, `num_inference_steps`) are passed via the pipeline's `--extra-body` JSON contract rather than the standard `--num-inference-steps`/`--cfg-scale` flags, and `--height`/`--width` must be multiples of 16. Use `vllm_omni/deploy/mammoth_moda2.yaml` (sized for ~80 GB; rebalance the stage-0/stage-1 `gpu_memory_utilization` split to `0.8`/`0.16` to fit a 48 GB GPU).
 
 ## Quick Start: Offline Generation
 

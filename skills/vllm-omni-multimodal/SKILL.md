@@ -16,6 +16,8 @@ Omni-modality models accept multiple input types (text, image, audio, video) and
 | Qwen2.5-Omni-7B | `Qwen/Qwen2.5-Omni-7B` | Text, image, audio, video | Text, audio | 24 GB |
 | Qwen2.5-Omni-3B | `Qwen/Qwen2.5-Omni-3B` | Text, image, audio, video | Text, audio | 12 GB |
 | Qwen3-Omni-30B-A3B | `Qwen/Qwen3-Omni-30B-A3B-Instruct` | Text, image, audio, video | Text, audio | 48 GB |
+| MiniCPM-o 4.5 | `openbmb/MiniCPM-o-4_5` | Text, image, audio, video | Text, audio (full-duplex) | — |
+| Mage-VL | `microsoft/Mage-VL` | Text, image, video | Text, audio (full-duplex) | — |
 
 ## Quick Start
 
@@ -168,6 +170,10 @@ vllm serve Qwen/Qwen3-Omni-30B-A3B-Instruct --omni \
 ```
 
 Qwen3-Omni is compatible with the v2 model runner (vllm 0.19). Uses native `launch_core_engines` instead of custom spawning. `add_streaming_update` API removed; audio output tensors are explicitly converted to float. CUDAGraph supports tuple-returning thinker model. Fixed in #2522.
+
+## Full-Duplex Serving
+
+MiniCPM-o 4.5 and PersonaPlex full-duplex serving graduated out of `experimental/fullduplex/` into stable `engine/duplex` / `entrypoints/duplex`. Use the public `vllm_omni.clients.duplex.DuplexClient` against `/v1/realtime?duplex=1`. Mage-VL full-duplex is experimental (Transformers reference path only) via a `WebSocket /v1/mage-vl/duplex` endpoint; native vLLM execution is not yet available.
 
 ## Troubleshooting
 

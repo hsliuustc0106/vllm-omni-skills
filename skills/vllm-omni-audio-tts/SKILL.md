@@ -25,8 +25,11 @@ vLLM-Omni supports text-to-speech (TTS), text-to-audio (sound effects, music), a
 | OmniVoice | `nvidia/OmniVoice` | TTS + voice cloning (HiggsAudioV2) | 8 GB |
 | VoxCPM2 | `openbmb/VoxCPM2` | TTS (native AR, 30+ languages) | 8 GB |
 | Stable-Audio-Open | `stabilityai/stable-audio-open-1.0` | Text-to-audio (music/effects) | 8 GB |
+| dots.tts | `dots-studio/dots.tts-soar` | TTS (native AR, 48 kHz) | 16 GB |
 
-OmniVoice supports voice cloning via `ref_audio` + `ref_text` (requires transformers>=5.3). VoxCPM2 is a 2B tokenizer-free native AR TTS model producing 48kHz audio in 30+ languages (requires `pip install voxcpm`).
+OmniVoice supports voice cloning via `ref_audio` + `ref_text` (requires transformers>=5.3). VoxCPM2 is a 2B tokenizer-free native AR TTS model producing 48kHz audio in 30+ languages (requires `pip install voxcpm`). dots.tts serves online via `/v1/audio/speech` (streaming with `stream=true`); use the `dots_tts.yaml` deploy config.
+
+The Speech API accepts a `sample_rate` request field with server-side integer-ratio downsampling (`StreamingAudioResampler`); Qwen3-TTS declares `{8000, 24000}` Hz support and rejects unsupported rates early.
 
 ## Model Architectures
 

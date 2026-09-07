@@ -19,8 +19,12 @@ vLLM-Omni supports video generation through diffusion transformer models, primar
 | NextStep-1.1 | `stepfun-ai/NextStep-1.1` | Text-to-video | 24 GB |
 | Helios-Distilled | `naver-ai/Helios-Distilled` | Text-to-video | 24 GB |
 | daVinci-MagiHuman | `SII-GAIR/daVinci-MagiHuman-Base-1080p` | Image-to-video + audio | 24 GB |
+| MAGI-2 Preview | `sand-ai/MAGI-2-preview` | Text+Image-to-video + audio | 50 GB |
+| SANA-Video 2B | `Efficient-Large-Model/SANA-Video_2B_480p_diffusers` | Text+Image-to-video | 24 GB |
 
 daVinci-MagiHuman is an image-to-video model that also generates audio (44100 Hz, 25 fps). Use `--enable-diffusion-pipeline-profiler` to get per-stage timing (`stage_durations`) and peak memory (`peak_memory_mb`) in video responses (async poll JSON or sync HTTP headers).
+
+MAGI-2 Preview generates video with synchronized 44.1 kHz stereo audio and defaults to SP4 (also supports TP4/TP2SP2/DLO DP4/DP2SP2 and one-GPU layerwise offload; FA2/FA3/FA4 via `MAGI2_FLASH_ATTN_VERSION`). SANA-Video 2B supports tensor parallelism (TP≤2), sequence parallelism (`--usp`, 1/2/4), CFG parallelism (`--cfg-parallel-size 2`), Cache-DiT (`--cache-backend cache_dit`), and CPU offload (`--enable-cpu-offload` / `--enable-layerwise-offload` / `--enable-distributed-layerwise-offload`).
 
 ## Quick Start: Text-to-Video
 

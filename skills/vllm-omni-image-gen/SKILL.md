@@ -25,8 +25,12 @@ vLLM-Omni supports text-to-image generation and image editing through diffusion 
 | SD 3.5 Medium | `stabilityai/stable-diffusion-3.5-medium` | Text-to-image | 12 GB |
 | OmniGen2 | `OmniGen2/OmniGen2` | Text-to-image | 24 GB |
 | HunyuanImage3.0 | `tencent/HunyuanImage-3.0` | Text-to-image + editing | 40 GB |
+| Boogu-Image | `Boogu/Boogu-Image-0.1-Base` | Text-to-image + editing | 24 GB (fp8) |
+| SenseNova-U1.5-8B-MoT | `sensenova/SenseNova-U1.5-8B-MoT` | Text-to-image + understanding | 34 GB |
 
 Dreamid-Omni from ByteDance and FLUX.2-dev with cache_dit support are available. FLUX.2-klein supports plain string prompts (no dict wrapper needed).
+
+Boogu-Image supports request-level batching for T2I (edits stay batch=1), a Turbo edit variant (`Boogu/Boogu-Image-0.1-Edit-Turbo`, `num_inference_steps=4`, `guidance_scale=1.0`) with a native few-step DMD path, and official FP8 checkpoints (`Boogu/Boogu-Image-0.1-{Base,Edit}-fp8`) via `--diffusion-quantization-config '{"transformer":{"method":"torchao_float8_weight_only"}}'` (requires torchao>=0.17.0). BAGEL-7B-MoT supports step-wise continuous batching via `--step-execution` + `max_num_seqs` (~2x throughput on Ascend TP4 at `max_num_seqs=32`). HunyuanImage-3.0-Instruct-Distil is a CFG-distilled variant enabled with `cfg_distilled` / `use_meanflow` flags (skips the negative CFG branch).
 
 ## Quick Start: Offline Generation
 

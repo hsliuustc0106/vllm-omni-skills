@@ -44,10 +44,15 @@ Use per-component configs when only part of a model should be quantized or when 
 Starting points:
 
 - `Qwen-Image`, `Qwen-Image-2512`: begin with `ignored_layers=["img_mlp"]`
+- `Qwen-Image-2.1`: begin with `ignored_layers=["img_mlp"]`; all-layer FP8 loads but composition drifts on some prompts. Text-encoder FP8 covers the language model only — the vision tower and LM head stay BF16. On Blackwell GB200 FP8 saves ~17% peak memory but is not faster than BF16 at 1024×1024.
 - `Tongyi-MAI/Z-Image-Turbo`: start with all layers quantized
 - `FLUX.1-dev`, `HunyuanImage-3`, `HunyuanVideo-1.5`: documented in current FP8 support tables
 
 Prefer dynamic activation scaling unless static calibration is explicitly required.
+
+### FP8 prefix KV cache (Qwen-Image-2.1)
+
+`prefix_kv_cache_dtype` stores the cached prefix K/V in FP8 E4M3 for the Qwen-Image-2.1 DiT. Accepted values: `"fp8"` / `"fp8_e4m3"` (K and V quantized) and `"fp8_v"` (V only, K stays BF16). `"fp8_v"` is the better quality/size trade-off (~40.9 dB vs ~34.9 dB for `"fp8"`). The quantized prefix cache is not CUDA-graph-capturable — decode falls back to eager. Opt-in for large cached prefixes (each CFG branch is ~12.9 GB BF16, ~6.6 GB `"fp8"`, ~9.7 GB `"fp8_v"`).
 
 ### Int8
 

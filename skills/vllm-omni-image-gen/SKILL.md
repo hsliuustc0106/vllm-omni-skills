@@ -15,6 +15,7 @@ vLLM-Omni supports text-to-image generation and image editing through diffusion 
 |-------|-------|------|----------|
 | Z-Image-Turbo | `Tongyi-MAI/Z-Image-Turbo` | Text-to-image | 8 GB |
 | Qwen-Image | `Qwen/Qwen-Image` | Text-to-image (AR+DiT) | 24 GB |
+| Qwen-Image-2.1 | `Qwen/Qwen-Image-2.1` | Text-to-image + editing | 24 GB |
 | Qwen-Image-Edit | `Qwen/Qwen-Image-Edit` | Image editing | 24 GB |
 | GLM-Image | `zai-org/GLM-Image` | Text-to-image | 24 GB |
 | BAGEL-7B-MoT | `ByteDance-Seed/BAGEL-7B-MoT` | Text-to-image + understanding | 24 GB |
@@ -139,6 +140,8 @@ vllm serve <model> --omni --cpu-offload-gb 10
 **BAGEL think mode for text2text/img2text**: BAGEL now supports reasoning/thinking mode for text-to-text and image-to-text modalities via `--think` flag. Injects `VLM_THINK_SYSTEM_PROMPT` to enable chain-of-thought output. Fixed in #2503.
 
 **Qwen-Image tiny request sizes**: Small requests (below VAE alignment) are now clamped to minimum valid dimensions instead of collapsing to zero. All Qwen-Image pipeline variants use the shared `normalize_min_aligned_size()` helper. Fixed in #2637.
+
+**Qwen-Image-2.1 CFG scale defaults to 1.0**: The default `cfg_scale` is `1.0` (was `4.0`) and the default negative prompt is empty. Omit `--cfg-scale` (or set `1.0`) for best results — higher CFG values are no longer recommended. Qwen-Image-2.1 also supports FP8 online quantization and FP8 prefix KV cache (see vllm-omni-quantization skill).
 
 ## References
 

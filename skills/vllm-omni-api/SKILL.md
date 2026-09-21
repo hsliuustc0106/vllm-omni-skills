@@ -17,6 +17,8 @@ vllm serve <model-name> --omni --port 8091
 
 Diffusion models benefit from multi-thread weight loading (enabled by default), which parallelizes safetensors shard loading for faster startup. See vllm-omni-perf for details.
 
+Duplex-capable models (e.g. MiniCPM-o 4.5) default to `session_mode: duplex`. To serve such a model over the ordinary turn-based online stack instead, set `session_mode: turn` (e.g. `vllm serve openbmb/MiniCPM-o-4_5 --omni --deploy-config vllm_omni/deploy/minicpmo_4_5_turn.yaml --trust-remote-code`). The Python `Omni`/`AsyncOmni` APIs are unaffected.
+
 ## Core Endpoints
 
 | Endpoint | Method | Purpose |

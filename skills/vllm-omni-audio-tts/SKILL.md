@@ -204,6 +204,12 @@ For a step-by-step guide on integrating a new TTS model into vLLM-Omni, see the 
 
 **Event loop blocking under concurrent TTS**: Blocking tokenizer operations (`_build_voxtral_prompt`, `_build_fish_speech_prompt`) now run in a shared `ThreadPoolExecutor(max_workers=1)`. This prevents `/health` latency spikes under concurrent load. Fixed in #2511.
 
+**VoxCPM2 seed ignored**: `request.seed` was not reaching the CFM (flow-matching) noise draws, so identical text + seed produced different audio. Seeded requests now carry a dedicated `torch.Generator`; reproducible audio works with a fixed `seed`. Fixed in #7866.
+
+**OmniVoice (HiggsAudio v2) ref-audio cache collisions**: Identical placeholder prompts with different reference audio now get distinct cache salts, keying cached conditioning by resolved audio content. Fixed in #7826.
+
+**Qwen3-TTS codec-frame output corruption under streaming**: Multi-step codec-frame outputs now use a per-key accumulation strategy (`CONCAT_DIM0` for `frames`), preventing interleaved audio corruption. Fixed in #7608.
+
 ## References
 
 - For Qwen3-TTS details and voice options, see [references/qwen-tts.md](references/qwen-tts.md)

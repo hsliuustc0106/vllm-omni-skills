@@ -183,6 +183,8 @@ vllm serve <model> --omni --tensor-parallel-size 8
 
 **SHM connector `test_chunk_transfer_adapter` failures**: Fixed in #3650. Updated test assertions for connector transfer adapter protocol changes.
 
+**Parallel state init failure with MoE + diffusion**: Omni now initializes and tears down vLLM's distributed state (`_WORLD`, `_NODE_COUNT`) alongside its own, fixing crashes when MoE expert-parallel groups are combined with diffusion stages. Fixed in #7676.
+
 ## References
 
 - For disaggregation architecture details, see [references/disaggregation.md](references/disaggregation.md)

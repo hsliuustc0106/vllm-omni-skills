@@ -1,6 +1,6 @@
 ---
 name: vllm-omni-image-gen
-description: Generate and edit images with vLLM-Omni using models like FLUX, Stable Diffusion 3, Qwen-Image, GLM-Image, BAGEL, and Z-Image. Use when generating images from text, editing images, configuring diffusion parameters, or working with image generation models.
+description: Generate and edit images with vLLM-Omni using models like FLUX, Stable Diffusion 3, Qwen-Image, GLM-Image, BAGEL, Z-Image, SenseNova-U1, and Ming-Image. Use when generating images from text, editing images, configuring diffusion parameters, or working with image generation models.
 ---
 
 # vLLM-Omni Image Generation
@@ -25,8 +25,12 @@ vLLM-Omni supports text-to-image generation and image editing through diffusion 
 | SD 3.5 Medium | `stabilityai/stable-diffusion-3.5-medium` | Text-to-image | 12 GB |
 | OmniGen2 | `OmniGen2/OmniGen2` | Text-to-image | 24 GB |
 | HunyuanImage3.0 | `tencent/HunyuanImage-3.0` | Text-to-image + editing | 40 GB |
+| SenseNova-U1-A3B-MoT | `sensenova/SenseNova-U1-A3B-MoT` | Text-to-image + editing + understanding (MoE) | 96 GB (TP=1) |
+| Ming-Image | `inclusionAI/Ming-Image-0.1-Design` | Text-to-image + editing + layer decomposition | 80 GB |
 
 Dreamid-Omni from ByteDance and FLUX.2-dev with cache_dit support are available. FLUX.2-klein supports plain string prompts (no dict wrapper needed).
+
+SenseNova-U1-A3B-MoT is the MoE variant of SenseNova-U1 (Qwen3-MoE backbone, 128 understanding experts + 32 generation experts, ~38.7B params / 72.2 GiB BF16). It runs on the same `SenseNovaU1Pipeline` as the dense 8B checkpoint — only the `--model` id changes. Cache-DiT and layerwise CPU offload do not take effect on the A3B variant. Supports `--cfg-parallel-size 2` for ~1.56x faster t2i. For layer decomposition, use `inclusionAI/Ming-Image-0.1-Design-Layer`.
 
 ## Quick Start: Offline Generation
 

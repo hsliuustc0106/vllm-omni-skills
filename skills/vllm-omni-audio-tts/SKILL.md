@@ -76,6 +76,8 @@ outputs = omni.generate(
 outputs[0].request_output[0].audio.save("cloned_speech.wav")
 ```
 
+Uploaded voices via `/v1/audio/voice/upload` reject names that collide with a model's built-in or precomputed voices (400), and re-uploading an existing name overwrites it in place. Set `VLLM_OMNI_SPEAKER_REGISTRATION_POLICY=immutable` on the server to reject duplicate re-registration until the voice is explicitly deleted (`DELETE /v1/audio/voices/{name}`) — useful when the endpoint is reachable by multiple writers.
+
 ## Voice Design (VoiceDesign variant)
 
 Design a voice by describing its characteristics:
@@ -126,6 +128,16 @@ print(outputs[0].request_output[0].text)
 ## Stage Configuration (Qwen3-TTS)
 
 `async_scheduling` is **enabled by default** for Qwen3-TTS models, improving first-packet latency and throughput.
+
+Qwen3-TTS now runs the native CUDA **Model Runner V2 (MRV2)** pipeline by default (experimental on vLLM 0.29+). The bundled `qwen3_tts.yaml` selects V2 on CUDA; NPU, XPU, ROCm, and MUSA keep V1 through the `platforms:` sections. Set `model_runner: v1` in a copy of the deploy config to opt out. Available profiles:
+
+| Profile | Runner | Code2Wav graph batches | Use |
+|---------|--------|------------------------|-----|
+| `qwen3_tts.yaml` | V2 (default) | defaults | Shipped default (experimental) |
+| `qwen3_tts_mrv2.yaml` | V2 | B1 | Explicit MRV2 profile |
+| `qwen3_tts_high_concurrency_mrv2.yaml` | V2 | B1, B2 | Opt-in throughput tuning |
+| `qwen3_tts_high_concurrency_mrv2_b4.yaml` | V2 | B1–B4 | Experimental throughput / buffered playback |
+| `qwen3_tts_high_concurrency.yaml` | V1 | defaults | V1 high-concurrency control |
 
 Default stage config uses async_chunk streaming (`qwen3_tts.yaml`). Key knobs:
 

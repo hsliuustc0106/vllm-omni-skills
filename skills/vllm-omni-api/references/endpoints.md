@@ -93,3 +93,7 @@ Returns list of currently loaded models.
 ## GET /health
 
 Returns 200 if server is ready. Use for load balancer health checks and readiness probes.
+
+## WS /v1/realtime
+
+OpenAI-compliant full-duplex realtime WebSocket for Qwen3-Omni (default handler). Audio streaming, client-driven VAD, and tool calling. The proprietary duplex protocol is served at `WS /v1/realtime?duplex=1` (alias `WS /v1/duplex`).

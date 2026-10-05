@@ -24,9 +24,11 @@ vLLM-Omni supports text-to-speech (TTS), text-to-audio (sound effects, music), a
 | MiMo-V2.5-ASR | `XiaomiMiMo/MiMo-V2.5-ASR` | ASR (speech-to-text) | 24 GB |
 | OmniVoice | `nvidia/OmniVoice` | TTS + voice cloning (HiggsAudioV2) | 8 GB |
 | VoxCPM2 | `openbmb/VoxCPM2` | TTS (native AR, 30+ languages) | 8 GB |
+| Higgs-Audio v3 | `bosonai/higgs-audio-v3-tts-4b` | TTS (4B, MRV2 streaming) | 16 GB |
 | Stable-Audio-Open | `stabilityai/stable-audio-open-1.0` | Text-to-audio (music/effects) | 8 GB |
+| YuE2-3B | `m-a-p/YuE2-3B` (+ `m-a-p/YuE2-Vae`) | Text-to-music (ABC notation plan) | 24 GB |
 
-OmniVoice supports voice cloning via `ref_audio` + `ref_text` (requires transformers>=5.3). VoxCPM2 is a 2B tokenizer-free native AR TTS model producing 48kHz audio in 30+ languages (requires `pip install voxcpm`).
+OmniVoice supports voice cloning via `ref_audio` + `ref_text` (requires transformers>=5.3). VoxCPM2 is a 2B tokenizer-free native AR TTS model producing 48kHz audio in 30+ languages (requires `pip install voxcpm`). Higgs-Audio v3 (`bosonai/higgs-audio-v3-tts-4b`) is a Qwen3-based 4B TTS model with MRV2 streaming (deploy `vllm_omni/deploy/higgs_multimodal_qwen3_mrv2_h200.yaml`). YuE2-3B generates 48 kHz stereo music from an editable ABC-notation plan (`cot=full|melody|off`); serve via `/v1/audio/speech` and point `YUE2_VAE` at the VAE checkpoint. It also supports async single-stage synthesis with CUDA graph acceleration (`cudagraph_mode: FULL_AND_PIECEWISE`).
 
 ## Model Architectures
 
@@ -168,7 +170,9 @@ For batch mode (no streaming), use `qwen3_tts_batch.yaml`.
 
 Fish Speech uses `fish_speech_s2_pro.yaml` with similar knobs. Its DAC codec outputs at 44.1 kHz (vs Qwen3-TTS's 24 kHz).
 
-Note: CosyVoice3 does not support async_chunk streaming yet - use `cosyvoice3.yaml` (batch mode only).
+CosyVoice3 supports opt-in packed (chunk-causal) Flow and batched HiFT code2wav inference via `cosyvoice3_packed_streaming.yaml` and `cosyvoice3_full_response*.yaml` (Hopper-only). Gate with `COSYVOICE3_PACKED_STREAMING=1`, `COSYVOICE3_FLOW_CUDAGRAPH`, and `COSYVOICE3_FULL_RESPONSE_OPTIMIZATIONS=1`. Default `cosyvoice3.yaml` remains batch mode.
+
+Qwen3-TTS also ships a fused single-stage pipeline (`qwen3_tts_fused`, deploy `qwen3_tts_fused_single_gpu.yaml`) that decodes the codec in-Talker (`talker_stream_decode`) with a fused code predictor. Requires CUDA, the V2 model runner, `async_chunk`, TP=PP=1, and prefix caching disabled.
 
 ## Streaming Audio
 

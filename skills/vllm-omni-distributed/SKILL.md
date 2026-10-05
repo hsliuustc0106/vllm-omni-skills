@@ -146,6 +146,17 @@ vllm serve Wan-AI/Wan2.2-T2V-A14B-Diffusers --omni \
 
 This accelerates video/image generation by parallelizing the diffusion computation.
 
+## HSDP Pre-Sharded Weight Loading
+
+For Cosmos 3 and Cosmos 3 Edge transformers, HSDP can pre-shard weights before loading checkpoint slices into FSDP storage, reducing peak host memory during load:
+
+```bash
+vllm serve <model> --omni \
+  --use-hsdp --hsdp-shard-size 8 --hsdp-weight-load-strategy pre_sharded
+```
+
+`hsdp_weight_load_strategy` accepts `full` (default) or `pre_sharded`. Not supported with quantization, LoRA, tensor transforms, or dtype conversion.
+
 ## Configuration Examples
 
 ### Small model, single GPU

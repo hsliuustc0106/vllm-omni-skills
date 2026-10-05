@@ -28,6 +28,7 @@ Diffusion models benefit from multi-thread weight loading (enabled by default), 
 | `/v1/audio/voice/upload` | POST | Upload custom voice for cloning |
 | /v1/images/edits | POST | Image editing |
 | /v1/videos/generations | POST | Video generation (async poll) |
+| `/v1/realtime` | WS | Full-duplex realtime audio (OpenAI-compliant) |
 | `/health` | GET | Server health check |
 | `/v1/models` | GET | List loaded models |
 
@@ -133,6 +134,16 @@ response = client.chat.completions.create(
     }],
 )
 ```
+
+## Full-Duplex Realtime (WebSocket)
+
+Qwen3-Omni exposes an OpenAI-compliant full-duplex realtime endpoint over WebSocket with audio streaming, client-driven VAD, and tool calling:
+
+```
+WS /v1/realtime
+```
+
+For Qwen3-Omni this is the default handler. The proprietary duplex protocol remains available at `WS /v1/realtime?duplex=1` (alias `WS /v1/duplex`). A reference LiveKit frontend lives in `examples/online_serving/qwen3_omni/fullduplex-livekit-frontend/`.
 
 ## Error Handling
 

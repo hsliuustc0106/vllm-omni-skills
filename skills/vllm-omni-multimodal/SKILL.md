@@ -16,6 +16,7 @@ Omni-modality models accept multiple input types (text, image, audio, video) and
 | Qwen2.5-Omni-7B | `Qwen/Qwen2.5-Omni-7B` | Text, image, audio, video | Text, audio | 24 GB |
 | Qwen2.5-Omni-3B | `Qwen/Qwen2.5-Omni-3B` | Text, image, audio, video | Text, audio | 12 GB |
 | Qwen3-Omni-30B-A3B | `Qwen/Qwen3-Omni-30B-A3B-Instruct` | Text, image, audio, video | Text, audio | 48 GB |
+| MiniCPM-o 4.5 | `openbmb/MiniCPM-o-4_5` | Text, image, audio | Text, audio | 80 GB |
 
 ## Quick Start
 
@@ -168,6 +169,16 @@ vllm serve Qwen/Qwen3-Omni-30B-A3B-Instruct --omni \
 ```
 
 Qwen3-Omni is compatible with the v2 model runner (vllm 0.19). Uses native `launch_core_engines` instead of custom spawning. `add_streaming_update` API removed; audio output tensors are explicitly converted to float. CUDAGraph supports tuple-returning thinker model. Fixed in #2522.
+
+## MiniCPM-o 4.5
+
+MiniCPM-o 4.5 (`openbmb/MiniCPM-o-4_5`) returns text and audio in a single `/v1/chat/completions` call. It supports turn-mode MRv2 serving with batched audio inference:
+
+```bash
+vllm serve openbmb/MiniCPM-o-4_5 --omni --port 8091
+```
+
+Deploy layouts range from 1-GPU (large-memory) through 2-GPU (`minicpmo_4_5_2gpu.yaml`), 3-GPU, and 8×RTX-4090 (`minicpmo_4_5_8x4090.yaml`). Turn-mode MRv2 profiles (`minicpmo_4_5_turn_mrv2*.yaml`) isolate the Thinker on GPU 0 and co-locate Talker/Code2Wav for batched decoding.
 
 ## Troubleshooting
 

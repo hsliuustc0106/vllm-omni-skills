@@ -46,6 +46,7 @@ Starting points:
 - `Qwen-Image`, `Qwen-Image-2512`: begin with `ignored_layers=["img_mlp"]`
 - `Tongyi-MAI/Z-Image-Turbo`: start with all layers quantized
 - `FLUX.1-dev`, `HunyuanImage-3`, `HunyuanVideo-1.5`: documented in current FP8 support tables
+- `SenseNova/SenseNova-U1.5-8B-MoT`: online FP8 on the language-model linears via `--quantization fp8`. On SM80/A800 set `VLLM_DISABLED_KERNELS=CutlassFP8ScaledMMLinearKernel` (otherwise it falls back to Marlin W8A16). Online FP8 is rejected together with distilled LoRA.
 
 Prefer dynamic activation scaling unless static calibration is explicitly required.
 

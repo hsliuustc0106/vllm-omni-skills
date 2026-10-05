@@ -19,8 +19,11 @@ vLLM-Omni supports video generation through diffusion transformer models, primar
 | NextStep-1.1 | `stepfun-ai/NextStep-1.1` | Text-to-video | 24 GB |
 | Helios-Distilled | `naver-ai/Helios-Distilled` | Text-to-video | 24 GB |
 | daVinci-MagiHuman | `SII-GAIR/daVinci-MagiHuman-Base-1080p` | Image-to-video + audio | 24 GB |
+| SeedVR2-3B | `ByteDance-Seed/SeedVR2-3B` | Video restoration / upscaling | 32 GB |
 
 daVinci-MagiHuman is an image-to-video model that also generates audio (44100 Hz, 25 fps). Use `--enable-diffusion-pipeline-profiler` to get per-stage timing (`stage_durations`) and peak memory (`peak_memory_mb`) in video responses (async poll JSON or sync HTTP headers).
+
+SeedVR2-3B restores/upscales long videos (fixed-checkpoint conditioning, CFG=1, single Euler step). It supports colour correction via `color_correction_method` (`lab`/`wavelet`/`adain`/`none`) and long-video jobs through `/v1/seedvr2/restore-long` with window sequence parallelism (`ulysses_degree`). Scale via `--stage-overrides` with `vae_patch_parallel_size` / `vae_parallel_mode`.
 
 ## Quick Start: Text-to-Video
 

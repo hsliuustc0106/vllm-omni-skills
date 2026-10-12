@@ -16,6 +16,9 @@ vLLM-Omni supports text-to-image generation and image editing through diffusion 
 | Z-Image-Turbo | `Tongyi-MAI/Z-Image-Turbo` | Text-to-image | 8 GB |
 | Qwen-Image | `Qwen/Qwen-Image` | Text-to-image (AR+DiT) | 24 GB |
 | Qwen-Image-Edit | `Qwen/Qwen-Image-Edit` | Image editing | 24 GB |
+| Qwen-Image-2.1 | `Qwen/Qwen-Image-2.1` | Text-to-image + editing | 40 GB |
+| Qwen-Image-2.1-Turbo | `Qwen/Qwen-Image-2.1-Turbo` | Text-to-image + editing (8-step) | 40 GB |
+| JoyAI-Image-Edit | `jdopensource/JoyAI-Image-Edit-Diffusers` | Image editing | 40 GB |
 | GLM-Image | `zai-org/GLM-Image` | Text-to-image | 24 GB |
 | BAGEL-7B-MoT | `ByteDance-Seed/BAGEL-7B-MoT` | Text-to-image + understanding | 24 GB |
 | FLUX.1-dev | `black-forest-labs/FLUX.1-dev` | Text-to-image | 40 GB |
@@ -23,10 +26,13 @@ vLLM-Omni supports text-to-image generation and image editing through diffusion 
 | FLUX.2-dev | `black-forest-labs/FLUX.2-dev` | Text-to-image + cache_dit | 24 GB |
 | Dreamid-Omni | `bytedance/dreamid-omni` | Text-to-image (ByteDance) | 24 GB |
 | SD 3.5 Medium | `stabilityai/stable-diffusion-3.5-medium` | Text-to-image | 12 GB |
+| SDXL 1.0 | `stabilityai/stable-diffusion-xl-base-1.0` | Text-to-image + request batching | 12 GB |
 | OmniGen2 | `OmniGen2/OmniGen2` | Text-to-image | 24 GB |
 | HunyuanImage3.0 | `tencent/HunyuanImage-3.0` | Text-to-image + editing | 40 GB |
 
 Dreamid-Omni from ByteDance and FLUX.2-dev with cache_dit support are available. FLUX.2-klein supports plain string prompts (no dict wrapper needed).
+
+Qwen-Image-2.1 is a T2I + editing DiT (up to 4 condition images via the Qwen3-VL text encoder) that uses true CFG only (`true_cfg_scale`, no `guidance_scale`) and supports FP8. The `-Turbo` checkpoint is an 8-step distilled variant: omit `num_inference_steps` (a fixed sigma grid is auto-loaded) and keep CFG at 1.0 (Qwen Research License, not Apache-2.0). JoyAI-Image-Edit edits exactly one image per request (1 prompt + 1 image), defaults `guidance_scale` to 4.0, snaps output to Joy resolution buckets, and does not support TP/HSDP — use `--enable-cpu-offload` on smaller GPUs. SDXL now supports request-level batching (`max_num_seqs > 1`).
 
 ## Quick Start: Offline Generation
 
@@ -72,7 +78,7 @@ curl -s http://localhost:8091/v1/chat/completions \
 
 ## Image Editing
 
-For models that support image editing (Qwen-Image-Edit, LongCat-Image-Edit, HunyuanImage3.0):
+For models that support image editing (Qwen-Image-Edit, JoyAI-Image-Edit, LongCat-Image-Edit, HunyuanImage3.0):
 
 ```python
 from vllm_omni.entrypoints.omni import Omni
@@ -106,7 +112,7 @@ Note: diffusion pipeline `max_batch_size` defaults to 1. Input lists are process
 - **Fast prototyping**: Z-Image-Turbo (small, fast)
 - **High quality**: FLUX.1-dev or HunyuanImage3.0
 - **Low VRAM**: SD 3.5 Medium or FLUX.2-klein-4B
-- **Image editing**: Qwen-Image-Edit or HunyuanImage3.0
+- **Image editing**: Qwen-Image-Edit, JoyAI-Image-Edit, or HunyuanImage3.0
 - **Understanding + generation**: BAGEL-7B-MoT
 
 ## Troubleshooting

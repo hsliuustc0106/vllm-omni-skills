@@ -19,8 +19,11 @@ vLLM-Omni supports video generation through diffusion transformer models, primar
 | NextStep-1.1 | `stepfun-ai/NextStep-1.1` | Text-to-video | 24 GB |
 | Helios-Distilled | `naver-ai/Helios-Distilled` | Text-to-video | 24 GB |
 | daVinci-MagiHuman | `SII-GAIR/daVinci-MagiHuman-Base-1080p` | Image-to-video + audio | 24 GB |
+| Kandinsky 6 | `kandinskylab/Kandinsky-6.0-Pro-5s-Diffusers` | Text/Image-to-video + audio | 80 GB |
 
 daVinci-MagiHuman is an image-to-video model that also generates audio (44100 Hz, 25 fps). Use `--enable-diffusion-pipeline-profiler` to get per-stage timing (`stage_durations`) and peak memory (`peak_memory_mb`) in video responses (async poll JSON or sync HTTP headers).
+
+Kandinsky 6 is a TI2VA model (text/image-to-video-and-audio) with MP4 output (H.264 video + AAC audio, `sample_audio=true` by default). Pro defaults are 864×480 @ 24 fps, batch size 1, and it requires `--enable-cpu-offload` on an 80 GB GPU. FP8, TP, Ulysses/ring SP, and MagCache/TeaCache/Cache-DiT are wired (TeaCache coefficients uncalibrated); LoRA and NABLA are not supported.
 
 ## Quick Start: Text-to-Video
 

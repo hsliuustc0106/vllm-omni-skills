@@ -83,6 +83,16 @@ For multi-stage omni models, the main tested path is pre-quantized ModelOpt chec
 
 Key rule: quantization scope should remain constrained to the intended component, such as the thinker `language_model`, while audio/vision encoders, talker, and code2wav remain BF16 unless explicitly supported.
 
+## AutoRound NVFP4 (INC)
+
+`OmniINCConfig` (Intel Neural Compressor) supports `data_type="nv_fp"` for AutoRound NVFP4, dispatched to `CompressedTensorsW4A4Fp4` (W4A4 FP4). Checkpoint contract:
+
+```json
+{"quant_method": "auto-round", "data_type": "nv_fp", "bits": 4, "group_size": 16, "packing_format": "auto_round:llm_compressor"}
+```
+
+Excluded or `extra_config` layers (e.g. `{"proj": {"bits": 16}}`) fall back to `UnquantizedLinearMethod`. `SUPPORTED_DTYPES` is `{"int", "mx_fp", "nv_fp"}`.
+
 ## SqueezeLLM
 
 - **Precision**: Mixed (sparse + quantized)
@@ -118,3 +128,4 @@ vllm serve <model> --omni --dtype float16    # for Volta/Turing (V100, RTX 20 se
 | SqueezeLLM | ~2-3x | Medium | Any CUDA | Low |
 | ModelOpt FP8 | ~2x on scoped component | Offline/pre-quantized checkpoint | Ada/Hopper | Model-specific |
 | ModelOpt NVFP4 | >2x on scoped component | Offline/pre-quantized checkpoint | Blackwell | Experimental |
+| AutoRound NVFP4 | ~4x | Offline/pre-quantized checkpoint | Blackwell (SM 100+) | Model-specific |

@@ -28,6 +28,7 @@ Diffusion models benefit from multi-thread weight loading (enabled by default), 
 | `/v1/audio/voice/upload` | POST | Upload custom voice for cloning |
 | /v1/images/edits | POST | Image editing |
 | /v1/videos/generations | POST | Video generation (async poll) |
+| `/v1/realtime` | WebSocket | Real-time voice (duplex or turn-based) |
 | `/health` | GET | Server health check |
 | `/v1/models` | GET | List loaded models |
 
@@ -35,6 +36,8 @@ Diffusion models benefit from multi-thread weight loading (enabled by default), 
 `/v1/audio/speech` supports `response_format: "wav"` with streaming.
 
 `/v1/images/generations` supports client-side request cancellation via `AbortController` (or `client.cancel()` in the openai Python SDK). `--max-generated-image-size` is enforced on both `/v1/images/generations` and `/v1/images/edits` (returns HTTP 400 for oversized requests).
+
+`/v1/realtime` (WebSocket) mode is selected with a query param: `?duplex=0` → turn-based (works for any omni/AR model with a chat handler, not just Qwen3-Omni), `?duplex=1` → native duplex (refused on non-duplex servers). Audio is mono PCM16 @ 24 kHz in/out; a manual turn requires `session.update` + `input_audio_buffer.commit` + `response.create`.
 
 ## Chat Completions (Universal)
 

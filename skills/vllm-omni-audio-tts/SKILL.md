@@ -146,6 +146,8 @@ The uniproc Code2Wav stage default `max_num_seqs` is now `10` (was `1`). Avoid r
 
 CUDA Graph warmup for Qwen3-TTS now accounts for custom `decode_chunk_frames` / `decode_left_context_frames` overrides.
 
+Code2Wav also emits a `codec_frames` field in `multimodal_outputs` (shape `[frames, codebooks]`, dtype int64) — the exact code frames decoded per async chunk (left-context excluded). Streaming clients that need the code sequence alongside audio can consume it directly.
+
 ### High-Concurrency Profile
 
 For high-concurrency TTS serving (voice cloning, c=64+), use `qwen3_tts_high_concurrency.yaml`:

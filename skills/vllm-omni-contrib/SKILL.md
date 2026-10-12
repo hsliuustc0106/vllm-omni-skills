@@ -117,6 +117,8 @@ stages:
         max_batch_size: 1
 ```
 
+`engine_output_type` must be one of the canonical lowercase names `text`, `image`, `audio`, `latent`, `token_ids` — old aliases (`speech`, `wav`, `images`, `pixel_values`, `latents`, `tokens`) are rejected at server startup. Use `token_ids` for discrete codebook/vocab-index outputs (not `latent` or `text`). Validation runs at startup; an invalid value fails the server.
+
 ### Step 5: Write Tests
 
 ```python

@@ -135,6 +135,16 @@ vllm serve <model> --omni \
   --port 8091
 ```
 
+### Diffusion Multi-Node with Ray Executor
+
+For multi-node **diffusion** (image/video) inference, enable the Ray executor backend in the deploy YAML:
+
+```yaml
+distributed_executor_backend: ray
+```
+
+This runs one worker actor per GPU (PACK placement group); Ray owns placement/lifecycle while NCCL still owns the model-parallel data plane. Start the cluster (`ray start --head --node-ip-address=<ip> --port=6379` on the head, `ray start --address=<ip>:6379` on workers), then launch with `RAY_ADDRESS=<ip>:6379 vllm serve MODEL --omni --deploy-config my_deploy.yaml`. `VLLM_*`/`OMNI_*`/`DIFFUSION_*`/`NCCL_*` env vars are forwarded to workers.
+
 ## Sequence Parallelism for Diffusion
 
 For DiT models, sequence parallelism splits the denoising sequence across GPUs:

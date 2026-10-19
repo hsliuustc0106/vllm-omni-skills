@@ -25,8 +25,12 @@ vLLM-Omni supports text-to-speech (TTS), text-to-audio (sound effects, music), a
 | OmniVoice | `nvidia/OmniVoice` | TTS + voice cloning (HiggsAudioV2) | 8 GB |
 | VoxCPM2 | `openbmb/VoxCPM2` | TTS (native AR, 30+ languages) | 8 GB |
 | Stable-Audio-Open | `stabilityai/stable-audio-open-1.0` | Text-to-audio (music/effects) | 8 GB |
+| Fish Audio Drama 3 | `fishaudio/drama-3` | TTS + voice cloning (MoE AR + DAC) | 80 GB |
+| VibeVoice-1.5B | `vibevoice/VibeVoice-1.5B-hf` | TTS (single speaker, offline eager) | 16 GB |
 
 OmniVoice supports voice cloning via `ref_audio` + `ref_text` (requires transformers>=5.3). VoxCPM2 is a 2B tokenizer-free native AR TTS model producing 48kHz audio in 30+ languages (requires `pip install voxcpm`).
+
+Fish Audio Drama 3 is a two-stage AR + DAC TTS model on a Qwen3.5 MoE backbone (35B-total / 3B-active) with voice cloning via `ref_audio` + `ref_text`, speaker tags (`<|speaker:N|>`), and optional `bsgemm-moe` block-FP8 quantization of routed experts. VibeVoice-1.5B is offline-only and eager-mode (single speaker, optional voice clone from one ≤60s reference clip); use the `vibevoice/VibeVoice-1.5B-hf` Transformers checkpoint (the raw `microsoft/VibeVoice-1.5B` schema is unsupported) and set `enforce_eager: true`, `async_scheduling: false`.
 
 ## Model Architectures
 
@@ -182,6 +186,8 @@ response = client.chat.completions.create(
 )
 ```
 
+The `/v1/audio/speech/stream` WebSocket supports a `text_input_mode` config of `"buffered"` (default) or `"commitment"` for Qwen3-TTS. Commitment mode (policy `zh_en_special_v1`) holds unfinished numeric/unit/symbol suffixes across packet seams and releases irreversible segments at strong-terminator boundaries (`. ! ? 。 ！ ？ …` + newline), synthesizing each as an independent request. Requires explicit `language` (Chinese/English) and `split_granularity="none"`.
+
 ## Adding a New TTS Model
 
 For a step-by-step guide on integrating a new TTS model into vLLM-Omni, see the [TTS model developer guide](https://github.com/vllm-project/vllm-omni/blob/main/docs/contributing/model/adding_tts_model.md). Offline examples are consolidated under `examples/offline_inference/text_to_speech/<model>/end2end.py`, and online serving examples under `examples/online_serving/text_to_speech/<model>/`.
@@ -203,6 +209,8 @@ For a step-by-step guide on integrating a new TTS model into vLLM-Omni, see the 
 **Fish Speech voice cloning latency**: Uploaded voices via `/v1/audio/voice/upload` now auto-cache DAC-encoded reference audio. First request encodes the reference; subsequent requests reuse the cached codes for faster TTFP. Fixed in #2609.
 
 **Event loop blocking under concurrent TTS**: Blocking tokenizer operations (`_build_voxtral_prompt`, `_build_fish_speech_prompt`) now run in a shared `ThreadPoolExecutor(max_workers=1)`. This prevents `/health` latency spikes under concurrent load. Fixed in #2511.
+
+**Qwen3-TTS ref_audio eviction failure**: A request could fail if the engine's per-replica ref_audio artifact LRU evicted the reference. The serving layer now always ships the full ref_audio waveform (raw float32 bytes) with the request; the artifact key is only a cache hint, and a cache miss recomputes from the payload instead of erroring. Fixed in #8697.
 
 ## References
 

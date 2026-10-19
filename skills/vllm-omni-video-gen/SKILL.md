@@ -19,8 +19,11 @@ vLLM-Omni supports video generation through diffusion transformer models, primar
 | NextStep-1.1 | `stepfun-ai/NextStep-1.1` | Text-to-video | 24 GB |
 | Helios-Distilled | `naver-ai/Helios-Distilled` | Text-to-video | 24 GB |
 | daVinci-MagiHuman | `SII-GAIR/daVinci-MagiHuman-Base-1080p` | Image-to-video + audio | 24 GB |
+| ABot-World | `acvlab/ABot-World-0-5B-LF` | Interactive world model (AR-Diffusion) | experimental |
 
 daVinci-MagiHuman is an image-to-video model that also generates audio (44100 Hz, 25 fps). Use `--enable-diffusion-pipeline-profiler` to get per-stage timing (`stage_durations`) and peak memory (`peak_memory_mb`) in video responses (async poll JSON or sync HTTP headers).
+
+ABot-World (`ABotWorldCausalPipeline`) is an experimental image-conditioned interactive world model with W/A/S/D/I/J/K/L camera controls; it streams realtime AR-Diffusion decode and requires `enforce_eager=True` (validated on a single NVIDIA L20X).
 
 ## Quick Start: Text-to-Video
 

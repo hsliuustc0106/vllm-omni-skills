@@ -140,6 +140,8 @@ vllm serve <model> --omni --cpu-offload-gb 10
 
 **Qwen-Image tiny request sizes**: Small requests (below VAE alignment) are now clamped to minimum valid dimensions instead of collapsing to zero. All Qwen-Image pipeline variants use the shared `normalize_min_aligned_size()` helper. Fixed in #2637.
 
+**HunyuanImage3.0 stage-0 tokenizer/AR seed not set**: The stage-0 AR stage now declares `owns_tokenizer=True` in pipeline metadata (replacing the YAML `is_comprehension`/edges overrides), so the serving path correctly sets AR seed and stop tokens on that stage. Fixed in #8432.
+
 ## References
 
 - For FLUX model details, see [references/flux-models.md](references/flux-models.md)

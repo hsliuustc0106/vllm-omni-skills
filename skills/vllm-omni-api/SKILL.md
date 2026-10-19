@@ -36,6 +36,10 @@ Diffusion models benefit from multi-thread weight loading (enabled by default), 
 
 `/v1/images/generations` supports client-side request cancellation via `AbortController` (or `client.cancel()` in the openai Python SDK). `--max-generated-image-size` is enforced on both `/v1/images/generations` and `/v1/images/edits` (returns HTTP 400 for oversized requests).
 
+## Realtime (Turn-Based) Sessions
+
+The turn-based `/v1/realtime` path (`duplex=0`) supports **server-side VAD**. Set `session.audio.input.turn_detection = {"type": "server_vad"}` in `session.update` to have the server detect speech start/stop (Silero VAD) and auto-commit the audio buffer. Optional fields: `threshold` (default `0.5`), `prefix_padding_ms` (`300`), `silence_duration_ms` (`500`), `create_response` (`true`), `interrupt_response` (`true`). Requires the `server-vad` extra (`pip install vllm-omni[server-vad]`). `semantic_vad` is rejected with the `unsupported_turn_detection` error.
+
 ## Chat Completions (Universal)
 
 The chat completions endpoint handles all modalities through the message format:

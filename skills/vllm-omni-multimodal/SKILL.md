@@ -179,6 +179,8 @@ Qwen3-Omni is compatible with the v2 model runner (vllm 0.19). Uses native `laun
 
 **Qwen3-Omni performance**: The multi-stage pipeline optimizes CPU hidden-state copying — only copies to CPU when downstream stages need payloads. Text-only inference (without `--omni`) is supported for benchmarking via `use_omni: false`. Fixed in #3203.
 
+**Qwen3-Omni fastsafetensors load OOM**: Weight loading now streams weights into only the active model stage (no full buffering of `thinker./talker./code2wav.` shards), and deferred Code2Wav copies are held on CPU instead of GPU. Fixed in #6412.
+
 ## References
 
 - For Qwen-Omni architecture and advanced config, see [references/qwen-omni.md](references/qwen-omni.md)

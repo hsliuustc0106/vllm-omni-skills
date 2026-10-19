@@ -66,6 +66,8 @@ curl -s http://localhost:8091/v1/images/generations \
 # If PSNR < 25 dB or visual artifacts appear, check references/diffusion.md
 ```
 
+FLUX.1-dev `fp8` now covers the CLIP and T5 text encoders (via meta-device init + `recursive_replace_linear`) in addition to the DiT transformer; the VAE is intentionally kept full-precision. Previously FP8 applied only to the transformer. Fixed in #3997.
+
 ## Common Mistakes
 
 | Symptom | Likely Cause | Fix |
@@ -81,6 +83,7 @@ curl -s http://localhost:8091/v1/images/generations \
 | offline text_to_image fails | quantization config conflicts with diffusion pipeline init | fixed in #1515, update vllm-omni |
 | OmniDiffusion init crash | `pipeline_class` variable not initialized during quantized load | fixed in #1562, update vllm-omni |
 | HunyuanImage3.0 load_weights error | weight loading fails with quantized HunyuanImage3.0 | fixed in #1598, update vllm-omni |
+| AutoRound fails to quantize thinker/remapped stages | stale `config_parser` bound to the pre-upgrade `INCConfig` after `apply_vllm_mapper` remaps layer prefixes | fixed in #8870, update vllm-omni |
 
 ## References
 

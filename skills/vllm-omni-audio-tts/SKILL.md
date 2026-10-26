@@ -25,8 +25,12 @@ vLLM-Omni supports text-to-speech (TTS), text-to-audio (sound effects, music), a
 | OmniVoice | `nvidia/OmniVoice` | TTS + voice cloning (HiggsAudioV2) | 8 GB |
 | VoxCPM2 | `openbmb/VoxCPM2` | TTS (native AR, 30+ languages) | 8 GB |
 | Stable-Audio-Open | `stabilityai/stable-audio-open-1.0` | Text-to-audio (music/effects) | 8 GB |
+| Ming-3.0-Audio-Flash | `inclusionAI/Ming-3.0-audio-flash` | ASR + speech QA (optional spoken answers) | experimental |
+| Ming-3.0-TTS Tiny | `inclusionAI/Ming-3.0-tts-tiny` | TTS + voice cloning/control/design | experimental |
 
 OmniVoice supports voice cloning via `ref_audio` + `ref_text` (requires transformers>=5.3). VoxCPM2 is a 2B tokenizer-free native AR TTS model producing 48kHz audio in 30+ languages (requires `pip install voxcpm`).
+
+Ming-3.0-Audio-Flash is a two-stage ASR + speech-QA model (BailingMoeV3Audio thinker + BailingTalker2 talker, 44.1 kHz audio output); validated on 4x 80 GB GPU / 2x H200. Ming-3.0-TTS Tiny is a two-stage Ling-V3 MoE TTS model supporting voice cloning, speech control, voice design, and multi-speaker podcast (mono 44.1 kHz output); validated on 1x H100/H200. Both ship deploy configs under `vllm_omni/deploy/`.
 
 ## Model Architectures
 
@@ -203,6 +207,10 @@ For a step-by-step guide on integrating a new TTS model into vLLM-Omni, see the 
 **Fish Speech voice cloning latency**: Uploaded voices via `/v1/audio/voice/upload` now auto-cache DAC-encoded reference audio. First request encodes the reference; subsequent requests reuse the cached codes for faster TTFP. Fixed in #2609.
 
 **Event loop blocking under concurrent TTS**: Blocking tokenizer operations (`_build_voxtral_prompt`, `_build_fish_speech_prompt`) now run in a shared `ThreadPoolExecutor(max_workers=1)`. This prevents `/health` latency spikes under concurrent load. Fixed in #2511.
+
+**OmniVoice long-form generation**: Long input text is split into chunks (target `extra_params.audio_chunk_duration`, default 15.0 s) once estimated duration exceeds `audio_chunk_threshold` (default 30.0 s), then rejoined. Max 64 chunks per request (HTTP 400 above). Override per request via `extra_params`: `{"audio_chunk_duration": 15.0, "audio_chunk_threshold": 30.0}`. Added in #6409.
+
+**OmniVoice voice cloning without `ref_text`**: OmniVoice lazily loads `openai/whisper-large-v3-turbo` to transcribe reference audio when `ref_text` is omitted (adds first-request latency/VRAM). Set `additional_config.omnivoice_asr.load_asr_on_startup: true` to load at startup, and `additional_config.omnivoice_asr.asr_device` (`"cuda:0"` / `"cpu"`) to control placement. Output is mono 24 kHz. Added in #5784.
 
 ## References
 

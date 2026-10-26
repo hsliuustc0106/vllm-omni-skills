@@ -122,6 +122,8 @@ Not all models are supported on every backend. Check the support matrix:
 
 **NPU operator not supported**: Some operations fall back to CPU on NPU. Check logs for fallback warnings and update CANN to the latest version.
 
+**Intel XPU sparse attention (`SPARGE_ATTN`)**: A block-sparse INT8 diffusion attention backend is available on XPU via `--diffusion-attention-backend SPARGE_ATTN`, backed by the `sparge_sage2_attn_meansim_topk_xpu` kernel from `auto-round-lib` (`pip install auto-round-lib`). Tune with `--diffusion-attention-config '{"default":{"backend":"SPARGE_ATTN","sparge":{"topk":0.5}}}'` (`topk` default 0.5, range (0,1]). FP16/BF16, head_dim 64/128, MHA/GQA only; not a bit-exact replacement for dense attention — validate against `TORCH_SDPA`.
+
 ## Out-of-Tree Hardware Backends
 
 Out-of-tree hardware backends can customize the diffusion engine without forking core code by subclassing `OmniPlatform` and overriding extension points:

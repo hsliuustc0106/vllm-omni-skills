@@ -85,6 +85,23 @@ vllm serve <model> --omni --gpu-memory-utilization 0.8
 vllm serve <model> --omni --gpu-memory-utilization 0.95
 ```
 
+### KV Cache + Hidden State CPU Offload (LMCache)
+
+The Thinker AR stage can offload both KV cache and hidden states to CPU together via LMCache, configured per stage:
+
+```yaml
+stages:
+  - stage_id: 0
+    enable_prefix_caching: false   # required — cannot combine with LMCache
+    omni_kv_config:
+      kv_store_config:
+        lmcache_config:
+          config_file: ""           # "" = LMCache defaults; a path sets LMCACHE_CONFIG_FILE
+          # extra keys forwarded as lmcache.<key> (e.g. max_local_cpu_size: 4.0)
+```
+
+Requires `pip install lmcache`; `enable_hidden_state_cache` is auto-enabled. Targets the Qwen2.5-Omni Thinker stage — diffusion/talker stages ignore `omni_kv_config`.
+
 ## Multi-GPU Serving
 
 ### Tensor Parallelism

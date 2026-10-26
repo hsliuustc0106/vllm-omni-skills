@@ -25,8 +25,11 @@ vLLM-Omni supports text-to-image generation and image editing through diffusion 
 | SD 3.5 Medium | `stabilityai/stable-diffusion-3.5-medium` | Text-to-image | 12 GB |
 | OmniGen2 | `OmniGen2/OmniGen2` | Text-to-image | 24 GB |
 | HunyuanImage3.0 | `tencent/HunyuanImage-3.0` | Text-to-image + editing | 40 GB |
+| MOSS-Image-Base | `OpenMOSS-Team/MOSS-Image-Base` | Text-to-image | experimental |
 
 Dreamid-Omni from ByteDance and FLUX.2-dev with cache_dit support are available. FLUX.2-klein supports plain string prompts (no dict wrapper needed).
+
+MOSS-Image-Base is a text-to-image model (Qwen3.5-9B text encoder + 42-block joint image/text DiT + FLUX.2 VAE) with Skip-Layer Guidance (SLG) and data-parallel layer offloading (DLO). Serve with `vllm serve OpenMOSS-Team/MOSS-Image-Base --omni --enforce-eager`; supports TP 2/4/8, `--ulysses-degree 2`, `--cfg-parallel-size 2`, and continuous batching (`--step-execution --max-num-seqs 4`). SLG via request `extra_params`: two-pass `uncond_skip_layers`, or three-pass `slg_layers` + `slg_scale` + `slg_start`/`slg_stop`. Does not support TeaCache/Cache-DiT or ring attention.
 
 ## Quick Start: Offline Generation
 

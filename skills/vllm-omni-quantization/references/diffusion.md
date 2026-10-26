@@ -5,6 +5,7 @@ The local `vllm-omni` diffusion quantization methods are:
 - `fp8`
 - `int8`
 - `gguf`
+- `convrot_int8` / `convrot_int4` (rotation-based)
 
 Use this file when working on DiT quantization, the unified quantization framework, adding a new method such as `nvfp4`, or debugging loader, mapping, quality, or performance issues.
 
@@ -40,6 +41,8 @@ Use per-component configs when only part of a model should be quantized or when 
 - Reuses upstream `vllm` FP8 infrastructure
 - Flow: user config -> `build_quant_config()` -> quant config routed into transformer linear layers and other components
 - `DiffusersPipelineLoader` must still run `process_weights_after_loading()` for modules with quant methods
+
+MammothModa2 supports online FP8 on the DiT stage only: set `quantization: fp8` on `stage_id: 1` in the deploy YAML and keep the stage-0 AR model in BF16 (validated online FP8).
 
 Starting points:
 
@@ -77,6 +80,20 @@ Implementation rules:
 - Guard fused QKV and KV rewrites so `to_qkv` or `add_kv_proj` are not rewritten twice
 - GGUF linear methods expect 2D input; flatten and restore shape around matmul
 - Prefer eager mode and `fp16` unless measurement says otherwise
+
+### ConvRot (rotated INT8/INT4)
+
+Training-free rotation-based quantization (arXiv:2512.03673) that spreads DiT activation outliers with a regular Hadamard rotation before quantization. Two online methods:
+
+- `convrot_int8` — rotated W8A8
+- `convrot_int4` — rotated W4A4 (packed INT4 weights computed on INT8 tensor cores)
+
+Options: `rotation_group_size` (default 256, power of four), `ignored_layers`, and `int8_layers` (`convrot_int4` only). CUDA-only (compute capability 8.0+), online-only (not serialized). Validated on MiniMax-H3 Ref2VA (H200).
+
+```bash
+vllm serve <model> --omni --quantization convrot_int8
+```
+
 
 ## Adding a New Method
 

@@ -169,6 +169,8 @@ vllm serve Qwen/Qwen3-Omni-30B-A3B-Instruct --omni \
 
 Qwen3-Omni is compatible with the v2 model runner (vllm 0.19). Uses native `launch_core_engines` instead of custom spawning. `add_streaming_update` API removed; audio output tensors are explicitly converted to float. CUDAGraph supports tuple-returning thinker model. Fixed in #2522.
 
+Thinker (stage-0) prefix caching is enabled by default for Qwen3-Omni (and MiniCPM-o 4.5) CUDA V1 turn serving. It stays off on NPU/ROCm/XPU/MUSA and in MRv2/duplex profiles. To disable, serve an overlay with `stages: [{stage_id: 0, enable_prefix_caching: false}]`.
+
 ## Troubleshooting
 
 **Slow with video input**: Video processing requires extracting and encoding frames. Shorter clips process faster.

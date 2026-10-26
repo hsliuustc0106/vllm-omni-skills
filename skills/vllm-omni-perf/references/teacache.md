@@ -42,6 +42,23 @@ TeaCache works with all DiT-based models in vLLM-Omni:
 - Z-Image
 - HunyuanImage3.0
 - OmniGen2
+- Ming-Image (Design, Design-Layer)
+
+## Ming-Image (Design / Design-Layer)
+
+Ming-Image step caching is opt-in (disabled by default). Ming-Image uses zero negative conditioning (empty `negative_prompt`); height/width must be divisible by 16. Configure via `--cache-backend` + `--cache-config`:
+
+```bash
+# Design — TeaCache (default rel_l1_thresh 0.3)
+vllm serve inclusionAI/Ming-Image-0.1-Design --omni \
+  --cache-backend tea_cache --cache-config '{"rel_l1_thresh":0.3}'
+
+# Design — Cache-DiT (residual_diff_threshold 0.16)
+vllm serve inclusionAI/Ming-Image-0.1-Design --omni \
+  --cache-backend cache_dit --cache-config '{"residual_diff_threshold":0.16}'
+```
+
+Design-Layer uses TeaCache threshold 0.13 and Cache-DiT 0.16. Measured E2E latency reduction vs no-cache (2×H100, 1024×1024, 12 steps): Design TeaCache 6.8%, Design Cache-DiT 23.5%, Design-Layer TeaCache 18.7%, Design-Layer Cache-DiT 23.3%.
 
 ## Combining with Other Optimizations
 

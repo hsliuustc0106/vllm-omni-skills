@@ -66,6 +66,10 @@ curl -s http://localhost:8091/v1/images/generations \
 # If PSNR < 25 dB or visual artifacts appear, check references/diffusion.md
 ```
 
+## Hybrid INT4 Checkpoints (drama3-int4)
+
+`fishaudio/drama-3-int4` is a hybrid INT4 checkpoint served with `vllm serve fishaudio/drama-3-int4 --omni`, requiring CUDA SM80+ (Ampere or newer). It registers the `drama3-int4` quantization method: GPTQ INT4 routed experts plus checkpoint-selected dense attention projections (`q_proj/k_proj/v_proj/o_proj`, `linear_attn.in_proj_qkv/in_proj_z/out_proj`) dispatched through `gptq_marlin`, while shared experts, gates, and other projections stay BF16. The config requires `bits=4`, `sym=true`, `desc_act=false`, a `group_size`, `experts.quant_method="gptq"`, `dense.quant_method="gptq_marlin"`, and `dense.targets`. Versus the FP8 checkpoint it cuts model-loading GPU memory (21.33 vs 37.95 GiB on A100) and raises throughput ~21%.
+
 ## Common Mistakes
 
 | Symptom | Likely Cause | Fix |

@@ -151,6 +151,10 @@ Use a reverse proxy to route by path or model name.
 
 **Multimodal cache miss across AR replicas**: Fixed in #3605. Multimodal UUIDs are now scoped per stage-0 replica to prevent the sender from skipping tensor transfers.
 
+## Independent Stage Execution (External Routing)
+
+Independent stage execution (experimental) lets callers run and route each pipeline stage separately. Start a frontend with `VLLM_OMNI_ENABLE_RUN_ENDPOINT=1 vllm serve MODEL --no-async-chunk --stage-id none --omni-master-address 127.0.0.1 --omni-master-port 21212 --omni`, then each worker with `--stage-id <N> --headless` on the same `--omni-master-address/--omni-master-port`. Call `POST /v1/run` once per stage, feeding each response back as the next stage's input (use `vllm_omni.entrypoints.openai.serving_run.decode_output` to unpack the final output); sampling params go on the stage-0 call only. Enable `/v1/run` only for trusted callers — a modified `stage_input` can crash a stage. No async-chunk support; the final response carries only the last stage's output.
+
 ## References
 
 - For model-specific configurations, see [references/model-configs.md](references/model-configs.md)

@@ -25,8 +25,9 @@ vLLM-Omni supports text-to-image generation and image editing through diffusion 
 | SD 3.5 Medium | `stabilityai/stable-diffusion-3.5-medium` | Text-to-image | 12 GB |
 | OmniGen2 | `OmniGen2/OmniGen2` | Text-to-image | 24 GB |
 | HunyuanImage3.0 | `tencent/HunyuanImage-3.0` | Text-to-image + editing | 40 GB |
+| SAM 3 / SAM 3.1 | `facebook/sam3.1`, `facebook/sam3` | Image segmentation (promptable) | experimental |
 
-Dreamid-Omni from ByteDance and FLUX.2-dev with cache_dit support are available. FLUX.2-klein supports plain string prompts (no dict wrapper needed).
+Dreamid-Omni from ByteDance and FLUX.2-dev with cache_dit support are available. FLUX.2-klein supports plain string prompts (no dict wrapper needed). SAM 3 / SAM 3.1 are gated (request access + `HF_TOKEN`) and validated on H200.
 
 ## Quick Start: Offline Generation
 
@@ -139,6 +140,10 @@ vllm serve <model> --omni --cpu-offload-gb 10
 **BAGEL think mode for text2text/img2text**: BAGEL now supports reasoning/thinking mode for text-to-text and image-to-text modalities via `--think` flag. Injects `VLM_THINK_SYSTEM_PROMPT` to enable chain-of-thought output. Fixed in #2503.
 
 **Qwen-Image tiny request sizes**: Small requests (below VAE alignment) are now clamped to minimum valid dimensions instead of collapsing to zero. All Qwen-Image pipeline variants use the shared `normalize_min_aligned_size()` helper. Fixed in #2637.
+
+## Image Segmentation (SAM 3 / SAM 3.1)
+
+SAM 3 / SAM 3.1 add promptable image segmentation (masks/boxes/scores — a distinct output modality, not image generation) via `Sam3Pipeline`. Serve with `vllm serve facebook/sam3.1 --omni` and call `POST /v1/images/segmentations` (multipart) with an uploaded `image` plus a text `prompt` and/or up to 64 exemplar `boxes` + `box_labels` (`1` positive / `0` negative); tune `score_threshold`/`mask_threshold` (default 0.5) and `mask_format` (`png` or `rle`). Offline, put the image in `multi_modal_data` and boxes/thresholds in `OmniDiffusionSamplingParams.extra_args`; results land in `multimodal_output["segmentation"]`.
 
 ## References
 

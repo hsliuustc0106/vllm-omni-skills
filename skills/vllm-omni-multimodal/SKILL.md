@@ -169,6 +169,10 @@ vllm serve Qwen/Qwen3-Omni-30B-A3B-Instruct --omni \
 
 Qwen3-Omni is compatible with the v2 model runner (vllm 0.19). Uses native `launch_core_engines` instead of custom spawning. `add_streaming_update` API removed; audio output tensors are explicitly converted to float. CUDAGraph supports tuple-returning thinker model. Fixed in #2522.
 
+The Qwen3-Omni thinker supports an opt-in `hf_numerics` mode that makes RMSNorm, residual/deepstack adds, rotary embedding, and MoE routing bitwise-match the `transformers` implementation so an HF trainer can recompute rollout log-probs exactly for on-policy RL. Enable with `engine_extras.additional_config.hf_numerics: true` on stage 0, combined with `VLLM_BATCH_INVARIANT=1`, `tensor_parallel_size: 1`, no expert parallelism, and `moe_backend: triton` (set `--moe-backend triton` when `auto` would pick FlashInfer); only the default rope type and unquantized MoE decoder layers are supported. Keep it off for serving — the replaced ops are unfused eager PyTorch.
+
+`cudagraph_mm_encoder: true` now also captures the thinker's audio encoder (image path unchanged; video stays eager), replaying clips of 13–104 tokens (up to ~8 s) from CUDA graphs. Audio graphs are CUDA-only and stay eager with model runner v2, `mm_encoder_tp_mode: data`, or when no listed budget reaches 13 tokens; disable just audio with `additional_config.audio_encoder_cudagraph: false`. Audio budgets round down to whole 13-token chunks and cap at 104 tokens; larger budgets inflate the audio graph pool (~88 MiB → ~270 MiB at 208/256 tokens), deducted from the thinker KV cache.
+
 ## Troubleshooting
 
 **Slow with video input**: Video processing requires extracting and encoding frames. Shorter clips process faster.

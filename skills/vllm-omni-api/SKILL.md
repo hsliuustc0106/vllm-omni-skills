@@ -26,6 +26,9 @@ Diffusion models benefit from multi-thread weight loading (enabled by default), 
 | `/v1/images/edits` | POST | Image editing |
 | `/v1/audio/speech` | POST | Text-to-speech (wav/mp3) |
 | `/v1/audio/voice/upload` | POST | Upload custom voice for cloning |
+| `/v1/images/segmentations` | POST | Image segmentation (SAM 3) |
+| `/v1/videos/segmentations` | POST | Video segmentation & tracking (SAM 3) |
+| `/v1/run` | POST | Run a single pipeline stage (external routing) |
 | /v1/images/edits | POST | Image editing |
 | /v1/videos/generations | POST | Video generation (async poll) |
 | `/health` | GET | Server health check |
@@ -154,6 +157,16 @@ import requests
 resp = requests.get("http://localhost:8091/health")
 assert resp.status_code == 200
 ```
+
+## Audio Speech: Cache Salt & Duration
+
+`/v1/audio/speech` accepts an optional `cache_salt` string that namespaces the TTS prefix cache so callers can narrow KV sharing by tenant/session. The final salt is composed as `"<cache_salt>:<derived>"` when both a caller salt and a server-derived identity exist; the derived identity is auto-generated from voice and input for AR adapters, and re-uploading a voice (VoxCPM2) mints a fresh salt. For non-AR (Qwen-Omni talker) models the caller salt is forwarded as-is only when explicitly set.
+
+Non-streaming `/v1/audio/speech` responses include an `x-audio-duration-seconds` response header (3 decimals) reporting the returned audio's duration from the encoder's post-resampling frame count; it is omitted when unknown and `0.000` when a clip encoded to zero frames. The streaming `speech.audio.done` SSE event adds a `duration` field (seconds sent via `speech.audio.delta`), `0.0` for zero frames and absent when unknown; raw audio streams cannot report a duration.
+
+## Distributed Tracing (OpenTelemetry)
+
+Install `pip install 'vllm-omni[tracing]'` and pass `--otlp-traces-endpoint http://localhost:4317` to enable OpenTelemetry tracing (default gRPC; for HTTP set `OTEL_EXPORTER_OTLP_TRACES_PROTOCOL=http/protobuf` with an endpoint ending in `/v1/traces`; `OTEL_SERVICE_NAME` defaults to `vllm-omni`). Spans are orchestration lifetimes — `omni.pipeline` per request, `omni.stage` per submitted stage (with an `omni.stage.first_output` event), plus `omni.session`/`omni.turn` for realtime — not GPU kernel timings. HTTP accepts W3C `traceparent`/`tracestate`/`baggage`, and `AsyncOmni.generate` accepts `trace_headers`.
 
 ## References
 

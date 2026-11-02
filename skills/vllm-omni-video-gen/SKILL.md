@@ -19,8 +19,9 @@ vLLM-Omni supports video generation through diffusion transformer models, primar
 | NextStep-1.1 | `stepfun-ai/NextStep-1.1` | Text-to-video | 24 GB |
 | Helios-Distilled | `naver-ai/Helios-Distilled` | Text-to-video | 24 GB |
 | daVinci-MagiHuman | `SII-GAIR/daVinci-MagiHuman-Base-1080p` | Image-to-video + audio | 24 GB |
+| SAM 3 | `facebook/sam3` | Video segmentation & tracking | experimental |
 
-daVinci-MagiHuman is an image-to-video model that also generates audio (44100 Hz, 25 fps). Use `--enable-diffusion-pipeline-profiler` to get per-stage timing (`stage_durations`) and peak memory (`peak_memory_mb`) in video responses (async poll JSON or sync HTTP headers).
+daVinci-MagiHuman is an image-to-video model that also generates audio (44100 Hz, 25 fps). Use `--enable-diffusion-pipeline-profiler` to get per-stage timing (`stage_durations`) and peak memory (`peak_memory_mb`) in video responses (async poll JSON or sync HTTP headers). SAM 3 (`facebook/sam3`) is gated (request access + `HF_TOKEN`) and validated on H200.
 
 ## Quick Start: Text-to-Video
 
@@ -113,6 +114,10 @@ Video generation is significantly more compute-intensive than image generation:
 **Out of memory**: Reduce resolution/frame count or use CPU offloading.
 
 **Choppy output**: Increase `num_inference_steps` and `num_frames`.
+
+## Video Segmentation & Tracking (SAM 3)
+
+SAM 3 also does video concept segmentation and tracking (not video generation): serve `facebook/sam3` (gated Transformers `Sam3VideoModel` checkpoint with detector + memory tracker) with `vllm serve facebook/sam3 --omni` and call `POST /v1/videos/segmentations` (multipart) with an uploaded `video` (≤512 MiB, ≤2048 frames) and up to 16 text `prompt`s. Each instance gets a stable object `id`, per-frame COCO-RLE `mask`, `box`, and `score`; set `mask_video=true` for per-object H.264 mask MP4s. SAM 3.1 checkpoints serve image segmentation only. Offline, pass the video via `multi_modal_data["video"]` and prompts via `extra_args["prompts"]`; results land in `multimodal_output["video_segmentation"]`.
 
 ## References
 

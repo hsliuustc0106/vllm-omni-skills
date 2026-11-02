@@ -25,6 +25,7 @@ vLLM-Omni supports text-to-speech (TTS), text-to-audio (sound effects, music), a
 | OmniVoice | `nvidia/OmniVoice` | TTS + voice cloning (HiggsAudioV2) | 8 GB |
 | VoxCPM2 | `openbmb/VoxCPM2` | TTS (native AR, 30+ languages) | 8 GB |
 | Stable-Audio-Open | `stabilityai/stable-audio-open-1.0` | Text-to-audio (music/effects) | 8 GB |
+| Kokoro-82M | `hexgrad/Kokoro-82M` | TTS (single-stage, 54 voices, no cloning) | experimental |
 
 OmniVoice supports voice cloning via `ref_audio` + `ref_text` (requires transformers>=5.3). VoxCPM2 is a 2B tokenizer-free native AR TTS model producing 48kHz audio in 30+ languages (requires `pip install voxcpm`).
 
@@ -146,6 +147,10 @@ The uniproc Code2Wav stage default `max_num_seqs` is now `10` (was `1`). Avoid r
 
 CUDA Graph warmup for Qwen3-TTS now accounts for custom `decode_chunk_frames` / `decode_left_context_frames` overrides.
 
+An opt-in stateful streaming decoder (`decode_streaming: true` under the SharedMemoryConnector `extra`, default `false`) decodes new codec frames without recomputing the suffix's left context, shared across single-stage and two-stage serving. It requires `async_chunk` and a CUDA Code2Wav stage; request slots equal `max_num_seqs`, and `enforce_eager` disables its CUDA-graph capture. Validate quality before enabling — incremental history changes WER versus the legacy window recomputation, and new ICL reference lengths trigger lazy graph capture that can raise first-packet latency, so warm up with representative references.
+
+Code predictor cold-start compile is ~4.5x faster: the warmup path now compiles two Dynamo graphs (one static for batch size 1, one dynamic reused for all larger batches) instead of one graph per batch bucket. No configuration required.
+
 ### High-Concurrency Profile
 
 For high-concurrency TTS serving (voice cloning, c=64+), use `qwen3_tts_high_concurrency.yaml`:
@@ -185,6 +190,21 @@ response = client.chat.completions.create(
 ## Adding a New TTS Model
 
 For a step-by-step guide on integrating a new TTS model into vLLM-Omni, see the [TTS model developer guide](https://github.com/vllm-project/vllm-omni/blob/main/docs/contributing/model/adding_tts_model.md). Offline examples are consolidated under `examples/offline_inference/text_to_speech/<model>/end2end.py`, and online serving examples under `examples/online_serving/text_to_speech/<model>/`.
+
+## Kokoro-82M (Single-Stage TTS)
+
+Kokoro-82M (`hexgrad/Kokoro-82M`, `KokoroForConditionalGeneration`) is a single-stage non-autoregressive TTS model (82M params, 24 kHz mono, Apache-2.0) with 54 built-in voices in nine languages — no voice cloning or custom voices. Install the G2P extra `pip install "vllm-omni[kokoro]"` plus `python -m spacy download en_core_web_sm` (add `misaki[ja]`/`misaki[zh]` for Japanese/Mandarin voices). Serve with `vllm serve hexgrad/Kokoro-82M --omni` and call `POST /v1/audio/speech` with `voice` (default `af_heart`; the first letter selects the G2P language), `language`, native `speed` (0.25–4.0), and optional `seed`. Offline, `Omni.generate` passes `text`/`voice`/`speed`/`seed` via `additional_information`. On hosts without nvcc/ninja set `VLLM_USE_FLASHINFER_SAMPLER=0`; voice-cloning/instruction fields return HTTP 400. Validated on A6000.
+
+## Audio Watermarking (AudioSeal)
+
+Watermarked audio generation is opt-in via the `vllm-omni[watermarking]` extra (`pip install "vllm-omni[watermarking]"`, adds `audioseal`) and the `--watermark-config` flag:
+
+```bash
+vllm serve Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice --omni \
+  --watermark-config '{"modalities":{"audio":{"algorithm":"audioseal"}}}'
+```
+
+Add `"strict": true` to fail the request instead of emitting unwatermarked audio when watermarking fails. Offline, pass `WatermarkConfig({"audio":{"algorithm":"audioseal"}})` to `Omni(watermark_config=...)`. Per-request opt-out with `"watermarking": false` in the request body (or `watermarking=False` on offline sampling params). Verify with `AudioSealWatermarker().is_watermarked(AudioTensor(samples, sample_rate))`. AudioSeal requires mono input (stereo models are downmixed to mid) and a consistent per-model sample rate.
 
 ## Troubleshooting
 

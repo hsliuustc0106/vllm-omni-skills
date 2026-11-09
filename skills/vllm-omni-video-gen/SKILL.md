@@ -19,8 +19,11 @@ vLLM-Omni supports video generation through diffusion transformer models, primar
 | NextStep-1.1 | `stepfun-ai/NextStep-1.1` | Text-to-video | 24 GB |
 | Helios-Distilled | `naver-ai/Helios-Distilled` | Text-to-video | 24 GB |
 | daVinci-MagiHuman | `SII-GAIR/daVinci-MagiHuman-Base-1080p` | Image-to-video + audio | 24 GB |
+| Hy-Nomas-Diffusers | `tencent/Hy-Nomas-Diffusers` | Text-to-video + camera control + realtime streaming | 141 GB |
 
 daVinci-MagiHuman is an image-to-video model that also generates audio (44100 Hz, 25 fps). Use `--enable-diffusion-pipeline-profiler` to get per-stage timing (`stage_durations`) and peak memory (`peak_memory_mb`) in video responses (async poll JSON or sync HTTP headers).
+
+Hy-Nomas (distilled, Diffusers-format) is a text-to-video model with segment prompts (split on `|||`), optional camera control (`camera_trajectory`), and bounded AR streaming over `/v1/videos` — the decoder emits `num_frames=0` chunks carrying `withheld_frames`/`frame_start` metadata until future context arrives. Uses distilled 4/6/8 steps, `guidance_scale=1`, `flow_shift=5`, 24 fps, `num_frames=4n+1`. Requires H200-class GPUs (1x or 2x H200); deploy config at `vllm_omni/deploy/hy_nomas.yaml`.
 
 ## Quick Start: Text-to-Video
 
@@ -113,6 +116,10 @@ Video generation is significantly more compute-intensive than image generation:
 **Out of memory**: Reduce resolution/frame count or use CPU offloading.
 
 **Choppy output**: Increase `num_inference_steps` and `num_frames`.
+
+## Video Depth Estimation
+
+Video Depth Anything provides temporally consistent per-frame depth for videos of any length (relative: affine-invariant; metric: meters) using a DINOv2 backbone + DPT head + temporal transformers. Serve with `vllm serve depth-anything/Video-Depth-Anything-{Small,Base,Large} --omni` (relative) or `depth-anything/Metric-Video-Depth-Anything-{Small,Base,Large}` (metric), and request via `POST /v1/videos/depth` (returns H.264 depth MP4, optional raw float16 NPZ). It uses a 32-frame sliding window (advancing by 22 frames) with least-squares alignment, bounding GPU memory independent of video length. Small weights are Apache-2.0; Base/Large are CC-BY-NC-4.0.
 
 ## References
 

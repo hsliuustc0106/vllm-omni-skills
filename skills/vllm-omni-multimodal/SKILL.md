@@ -169,6 +169,8 @@ vllm serve Qwen/Qwen3-Omni-30B-A3B-Instruct --omni \
 
 Qwen3-Omni is compatible with the v2 model runner (vllm 0.19). Uses native `launch_core_engines` instead of custom spawning. `add_streaming_update` API removed; audio output tensors are explicitly converted to float. CUDAGraph supports tuple-returning thinker model. Fixed in #2522.
 
+The default turn deploy config (`qwen3_omni_moe.yaml`) now selects model runner v2 on CUDA (~14% faster E2E) with the Thinker prefix cache enabled; NPU/XPU/ROCm/MUSA stay on v1. Opt out with `model_runner: v1` in an overlay. Duplex stays on v1 (`qwen3_omni_duplex.yaml`).
+
 ## Troubleshooting
 
 **Slow with video input**: Video processing requires extracting and encoding frames. Shorter clips process faster.

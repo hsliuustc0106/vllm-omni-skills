@@ -78,6 +78,15 @@ Implementation rules:
 - GGUF linear methods expect 2D input; flatten and restore shape around matmul
 - Prefer eager mode and `fp16` unless measurement says otherwise
 
+### SVDQuant (NVFP4 / MXFP4)
+
+Serialized 4-bit W4A4 GEMM with a BF16 low-rank correction (`proj_down` / `proj_up` / `smooth_factor`). `DiffusionSVDQuantConfig` takes a `precision` selector:
+
+- `"nvfp4"` — 16-wide block, `float8_e4m3fn` scales, SM103 (CUDA) only
+- `"mxfp4"` — 32-wide block, E8M0 scales, SM100 + SM103 (and XPU)
+
+Usage: `DiffusionSVDQuantConfig(rank=16, precision="mxfp4")` or `from_config({"rank": 16, "precision": "mxfp4"})`. `rank` must be positive; `act_unsigned` is unsupported; activations are BF16. Kernel selection is automatic (FlashInfer W4A4 when its CuTe-DSL backend is available, else Marlin W4A16). MXFP4 drops the NVFP4-only `wcscales`/`wtscale` globals.
+
 ## Adding a New Method
 
 Follow this order:

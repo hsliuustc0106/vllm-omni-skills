@@ -25,8 +25,11 @@ vLLM-Omni supports text-to-speech (TTS), text-to-audio (sound effects, music), a
 | OmniVoice | `nvidia/OmniVoice` | TTS + voice cloning (HiggsAudioV2) | 8 GB |
 | VoxCPM2 | `openbmb/VoxCPM2` | TTS (native AR, 30+ languages) | 8 GB |
 | Stable-Audio-Open | `stabilityai/stable-audio-open-1.0` | Text-to-audio (music/effects) | 8 GB |
+| Stable-Audio-3 (medium) | `stabilityai/stable-audio-3-medium` | Text-to-audio (music/SFX, stereo 44.1 kHz) | 8 GB |
 
 OmniVoice supports voice cloning via `ref_audio` + `ref_text` (requires transformers>=5.3). VoxCPM2 is a 2B tokenizer-free native AR TTS model producing 48kHz audio in 30+ languages (requires `pip install voxcpm`).
+
+Stable-Audio-3 (medium) is a gated 1.4B DiT + SAME autoencoder text-to-audio model (music/SFX/ambient, stereo 44.1 kHz, up to ~380 s). The HF repo lacks `model_index.json`, so download it first with `python tools/download_stable_audio_3.py --output-dir ./stable-audio-3-medium`, then serve with `--model-class-name StableAudio3Pipeline --trust-remote-code`. Peak ~6.5 GB on a single commodity GPU (RTX 3090/4070/A100); offline examples live under `examples/offline_inference/text_to_audio/`.
 
 ## Model Architectures
 

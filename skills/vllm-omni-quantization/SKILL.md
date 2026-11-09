@@ -10,7 +10,7 @@ description: Use when working on vLLM-Omni quantization for autoregressive, diff
 Use this skill for `vllm-omni` quantization work. The current codebase has a unified quantization framework centered on `vllm_omni.quantization.build_quant_config()`, but the runtime integration still splits into distinct patterns:
 
 - AR and general quantization inherited from upstream `vllm`
-- diffusion quantization for DiT models in `vllm-omni`, currently `fp8`, `int8`, and `gguf`
+- diffusion quantization for DiT models in `vllm-omni`, currently `fp8`, `int8`, `gguf`, and SVDQuant (`nvfp4`/`mxfp4`)
 - multi-stage omni quantization using scoped pre-quantized checkpoints such as Qwen3-Omni thinker ModelOpt checkpoints
 
 Core principle: keep generic quantization infrastructure in upstream `vllm`. Keep `vllm-omni` focused on unified config routing, component scoping, diffusion-specific model wiring, adapter logic, and verification.
@@ -23,7 +23,7 @@ Core principle: keep generic quantization infrastructure in upstream `vllm`. Kee
 | Use `build_quant_config()` or per-component quantization | `references/methods.md` |
 | Quantize diffusion transformer weights with `fp8`, `int8`, or `gguf` | `references/diffusion.md` |
 | Add quantization support to a new diffusion model | `references/adding-models.md` |
-| Add a new quantization method such as `nvfp4` or a new ModelOpt path | `references/diffusion.md` and `references/adding-models.md` |
+| Add a new quantization method such as `nvfp4`/`mxfp4` or a new ModelOpt path | `references/diffusion.md` and `references/adding-models.md` |
 | Unsure whether a change belongs in `vllm` or `vllm-omni` | `references/diffusion.md` |
 
 ## When to Use

@@ -28,6 +28,7 @@ Diffusion models benefit from multi-thread weight loading (enabled by default), 
 | `/v1/audio/voice/upload` | POST | Upload custom voice for cloning |
 | /v1/images/edits | POST | Image editing |
 | /v1/videos/generations | POST | Video generation (async poll) |
+| /v1/videos/depth | POST | Video depth estimation (Video Depth Anything) |
 | `/health` | GET | Server health check |
 | `/v1/models` | GET | List loaded models |
 
@@ -35,6 +36,10 @@ Diffusion models benefit from multi-thread weight loading (enabled by default), 
 `/v1/audio/speech` supports `response_format: "wav"` with streaming.
 
 `/v1/images/generations` supports client-side request cancellation via `AbortController` (or `client.cancel()` in the openai Python SDK). `--max-generated-image-size` is enforced on both `/v1/images/generations` and `/v1/images/edits` (returns HTTP 400 for oversized requests).
+
+## Realtime Endpoint (/v1/realtime)
+
+The turn-based `/v1/realtime` endpoint (select with `duplex=0`, model via `?model=...`) serves Qwen3-Omni. It emits `response.create`, `session.updated`, `response.created`, `response.output_text.delta/.done`, `response.output_audio_transcript.delta/.done`, and `response.done` events. `session.update` is a partial deep-merge (explicit `null` clears a field). Key params: `session.audio.output.voice` / `response.audio.output.voice` (per-response override), `session.audio.output.speed` (0.25–1.5), `reasoning.effort` (text-only), and `audio.input.turn_detection` (`server_vad` / `semantic_vad`; `semantic_vad` requires `interrupt_response: true`). Audio is fixed 24 kHz mono PCM16; the delta field is `response.output_audio.delta.delta` (not `.audio`). Tool calling requires both `--enable-auto-tool-choice` and `--tool-call-parser hermes`.
 
 ## Chat Completions (Universal)
 

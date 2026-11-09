@@ -73,6 +73,15 @@ stages:
 
 The `max_batch_size` for diffusion stages defaults to 1. Increase it only for models that support batched diffusion.
 
+### LoRA Application (Runtime vs Merged)
+
+Diffusion and AR stages support two LoRA application modes via `--lora-application {runtime,merged}` (default `runtime`):
+
+- `runtime` — hot-swappable adapters applied at inference time (the default).
+- `merged` — trainers push A/B adapter tensors at the weight-update barrier and workers merge them in place into dense weights (`W_base + (B @ A) * scale`), preserving compiled-graph parameter storage.
+
+`merged` requires unquantized weights and `--lora-backend peft` (no HSDP, no MoE, no weight offloading). Enable it with `--lora-application merged --lora-backend peft` plus a startup `--lora-path`, or via YAML `lora_application: merged` + `weight_transfer_config: {backend: omni_lora_ipc}`. Hot updates use `client.update_weights(...)`; set `VLLM_ALLOW_INSECURE_SERIALIZATION=1` before creating the client/engine. Validated on Qwen-Image (diffusion) and Qwen3-Omni (AR thinker).
+
 ### GPU Memory Configuration
 
 Calculate memory needs based on model size and desired throughput:
@@ -142,6 +151,8 @@ Use a reverse proxy to route by path or model name.
 **`--dtype` ignored with default stage configs**: When using default stage configs (no `--stage-configs-path`), the `--dtype` arg was silently dropped from diffusion stage engine args. Fixed in #2530 — dtype now correctly propagates from CLI.
 
 **`--stage-init-timeout` not respected**: User-configured stage init timeout was being overridden. Default is now 300s (server-side). Pass `--stage-init-timeout <seconds>` to customize. Fixed in #2519.
+
+**`--shm-threshold-bytes` removed**: This flag was dead code (silently ignored) and has been removed from `vllm serve --omni` and the offline example parsers. Passing it now fails with an unknown-argument error — remove it from launch scripts.
 
 **OOM errors produce no response**: Diffusion pipeline OOM and execution errors now return structured HTTP error responses (e.g., 507) with `request_id`, `stage_id`, and `error_type` fields instead of hanging. Uses `OmniRequestError` dataclass for end-to-end propagation. Fixed in #2638.
 

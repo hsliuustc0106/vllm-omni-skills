@@ -19,8 +19,12 @@ vLLM-Omni supports video generation through diffusion transformer models, primar
 | NextStep-1.1 | `stepfun-ai/NextStep-1.1` | Text-to-video | 24 GB |
 | Helios-Distilled | `naver-ai/Helios-Distilled` | Text-to-video | 24 GB |
 | daVinci-MagiHuman | `SII-GAIR/daVinci-MagiHuman-Base-1080p` | Image-to-video + audio | 24 GB |
+| PAN 2 | `IFM/PAN2` | Text-to-video + image-to-video | 32 GB (offload) |
+| Kandinsky 6 | `kandinskylab/Kandinsky-6.0-Pro-5s-Diffusers` | Text/image-to-video-and-audio (T2VA/I2VA) | experimental |
 
 daVinci-MagiHuman is an image-to-video model that also generates audio (44100 Hz, 25 fps). Use `--enable-diffusion-pipeline-profiler` to get per-stage timing (`stage_durations`) and peak memory (`peak_memory_mb`) in video responses (async poll JSON or sync HTTP headers).
+
+PAN 2 is a 29B mixture-of-transformers DiT (Qwen3.5 text encoder + Wan2.2 VAE) for T2V and I2V; defaults 704x1248, 313 frames (13s @ 24fps), 50 steps, CFG 3, shift 7. Needs ~100 GiB on a single GPU or 32 GB with CPU offload, and runs prompt/video guardrails (`pan2-guardrail`) by default. Kandinsky 6 serves text/image-to-video-and-audio (T2VA/I2VA) as synchronized MP4 (H.264 + AAC 44.1 kHz); Distil checkpoints (`Kandinsky-6.0-Lite-distill-5s-Diffusers`, `Kandinsky-6.0-Pro-distill-5s-Diffusers`) and HD/FHD super-resolution (`Kandinsky-6.0-VSR-5s-Diffusers`) are also supported.
 
 ## Quick Start: Text-to-Video
 

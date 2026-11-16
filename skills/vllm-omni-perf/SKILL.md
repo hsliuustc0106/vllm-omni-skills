@@ -59,6 +59,10 @@ TeaCache and CPU Offload hooks are compatible — use them simultaneously with `
 
 For full quantization guidance (method selection, AWQ/GPTQ workflows, FP8 KV cache, quality verification), see the dedicated **[vllm-omni-quantization](../vllm-omni-quantization/SKILL.md)** skill.
 
+## FlashInfer Autotune (Diffusion)
+
+FlashInfer autotune for diffusion stages (`--diffusion-flashinfer-autotune`, on by default on CUDA SM100+) tunes each new request shape once and caches tactics per rank, so later requests and restarts use tuned GEMM kernels without tune-mode overhead. Disable with `--no-diffusion-flashinfer-autotune`.
+
 ## Multi-Thread Weight Loading
 
 Diffusion models (Qwen-Image, Wan2.2, FLUX, HunyuanImage3.0, etc.) load safetensors shards in parallel using a thread pool instead of sequentially. This is enabled by default and significantly reduces cold-start time:

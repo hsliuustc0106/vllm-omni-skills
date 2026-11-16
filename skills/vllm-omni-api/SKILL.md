@@ -97,6 +97,8 @@ curl -s http://localhost:8091/v1/images/generations \
 
 The response includes `output_format` and `size` fields. When `output_format` is not specified, defaults to `png`.
 
+The OpenAI `n` sampling parameter is honored: `n > 1` generates multiple samples for single-stage requests (runs `n` requests); multi-stage pipelines fail cleanly instead of silently returning one choice. Fixed in #9592.
+
 ## Streaming Responses
 
 For models supporting streaming (text/audio outputs):

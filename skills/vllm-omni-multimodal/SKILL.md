@@ -16,6 +16,9 @@ Omni-modality models accept multiple input types (text, image, audio, video) and
 | Qwen2.5-Omni-7B | `Qwen/Qwen2.5-Omni-7B` | Text, image, audio, video | Text, audio | 24 GB |
 | Qwen2.5-Omni-3B | `Qwen/Qwen2.5-Omni-3B` | Text, image, audio, video | Text, audio | 12 GB |
 | Qwen3-Omni-30B-A3B | `Qwen/Qwen3-Omni-30B-A3B-Instruct` | Text, image, audio, video | Text, audio | 48 GB |
+| LFM3-Omni-2B | `LiquidAI/LFM3-Omni-2B` | Text, image, audio, video | Text, audio | 24 GB |
+
+LFM3-Omni-2B requires `--trust-remote-code`; validated on 1x Ascend 910B1 64GB and 1x RTX 4090 24GB.
 
 ## Quick Start
 

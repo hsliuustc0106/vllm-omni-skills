@@ -25,8 +25,9 @@ vLLM-Omni supports text-to-speech (TTS), text-to-audio (sound effects, music), a
 | OmniVoice | `nvidia/OmniVoice` | TTS + voice cloning (HiggsAudioV2) | 8 GB |
 | VoxCPM2 | `openbmb/VoxCPM2` | TTS (native AR, 30+ languages) | 8 GB |
 | Stable-Audio-Open | `stabilityai/stable-audio-open-1.0` | Text-to-audio (music/effects) | 8 GB |
+| LFM3-Audio-2B | `LiquidAI/LFM3-Audio-2B` | ASR + audio understanding + TTS | 24 GB |
 
-OmniVoice supports voice cloning via `ref_audio` + `ref_text` (requires transformers>=5.3). VoxCPM2 is a 2B tokenizer-free native AR TTS model producing 48kHz audio in 30+ languages (requires `pip install voxcpm`).
+OmniVoice supports voice cloning via `ref_audio` + `ref_text` (requires transformers>=5.3). VoxCPM2 is a 2B tokenizer-free native AR TTS model producing 48kHz audio in 30+ languages (requires `pip install voxcpm`). LFM3-Audio-2B requires `--trust-remote-code` and serves ASR, audio understanding, TTS, and interleaved text/audio (validated on 1x RTX 4090 24GB).
 
 ## Model Architectures
 
@@ -189,6 +190,8 @@ For a step-by-step guide on integrating a new TTS model into vLLM-Omni, see the 
 ## Troubleshooting
 
 **Audio quality issues**: Ensure reference audio for voice cloning is clean (no background noise), 10-20 seconds, single speaker.
+
+**MP4 voice upload rejected**: `POST /v1/audio/voices` rejects MP4/M4A uploads up front because `soundfile` cannot decode the MP4 container (previously it passed validation and failed later with a misleading "Could not decode audio file"). Convert to WAV first: `ffmpeg -i clip.mp4 -vn -ar 48000 -ac 1 -sample_fmt s16 clip.wav`. Fixed in #10087.
 
 **Qwen3-TTS code predictor crash**: Fixed in #1619. If you encounter a crash in the code predictor stage, update to the latest vllm-omni.
 

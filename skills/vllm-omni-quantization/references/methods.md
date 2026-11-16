@@ -63,6 +63,8 @@ GPTQ uses second-order information (Hessian) to minimize quantization error laye
 - **Hardware requirement**: NVIDIA H100/H200/B100 (compute capability 9.0+) for weight FP8; A100+ for KV cache FP8
 - **No calibration needed** for weight FP8 (dynamic quantization)
 - **HuggingFace naming**: `-FP8` or `-fp8` suffix
+- **Qwen2.5-Omni**: online FP8 (`--quantization fp8_per_tensor` on a BF16 checkpoint) is scoped to the thinker language model only; the vision/audio encoders, talker, and code2wav stay BF16 (#3466).
+- **ROCm**: online FP8 supports configurable `online_block_size` values 32/64/128 for square weight groups and matching dynamic activation groups (#10075).
 
 ```bash
 # Weight FP8 (H100+ only)
@@ -71,6 +73,13 @@ vllm serve <model> --omni --quantization fp8
 # KV cache FP8 (A100+)
 vllm serve <model> --omni --kv-cache-dtype fp8
 ```
+
+## MXFP4 (Microscaling 4-bit)
+
+- **Precision**: 4-bit microscaling weights (MXFP4) applied to MoE routed experts
+- **Config**: `quantization_config={"method": "online", "moe": "mxfp4"}`
+- **Hardware**: native MXFP4 MoE kernels on CUDA devices where vLLM reports native MXFP4 expert support, plus XPU
+- **LoRA caveat**: native MXFP4 MoE is rejected when LoRA is enabled. Request-time MoE adapters fail preflight with an actionable `lora_path` message; dense-only adapters still work (#9749)
 
 ## ModelOpt Checkpoints
 
@@ -118,3 +127,4 @@ vllm serve <model> --omni --dtype float16    # for Volta/Turing (V100, RTX 20 se
 | SqueezeLLM | ~2-3x | Medium | Any CUDA | Low |
 | ModelOpt FP8 | ~2x on scoped component | Offline/pre-quantized checkpoint | Ada/Hopper | Model-specific |
 | ModelOpt NVFP4 | >2x on scoped component | Offline/pre-quantized checkpoint | Blackwell | Experimental |
+| MXFP4 MoE | ~4x on MoE expert weights | None (online) | CUDA (native MXFP4) / XPU | Model-specific |

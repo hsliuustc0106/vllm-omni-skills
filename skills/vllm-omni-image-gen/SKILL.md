@@ -21,12 +21,13 @@ vLLM-Omni supports text-to-image generation and image editing through diffusion 
 | FLUX.1-dev | `black-forest-labs/FLUX.1-dev` | Text-to-image | 40 GB |
 | FLUX.2-klein | `black-forest-labs/FLUX.2-klein-4B` | Text-to-image | 16 GB |
 | FLUX.2-dev | `black-forest-labs/FLUX.2-dev` | Text-to-image + cache_dit | 24 GB |
+| FLUX.3 Klein | `black-forest-labs/flux-3-image-klein` | Text-to-image | experimental |
 | Dreamid-Omni | `bytedance/dreamid-omni` | Text-to-image (ByteDance) | 24 GB |
 | SD 3.5 Medium | `stabilityai/stable-diffusion-3.5-medium` | Text-to-image | 12 GB |
 | OmniGen2 | `OmniGen2/OmniGen2` | Text-to-image | 24 GB |
 | HunyuanImage3.0 | `tencent/HunyuanImage-3.0` | Text-to-image + editing | 40 GB |
 
-Dreamid-Omni from ByteDance and FLUX.2-dev with cache_dit support are available. FLUX.2-klein supports plain string prompts (no dict wrapper needed).
+Dreamid-Omni from ByteDance and FLUX.2-dev with cache_dit support are available. FLUX.2-klein supports plain string prompts (no dict wrapper needed). FLUX.3 Klein (`Flux3Pipeline`) is a packaged checkpoint (config.json `model: flux-3-image-klein`) with a Qwen3-VL text encoder and image VAE; serve with `--served-model-name flux-3-image-klein`.
 
 ## Quick Start: Offline Generation
 

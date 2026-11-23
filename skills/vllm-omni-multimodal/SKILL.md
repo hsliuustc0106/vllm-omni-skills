@@ -16,6 +16,9 @@ Omni-modality models accept multiple input types (text, image, audio, video) and
 | Qwen2.5-Omni-7B | `Qwen/Qwen2.5-Omni-7B` | Text, image, audio, video | Text, audio | 24 GB |
 | Qwen2.5-Omni-3B | `Qwen/Qwen2.5-Omni-3B` | Text, image, audio, video | Text, audio | 12 GB |
 | Qwen3-Omni-30B-A3B | `Qwen/Qwen3-Omni-30B-A3B-Instruct` | Text, image, audio, video | Text, audio | 48 GB |
+| Haru-4B | `higurashi-ai/Haru-4B` | Text, audio (full-duplex) | Text, audio (full-duplex) | experimental |
+
+Haru-4B is a full-duplex spoken dialogue model — it listens while it speaks, with 24 kHz speech in/out over `ws://<host>:<port>/v1/realtime?duplex=1`. Serve with `vllm serve higurashi-ai/Haru-4B --omni --deploy-config vllm_omni/deploy/haru.yaml`. Qualified on 1x NVIDIA H200 (141 GB); ~10 GiB weight footprint.
 
 ## Quick Start
 
@@ -168,6 +171,23 @@ vllm serve Qwen/Qwen3-Omni-30B-A3B-Instruct --omni \
 ```
 
 Qwen3-Omni is compatible with the v2 model runner (vllm 0.19). Uses native `launch_core_engines` instead of custom spawning. `add_streaming_update` API removed; audio output tensors are explicitly converted to float. CUDAGraph supports tuple-returning thinker model. Fixed in #2522.
+
+### Full-Duplex Session Configuration
+
+Qwen3-Omni supports real-time full-duplex sessions (text/audio in, text/audio out over the Realtime WebSocket). Per-session options are set via `extra_body`:
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `clock` | wall-clock | `"input"` enables input-clocked sessions — model time advances only as client input arrives (faster than real time when input is buffered) |
+| `silence_continuation` | `true` | `false` stops feeding the model its own silence units while a response runs (for clients streaming their mic continuously) |
+
+### Thinker Speculative Decoding (DFlash)
+
+Opt-in speculative decoding for the Thinker (Phase 1, Thinker-only) is enabled via the stage `speculative_config` with `method: dflash`. DFlash uses an auxiliary draft model to propose tokens from hidden states. Experimental: ~1.6x text-only and ~1.15-1.35x multimodal throughput with roughly halved E2E latency.
+
+### Mooncake KV/Hidden-State Caching
+
+For multi-turn duplex sessions, the Thinker's KV cache and hidden states can spill to a Mooncake Store (opt-in) so follow-up turns reuse cached blocks instead of recomputing prefill. Configure on the Thinker stage via `omni_kv_config.kv_store_config.mooncake_config` (MRv2 only).
 
 ## Troubleshooting
 

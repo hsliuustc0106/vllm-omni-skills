@@ -26,6 +26,7 @@ Diffusion models benefit from multi-thread weight loading (enabled by default), 
 | `/v1/images/edits` | POST | Image editing |
 | `/v1/audio/speech` | POST | Text-to-speech (wav/mp3) |
 | `/v1/audio/voice/upload` | POST | Upload custom voice for cloning |
+| `/v1/audio/speech/stream` | WebSocket | Streaming speech synthesis (pcm/wav) |
 | /v1/images/edits | POST | Image editing |
 | /v1/videos/generations | POST | Video generation (async poll) |
 | `/health` | GET | Server health check |
@@ -35,6 +36,8 @@ Diffusion models benefit from multi-thread weight loading (enabled by default), 
 `/v1/audio/speech` supports `response_format: "wav"` with streaming.
 
 `/v1/images/generations` supports client-side request cancellation via `AbortController` (or `client.cancel()` in the openai Python SDK). `--max-generated-image-size` is enforced on both `/v1/images/generations` and `/v1/images/edits` (returns HTTP 400 for oversized requests).
+
+The speech WebSocket (`/v1/audio/speech/stream`) accepts `stream_audio: true` with `response_format: "wav"` (or `"pcm"`). WAV responses stream as one continuous byte stream: a 44-byte placeholder WAV header (RIFF/data sizes = `0xFFFFFFFF`) followed by PCM samples; strict WAV readers should use non-streaming responses.
 
 ## Chat Completions (Universal)
 

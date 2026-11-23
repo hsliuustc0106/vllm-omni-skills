@@ -104,6 +104,10 @@ Video generation is significantly more compute-intensive than image generation:
   ```
 - For multi-transformer pipelines (e.g., Wan2.2-T2V has `transformer` + `transformer-2`), the sequential offloader now offloads all other DiTs to CPU when any one is running. This allows Wan2.2-T2V to fit on 64GB GPUs with `--enable-cpu-offload --tensor-parallel-size 2`.
 
+## Streaming Video Output
+
+With `streaming_output=True`, request-path diffusion pipelines emit ordered `CHUNK_READY` video chunks mid-forward so clients receive decoded frames in real time instead of waiting for the full clip. Currently bound to CausVid Wan; other pipelines still return a single final result. Optional decode overlap: `extra_args={"async_chunk_decode": True}`.
+
 ## Troubleshooting
 
 **Generation too slow**: Use tensor parallelism or enable TeaCache/Cache-DiT acceleration. Helios supports cache-dit (`--enable-cache-dit`) for ~20% speedup.

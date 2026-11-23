@@ -17,6 +17,7 @@ vLLM-Omni supports distributed execution through multiple strategies: tensor par
 | Pipeline Parallel (PP) | Model stages across GPU groups | Throughput increase | Adds latency per stage |
 | Expert Parallel (EP) | MoE experts across GPUs | MoE models | Requires MoE architecture |
 | Disaggregation | Entire pipeline stages | Independent scaling | Network overhead between stages |
+| Hybrid Sharded DP (HSDP) | Weights sharded across GPUs, one request per rank | Memory-efficient request concurrency (diffusion) | Requires TP/SP/PP/CFG = 1 |
 
 ## Tensor Parallelism
 
@@ -145,6 +146,17 @@ vllm serve Wan-AI/Wan2.2-T2V-A14B-Diffusers --omni \
 ```
 
 This accelerates video/image generation by parallelizing the diffusion computation.
+
+## Hybrid Sharded Data Parallel (HSDP)
+
+HSDP shards model weights across GPUs (FSDP-style) while serving one request per rank — memory-efficient concurrency without per-rank weight replication. Diffusion models only:
+
+```bash
+vllm serve <diffusion-model> --omni \
+  --use-hsdp --hsdp-shard-size 8 --hsdp-data-parallel
+```
+
+Constraints: tensor/sequence/pipeline/CFG parallel sizes must be 1; expert parallelism unsupported; MiniMax-H3 unsupported. `--request-batch-max-wait-ms` defaults to 500 ms when `--hsdp-data-parallel` is set.
 
 ## Configuration Examples
 

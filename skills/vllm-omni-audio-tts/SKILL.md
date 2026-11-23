@@ -25,8 +25,9 @@ vLLM-Omni supports text-to-speech (TTS), text-to-audio (sound effects, music), a
 | OmniVoice | `nvidia/OmniVoice` | TTS + voice cloning (HiggsAudioV2) | 8 GB |
 | VoxCPM2 | `openbmb/VoxCPM2` | TTS (native AR, 30+ languages) | 8 GB |
 | Stable-Audio-Open | `stabilityai/stable-audio-open-1.0` | Text-to-audio (music/effects) | 8 GB |
+| Phonon 31M EN | `gradium/phonon-31m-en` | Streaming TTS (English, default voice) | experimental |
 
-OmniVoice supports voice cloning via `ref_audio` + `ref_text` (requires transformers>=5.3). VoxCPM2 is a 2B tokenizer-free native AR TTS model producing 48kHz audio in 30+ languages (requires `pip install voxcpm`).
+OmniVoice supports voice cloning via `ref_audio` + `ref_text` (requires transformers>=5.3). VoxCPM2 is a 2B tokenizer-free native AR TTS model producing 48kHz audio in 30+ languages (requires `pip install voxcpm`). Phonon 31M is a lightweight English streaming TTS model (default voice only, single request, TP=1). Serve with `vllm serve gradium/phonon-31m-en --omni --deploy-config vllm_omni/deploy/phonon.yaml`. Qualified on 1x RTX 3090 24 GB; measured runtime peak ~1.1 GiB.
 
 ## Model Architectures
 
@@ -181,6 +182,10 @@ response = client.chat.completions.create(
     stream=True,
 )
 ```
+
+## Bit-Reproducible Seeded TTS
+
+A request that sets `seed` plus `extra_args={"omni_user_seed": True}` is solo-admitted by the AR scheduler (never batched with other autoregressive requests), so its output stays byte-for-byte reproducible even under concurrency. Stage-level default seeds are unaffected.
 
 ## Adding a New TTS Model
 

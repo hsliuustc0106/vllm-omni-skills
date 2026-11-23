@@ -73,6 +73,8 @@ stages:
 
 The `max_batch_size` for diffusion stages defaults to 1. Increase it only for models that support batched diffusion.
 
+`model_runner: v2` is the only supported model runner — Model Runner V1 was removed. A stage resolved to `v1` raises a `ValueError`; update any deploy config that explicitly selects V1 to `model_runner: v2`.
+
 ### GPU Memory Configuration
 
 Calculate memory needs based on model size and desired throughput:
